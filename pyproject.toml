@@ -1,0 +1,40 @@
+[project]
+name = "recy"
+version = "0.1.0"
+description = "Shared local app utilities for recs, showco, tuney, and lyte"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "Tom Ritchford", email = "tom@swirly.com" }]
+dependencies = [
+    "pydantic>=2.13.4",
+    "tyro>=1.0.15",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pyupgrade>=3.21.2",
+    "ruff",
+    "ty>=0.0.14",
+]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.format]
+quote-style = "single"
+
+[tool.ruff.lint]
+select = ["B", "E", "F", "I"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
