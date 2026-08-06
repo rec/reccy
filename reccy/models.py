@@ -1,8 +1,9 @@
-from enum import StrEnum, auto
+from enum import auto
 from pathlib import Path
 from typing import Annotated
 
 from pydantic import AfterValidator, BaseModel, Field
+from strenum import StrEnum
 
 from . import validators
 
