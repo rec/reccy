@@ -100,4 +100,4 @@ class StatusResult(BaseModel):
     installed: bool
     running: bool | None = None
     details: str = ''
-    health: DaemonStatus | None = None
+    health: BaseModel | None = None

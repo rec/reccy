@@ -4,7 +4,7 @@ import subprocess as sp
 from collections.abc import Callable
 from pathlib import Path
 
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from . import paths as paths_module
 from . import renderers
@@ -25,11 +25,17 @@ class ServiceController:
         platform: Platform,
         home: Path | None = None,
         runner: Callable[..., sp.CompletedProcess[str]] | None = None,
+        status_model: type[BaseModel] = DaemonStatus,
+        status_error_attribute: str = 'ipc_error',
+        status_error_label: str = 'IPC error',
     ) -> None:
         self.service = service
         self.platform = platform
         self.paths = paths_module.service_paths(service, platform, home)
         self.runner = runner or sp.run
+        self.status_model = status_model
+        self.status_error_attribute = status_error_attribute
+        self.status_error_label = status_error_label
 
     def install(self, metadata: DaemonMetadata) -> StatusResult:
         self._write_metadata(metadata)
@@ -156,10 +162,10 @@ class ServiceController:
                 capture_output=True,
             )
         details = (result.stdout or result.stderr or '').strip()
-        status = _read_status(self.paths.status)
-        if status and status.ipc_error:
+        status = self._read_status(self.paths.status)
+        if status and (error := getattr(status, self.status_error_attribute, None)):
             details = '\n'.join(
-                p for p in [details, f'IPC error: {status.ipc_error}'] if p
+                p for p in [details, f'{self.status_error_label}: {error}'] if p
             )
         return StatusResult(
             health=status,
@@ -198,6 +204,14 @@ class ServiceController:
             text=True,
             capture_output=capture_output,
         )
+
+    def _read_status(self, path: Path) -> BaseModel | None:
+        if not path.exists():
+            return None
+        try:
+            return self.status_model.model_validate_json(path.read_text())
+        except ValidationError:
+            return None
 
 
 def _register_windows_task_command(path: Path) -> str:
@@ -256,12 +270,3 @@ def _write_text_atomically(path: Path, content: str) -> None:
         fp.flush()
         os.fsync(fp.fileno())
     tmp.replace(path)
-
-
-def _read_status(path: Path) -> DaemonStatus | None:
-    if not path.exists():
-        return None
-    try:
-        return DaemonStatus.model_validate_json(path.read_text())
-    except ValidationError:
-        return None

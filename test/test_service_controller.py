@@ -2,6 +2,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from pydantic import BaseModel
 
 from reccy import service as service_module
 from reccy.models import DaemonMetadata, DaemonStatus, Platform, ServiceSpec
@@ -115,6 +116,29 @@ def test_status_reports_ipc_errors(tmp_path: Path) -> None:
     assert result.health.ipc_error == 'address in use'
 
 
+def test_status_supports_custom_status_model(tmp_path: Path) -> None:
+    service = lyte_service()
+    controller = ServiceController(
+        service,
+        Platform.linux,
+        tmp_path,
+        FakeRunner(),
+        status_model=CustomStatus,
+        status_error_attribute='gui_ipc_error',
+        status_error_label='GUI IPC error',
+    )
+    controller.paths.status.parent.mkdir(parents=True)
+    controller.paths.status.write_text(
+        CustomStatus(recording=True, gui_ipc_error='address in use').model_dump_json()
+    )
+
+    result = controller.status()
+
+    assert result.details == 'active\nGUI IPC error: address in use'
+    assert isinstance(result.health, CustomStatus)
+    assert result.health.recording
+
+
 def lyte_service() -> ServiceSpec:
     return ServiceSpec(
         name='lyte',
@@ -124,3 +148,8 @@ def lyte_service() -> ServiceSpec:
         daemon_env_var='LYTE_DAEMON',
         windows_pipe=r'\\.\pipe\lyte',
     )
+
+
+class CustomStatus(BaseModel):
+    recording: bool = False
+    gui_ipc_error: str | None = None
