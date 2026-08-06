@@ -1,10 +1,10 @@
 import logging
-import multiprocessing.connection as mp_connection
 import queue
 import socket
 import sys
 import threading
-import typing as t
+import typing
+from multiprocessing import connection
 from pathlib import Path
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
@@ -15,15 +15,15 @@ CONNECTING_PIPES: set[str] = set()
 CONNECTING_PIPES_LOCK = threading.Lock()
 
 
-class Connection(t.Protocol):
-    def read_lines(self) -> t.Iterator[str]: ...
+class Connection(typing.Protocol):
+    def read_lines(self) -> typing.Iterator[str]: ...
 
     def write(self, message: str) -> bool: ...
 
     def close(self) -> None: ...
 
 
-class ServerBackend(t.Protocol):
+class ServerBackend(typing.Protocol):
     def start(self) -> None: ...
 
     def accept(self) -> Connection | None: ...
@@ -32,13 +32,13 @@ class ServerBackend(t.Protocol):
 
 
 class Hello(BaseModel):
-    type: t.Literal['hello']
+    type: typing.Literal['hello']
     role: str
     version: int
 
 
 class Reply(BaseModel):
-    type: t.Literal['reply']
+    type: typing.Literal['reply']
     id: str
     ok: bool
     result: dict[str, object] | None = None
@@ -46,11 +46,11 @@ class Reply(BaseModel):
 
 
 class Shutdown(BaseModel):
-    type: t.Literal['shutdown']
+    type: typing.Literal['shutdown']
 
 
 class Error(BaseModel):
-    type: t.Literal['error']
+    type: typing.Literal['error']
     message: str
 
 
@@ -79,12 +79,12 @@ class ProtocolListener:
         self,
         conn: Connection,
         *,
-        parse: t.Callable[[str], object],
+        parse: typing.Callable[[str], object],
         version: int,
         peer_role: str,
         local_role: str,
-        on_message: t.Callable[['ProtocolListener', object], None],
-        request_shutdown: t.Callable[[], None] | None = None,
+        on_message: typing.Callable[['ProtocolListener', object], None],
+        request_shutdown: typing.Callable[[], None] | None = None,
         logger: logging.Logger | None = None,
     ) -> None:
         self.conn = conn
@@ -155,12 +155,12 @@ class ProtocolClient:
         self,
         endpoint: str | Path,
         *,
-        parse: t.Callable[[str], object],
+        parse: typing.Callable[[str], object],
         version: int,
         local_role: str,
         peer_role: str,
-        on_message: t.Callable[[object], bool],
-        connect: t.Callable[[str | Path], Connection] = client_connection,
+        on_message: typing.Callable[[object], bool],
+        connect: typing.Callable[[str | Path], Connection] = client_connection,
     ) -> None:
         self.endpoint = endpoint
         self.parse = parse
@@ -266,7 +266,7 @@ class UnixSocketConnection:
         conn.settimeout(None)
         return cls(conn)
 
-    def read_lines(self) -> t.Iterator[str]:
+    def read_lines(self) -> typing.Iterator[str]:
         yield from self.file
 
     def write(self, message: str) -> bool:
@@ -286,10 +286,10 @@ class UnixSocketConnection:
 class WindowsPipeServerBackend:
     def __init__(self, endpoint: str) -> None:
         self.endpoint = endpoint
-        self.listener: mp_connection.Listener | None = None
+        self.listener: connection.Listener | None = None
 
     def start(self) -> None:
-        self.listener = mp_connection.Listener(self.endpoint, family='AF_PIPE')
+        self.listener = connection.Listener(self.endpoint, family='AF_PIPE')
 
     def accept(self) -> Connection | None:
         if self.listener is None:
@@ -305,14 +305,14 @@ class WindowsPipeServerBackend:
 
 
 class WindowsPipeConnection:
-    def __init__(self, conn: mp_connection.Connection) -> None:
+    def __init__(self, conn: connection.Connection) -> None:
         self.conn = conn
 
     @classmethod
     def connect(cls, endpoint: str) -> 'WindowsPipeConnection':
         return cls(connect_windows_pipe(endpoint))
 
-    def read_lines(self) -> t.Iterator[str]:
+    def read_lines(self) -> typing.Iterator[str]:
         while True:
             try:
                 yield str(self.conn.recv())
@@ -344,19 +344,17 @@ def remove_stale_socket(path: Path) -> None:
         path.unlink()
 
 
-def connect_windows_pipe(endpoint: str) -> mp_connection.Connection:
+def connect_windows_pipe(endpoint: str) -> connection.Connection:
     with CONNECTING_PIPES_LOCK:
         if endpoint in CONNECTING_PIPES:
             raise TimeoutError(f'Timed out connecting to {endpoint}')
         CONNECTING_PIPES.add(endpoint)
 
-    results: queue.Queue[mp_connection.Connection | OSError | ValueError] = (
-        queue.Queue()
-    )
+    results: queue.Queue[connection.Connection | OSError | ValueError] = queue.Queue()
 
     def connect() -> None:
         try:
-            result = mp_connection.Client(endpoint, family='AF_PIPE')
+            result = connection.Client(endpoint, family='AF_PIPE')
         except (OSError, ValueError) as error:
             result = error
         with CONNECTING_PIPES_LOCK:

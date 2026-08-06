@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from pydantic import BaseModel
 
-from reccy import service as service_module
+from reccy import service
 from reccy.models import DaemonMetadata, DaemonStatus, Platform, ServiceSpec
 from reccy.renderers import service_metadata
 from reccy.service import ServiceController, ServiceRegistry
@@ -56,10 +56,10 @@ def test_linux_controller_installs_user_service(tmp_path: Path) -> None:
 def test_macos_controller_installs_launch_agent(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    service = lyte_service()
+    service_spec = lyte_service()
     runner = FakeRunner()
-    monkeypatch.setattr(service_module, '_uid', lambda: 501)
-    controller = ServiceController(service, Platform.macos, tmp_path, runner)
+    monkeypatch.setattr(service, '_uid', lambda: 501)
+    controller = ServiceController(service_spec, Platform.macos, tmp_path, runner)
     metadata = service_metadata(
         Path('/opt/lyte/bin/lyte'), Platform.macos, ['run-daemon'], controller.paths
     )

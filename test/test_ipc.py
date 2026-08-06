@@ -1,5 +1,5 @@
 import time
-import typing as t
+import typing
 from pathlib import Path
 
 import pytest
@@ -11,7 +11,7 @@ WINDOWS_PIPE = r'\\.\pipe\reccy-test'
 
 
 class AppMessage(BaseModel):
-    type: t.Literal['app']
+    type: typing.Literal['app']
     value: str
 
 
@@ -39,7 +39,7 @@ def test_windows_pipe_server_accepts_connections(
 ) -> None:
     listener = FakeListener(WINDOWS_PIPE, family='AF_PIPE')
     monkeypatch.setattr(
-        ipc.mp_connection,
+        ipc.connection,
         'Listener',
         lambda endpoint, family: listener,
     )
@@ -65,7 +65,7 @@ def test_windows_pipe_client_uses_named_pipe_family(
         calls.append((endpoint, family))
         return pipe
 
-    monkeypatch.setattr(ipc.mp_connection, 'Client', connect)
+    monkeypatch.setattr(ipc.connection, 'Client', connect)
     connection = ipc.WindowsPipeConnection.connect(WINDOWS_PIPE)
 
     connection.write('hello\n')
@@ -84,7 +84,7 @@ def test_windows_pipe_client_times_out(monkeypatch: pytest.MonkeyPatch) -> None:
         return FakePipe()
 
     monkeypatch.setattr(ipc, 'PIPE_CONNECT_TIMEOUT', 0.01)
-    monkeypatch.setattr(ipc.mp_connection, 'Client', connect)
+    monkeypatch.setattr(ipc.connection, 'Client', connect)
 
     with pytest.raises(TimeoutError, match='Timed out connecting'):
         ipc.WindowsPipeConnection.connect(WINDOWS_PIPE)
@@ -299,7 +299,7 @@ class FakeConnection:
         self.received = received or []
         self.sent: list[str] = []
 
-    def read_lines(self) -> t.Iterator[str]:
+    def read_lines(self) -> typing.Iterator[str]:
         return iter(self.received)
 
     def write(self, message: str) -> bool:
@@ -310,7 +310,7 @@ class FakeConnection:
         self.closed = True
 
 
-def _eventually(check: t.Callable[[], bool]) -> bool:
+def _eventually(check: typing.Callable[[], bool]) -> bool:
     deadline = time.monotonic() + 1
     while time.monotonic() < deadline:
         if check():

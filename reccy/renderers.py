@@ -1,26 +1,19 @@
 import json
 import plistlib
 import shlex
-import subprocess as sp
+import subprocess
 from pathlib import Path
 
-from .models import (
-    DaemonMetadata,
-    Platform,
-    ServiceDefinition,
-    ServicePaths,
-    ServiceSpec,
-    WindowsTaskDefinition,
-)
+from . import models
 
 
 def service_metadata(
     executable: Path,
-    platform: Platform,
+    platform: models.Platform,
     daemon_argv: list[str],
-    paths: ServicePaths,
-) -> DaemonMetadata:
-    return DaemonMetadata(
+    paths: models.ServicePaths,
+) -> models.DaemonMetadata:
+    return models.DaemonMetadata(
         argv=daemon_argv,
         executable=executable,
         platform=platform,
@@ -28,15 +21,15 @@ def service_metadata(
     )
 
 
-def metadata_json(value: DaemonMetadata) -> str:
+def metadata_json(value: models.DaemonMetadata) -> str:
     return json.dumps(value.model_dump(mode='json'), indent=2) + '\n'
 
 
 def macos_launch_agent(
-    value: DaemonMetadata,
-    paths: ServicePaths,
-    service: ServiceSpec,
-) -> ServiceDefinition:
+    value: models.DaemonMetadata,
+    paths: models.ServicePaths,
+    service: models.ServiceSpec,
+) -> models.ServiceDefinition:
     plist = {
         'KeepAlive': True,
         'Label': service.launchd_label,
@@ -48,14 +41,14 @@ def macos_launch_agent(
         'EnvironmentVariables': {service.daemon_env_var: '1'},
     }
     content = plistlib.dumps(plist, sort_keys=True).decode()
-    return ServiceDefinition(path=paths.service, content=content)
+    return models.ServiceDefinition(path=paths.service, content=content)
 
 
 def linux_systemd_unit(
-    value: DaemonMetadata,
-    paths: ServicePaths,
-    service: ServiceSpec,
-) -> ServiceDefinition:
+    value: models.DaemonMetadata,
+    paths: models.ServicePaths,
+    service: models.ServiceSpec,
+) -> models.ServiceDefinition:
     command = shlex.join([_posix(value.executable), *value.argv])
     content = '\n'.join(
         [
@@ -77,14 +70,14 @@ def linux_systemd_unit(
             '',
         ]
     )
-    return ServiceDefinition(path=paths.service, content=content)
+    return models.ServiceDefinition(path=paths.service, content=content)
 
 
 def linux_xdg_autostart(
-    value: DaemonMetadata,
+    value: models.DaemonMetadata,
     home: Path,
-    service: ServiceSpec,
-) -> ServiceDefinition:
+    service: models.ServiceSpec,
+) -> models.ServiceDefinition:
     command = shlex.join([_posix(value.executable), *value.argv])
     path = home / '.config/autostart' / service.desktop_file
     content = '\n'.join(
@@ -99,19 +92,19 @@ def linux_xdg_autostart(
             '',
         ]
     )
-    return ServiceDefinition(path=path, content=content)
+    return models.ServiceDefinition(path=path, content=content)
 
 
 def windows_task(
-    value: DaemonMetadata,
-    paths: ServicePaths,
-    service: ServiceSpec,
-) -> WindowsTaskDefinition:
-    return WindowsTaskDefinition(
+    value: models.DaemonMetadata,
+    paths: models.ServicePaths,
+    service: models.ServiceSpec,
+) -> models.WindowsTaskDefinition:
+    return models.WindowsTaskDefinition(
         task_name=service.name,
         executable=value.executable,
         arguments=value.argv,
-        argument_string=sp.list2cmdline(value.argv),
+        argument_string=subprocess.list2cmdline(value.argv),
         working_directory=Path.home(),
         stdout_log=paths.stdout_log,
         stderr_log=paths.stderr_log,
