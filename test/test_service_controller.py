@@ -3,10 +3,10 @@ from pathlib import Path
 
 import pytest
 
-from recy import service as service_module
-from recy.models import DaemonMetadata, DaemonStatus, Platform, ServiceSpec
-from recy.renderers import service_metadata
-from recy.service import ServiceController
+from reccy import service as service_module
+from reccy.models import DaemonMetadata, DaemonStatus, Platform, ServiceSpec
+from reccy.renderers import service_metadata
+from reccy.service import ServiceController
 
 
 class FakeRunner:

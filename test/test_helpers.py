@@ -2,8 +2,8 @@ import sys
 
 import pytest
 
-from recy import cli, config, subprocess, validators
-from recy.errors import RecyError
+from reccy import cli, config, subprocess, validators
+from reccy.errors import ReccyError
 
 
 def test_route_command_dispatches_to_selected_command() -> None:
@@ -32,7 +32,7 @@ def test_route_command_reports_unknown_command(
 
 def test_run_main_prints_user_facing_errors(capsys: pytest.CaptureFixture[str]) -> None:
     def fail() -> int:
-        raise RecyError('bad config')
+        raise ReccyError('bad config')
 
     assert cli.run_main(fail) == 1
     assert capsys.readouterr().err == 'ERROR: bad config\n'

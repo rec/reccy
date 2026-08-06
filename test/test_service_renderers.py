@@ -4,8 +4,8 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from recy import paths, renderers
-from recy.models import Platform, ServiceSpec
+from reccy import paths, renderers
+from reccy.models import Platform, ServiceSpec
 
 
 def test_paths_support_service_identity() -> None:

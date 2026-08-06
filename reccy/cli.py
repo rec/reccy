@@ -3,7 +3,7 @@ from collections.abc import Callable, Mapping
 
 from pydantic import ValidationError
 
-from .errors import RecyError
+from .errors import ReccyError
 
 
 def route_command(
@@ -32,7 +32,7 @@ def run_main(action: Callable[[], int]) -> int:
         return 0
     except ValidationError as e:
         print('ERROR:', e, file=sys.stderr)
-    except RecyError as e:
+    except ReccyError as e:
         print('ERROR:', *e.args, file=sys.stderr)
     return 1
 

@@ -1,5 +1,5 @@
 [project]
-name = "recy"
+name = "reccy"
 version = "0.1.0"
 description = "Shared local app utilities for recs, showco, tuney, and lyte"
 readme = "README.md"
