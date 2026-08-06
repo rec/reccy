@@ -1,8 +1,10 @@
 import json
 import os
 import subprocess as sp
-from collections.abc import Callable
+import sys
+from collections.abc import Callable, Mapping
 from pathlib import Path
+from typing import TextIO
 
 from pydantic import BaseModel, ValidationError
 
@@ -212,6 +214,69 @@ class ServiceController:
             return self.status_model.model_validate_json(path.read_text())
         except ValidationError:
             return None
+
+
+class ServiceRegistry:
+    def __init__(
+        self,
+        services: Mapping[str, ServiceSpec],
+        *,
+        platform: Platform | None = None,
+        home: Path | None = None,
+        runner: Callable[..., sp.CompletedProcess[str]] | None = None,
+        status_models: Mapping[str, type[BaseModel]] | None = None,
+        status_error_attributes: Mapping[str, str] | None = None,
+        status_error_labels: Mapping[str, str] | None = None,
+    ) -> None:
+        self.services = dict(services)
+        self.platform = platform or paths_module.current_platform()
+        self.home = home
+        self.runner = runner
+        self.status_models = dict(status_models or {})
+        self.status_error_attributes = dict(status_error_attributes or {})
+        self.status_error_labels = dict(status_error_labels or {})
+
+    def controller(self, name: str) -> ServiceController:
+        return ServiceController(
+            self.services[name],
+            self.platform,
+            self.home,
+            self.runner,
+            status_model=self.status_models.get(name, DaemonStatus),
+            status_error_attribute=self.status_error_attributes.get(name, 'ipc_error'),
+            status_error_label=self.status_error_labels.get(name, 'IPC error'),
+        )
+
+    def status(self, name: str) -> StatusResult:
+        return self.controller(name).status()
+
+    def report_status(
+        self,
+        service_names: list[str],
+        *,
+        output: TextIO = sys.stdout,
+        error_output: TextIO = sys.stderr,
+    ) -> int:
+        failures = 0
+        for name in service_names:
+            if name not in self.services:
+                print(f'unknown service: {name}', file=error_output)
+                failures += 1
+                continue
+            result = self.status(name)
+            print_service_status(name, result, output=output)
+            if result.running is not True:
+                failures += 1
+        return 0 if failures == 0 else 1
+
+
+def print_service_status(
+    name: str, result: StatusResult, *, output: TextIO = sys.stdout
+) -> None:
+    state = 'active' if result.running else 'inactive'
+    print(f'{name}: {state}', file=output)
+    if result.details:
+        print(result.details, file=output)
 
 
 def _register_windows_task_command(path: Path) -> str:

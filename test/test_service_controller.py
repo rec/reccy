@@ -1,4 +1,5 @@
 import subprocess
+from io import StringIO
 from pathlib import Path
 
 import pytest
@@ -7,7 +8,7 @@ from pydantic import BaseModel
 from reccy import service as service_module
 from reccy.models import DaemonMetadata, DaemonStatus, Platform, ServiceSpec
 from reccy.renderers import service_metadata
-from reccy.service import ServiceController
+from reccy.service import ServiceController, ServiceRegistry
 
 
 class FakeRunner:
@@ -133,6 +134,61 @@ def test_status_supports_custom_status_model(tmp_path: Path) -> None:
     )
 
     result = controller.status()
+
+    assert result.details == 'active\nGUI IPC error: address in use'
+    assert isinstance(result.health, CustomStatus)
+    assert result.health.recording
+
+
+def test_service_registry_reports_statuses(tmp_path: Path) -> None:
+    runner = FakeRunner()
+    registry = ServiceRegistry(
+        {'lyte': lyte_service()},
+        platform=Platform.linux,
+        home=tmp_path,
+        runner=runner,
+    )
+    output = StringIO()
+
+    result = registry.report_status(['lyte'], output=output)
+
+    assert result == 0
+    assert output.getvalue() == 'lyte: active\nactive\n'
+    assert runner.commands == [['systemctl', '--user', 'is-active', 'lyte.service']]
+
+
+def test_service_registry_reports_unknown_services(tmp_path: Path) -> None:
+    registry = ServiceRegistry(
+        {'lyte': lyte_service()},
+        platform=Platform.linux,
+        home=tmp_path,
+        runner=FakeRunner(),
+    )
+    error_output = StringIO()
+
+    result = registry.report_status(['missing'], error_output=error_output)
+
+    assert result == 1
+    assert error_output.getvalue() == 'unknown service: missing\n'
+
+
+def test_service_registry_supports_custom_status_model(tmp_path: Path) -> None:
+    registry = ServiceRegistry(
+        {'lyte': lyte_service()},
+        platform=Platform.linux,
+        home=tmp_path,
+        runner=FakeRunner(),
+        status_models={'lyte': CustomStatus},
+        status_error_attributes={'lyte': 'gui_ipc_error'},
+        status_error_labels={'lyte': 'GUI IPC error'},
+    )
+    controller = registry.controller('lyte')
+    controller.paths.status.parent.mkdir(parents=True)
+    controller.paths.status.write_text(
+        CustomStatus(recording=True, gui_ipc_error='address in use').model_dump_json()
+    )
+
+    result = registry.status('lyte')
 
     assert result.details == 'active\nGUI IPC error: address in use'
     assert isinstance(result.health, CustomStatus)
