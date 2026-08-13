@@ -2,7 +2,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from reccy import models, rpc
+from reccy import models, rpc, settings
 from reccy.reccy import Reccy, ReccyStatus
 
 
@@ -42,6 +42,15 @@ def test_settings_are_optional_and_saved_atomically(tmp_path: Path) -> None:
 
     assert application.load_settings() == Settings(enabled=True)
     assert not application.settings_path.with_name('.settings.json.tmp').exists()
+
+
+def test_write_json_model_writes_compact_json_atomically(tmp_path: Path) -> None:
+    path = tmp_path / 'status.json'
+
+    settings.write_json_model(path, Settings(enabled=True))
+
+    assert path.read_text() == '{"enabled":true}\n'
+    assert not path.with_name('.status.json.tmp').exists()
 
 
 def test_reccy_starts_rpc_and_writes_status(tmp_path: Path) -> None:
