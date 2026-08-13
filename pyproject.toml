@@ -28,6 +28,9 @@ dev = [
     "ty>=0.0.14",
 ]
 
+[tool.uv]
+exclude-newer = "1 week"
+
 [tool.ruff]
 line-length = 88
 
