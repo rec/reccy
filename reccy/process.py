@@ -24,9 +24,9 @@ class OutputTail:
 class ManagedProcess:
     def __init__(
         self,
-        command: Sequence[str],
+        command: list[str],
         *,
-        run_process: Callable[[Sequence[str]], subprocess.Popen[bytes]] = (
+        run_process: Callable[[list[str]], subprocess.Popen[bytes]] = (
             subprocess.Popen
         ),
     ) -> None:
