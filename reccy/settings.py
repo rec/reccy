@@ -28,12 +28,13 @@ def save(path: Path, value: BaseModel) -> None:
 
 
 def write_json_model(
-    path: Path, value: BaseModel, *, indent: int | None = None
+    path: Path, value: BaseModel, *, indent: int | None = None, sync: bool = True
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f'.{path.name}.tmp')
     with temporary.open('w') as file:
         file.write(value.model_dump_json(indent=indent) + '\n')
         file.flush()
-        os.fsync(file.fileno())
+        if sync:
+            os.fsync(file.fileno())
     temporary.replace(path)

@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 from pydantic import BaseModel
 
 from reccy import models, rpc, settings
@@ -51,6 +52,16 @@ def test_write_json_model_writes_compact_json_atomically(tmp_path: Path) -> None
 
     assert path.read_text() == '{"enabled":true}\n'
     assert not path.with_name('.status.json.tmp').exists()
+
+
+def test_write_json_model_can_skip_sync(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(settings.os, 'fsync', pytest.fail)
+
+    settings.write_json_model(
+        tmp_path / 'status.json', Settings(enabled=True), sync=False
+    )
 
 
 def test_reccy_starts_rpc_and_writes_status(tmp_path: Path) -> None:
