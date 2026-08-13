@@ -28,6 +28,12 @@ class Response(BaseModel):
     message: str | None = None
 
 
+class CommandResult(BaseModel, frozen=True):
+    ok: bool
+    message: str
+    result: dict[str, object]
+
+
 class Event(BaseModel):
     type: Literal['event'] = 'event'
     name: str
@@ -63,6 +69,39 @@ class Client:
             raise ConnectionError('RPC server closed the connection')
         finally:
             connection.close()
+
+
+class ClientAdapter:
+    def __init__(
+        self,
+        endpoint: Path | str,
+        *,
+        role: str = 'client',
+        error_prefix: str = 'RPC command failed',
+    ) -> None:
+        self.endpoint = endpoint
+        self.role = role
+        self.error_prefix = error_prefix
+
+    def command(self, command: str, **params: object) -> CommandResult:
+        try:
+            response = self._call(command, **params)
+        except (ConnectionError, OSError, TimeoutError, ValueError) as error:
+            return CommandResult(
+                ok=False,
+                message=f'{self.error_prefix}: {error}',
+                result={},
+            )
+        if response.ok:
+            return CommandResult(ok=True, message='ok', result=response.result)
+        return CommandResult(
+            ok=False,
+            message=response.message or self.error_prefix,
+            result=response.result,
+        )
+
+    def _call(self, command: str, **params: object) -> Response:
+        return Client(self.endpoint, role=self.role).call(command, **params)
 
 
 class EventClient:

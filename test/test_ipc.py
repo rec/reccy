@@ -283,6 +283,48 @@ def test_rpc_server_handles_requests_and_publishes_events() -> None:
         server.close()
 
 
+def test_rpc_client_adapter_returns_command_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def call(client: rpc.Client, command: str, **params: object) -> rpc.Response:
+        assert client.endpoint == Path('/tmp/reccy-rpc-control.sock')
+        assert client.role == 'application'
+        assert command == 'status'
+        assert params == {'verbose': True}
+        return rpc.Response(id='response', ok=True, result={'state': 'running'})
+
+    monkeypatch.setattr(rpc.Client, 'call', call)
+    client = rpc.ClientAdapter(
+        Path('/tmp/reccy-rpc-control.sock'),
+        role='application',
+    )
+
+    assert client.command('status', verbose=True) == rpc.CommandResult(
+        ok=True,
+        message='ok',
+        result={'state': 'running'},
+    )
+
+
+def test_rpc_client_adapter_reports_connection_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def call(client: rpc.Client, command: str, **params: object) -> rpc.Response:
+        raise ConnectionError('offline')
+
+    monkeypatch.setattr(rpc.Client, 'call', call)
+    client = rpc.ClientAdapter(
+        Path('/tmp/reccy-rpc-control.sock'),
+        error_prefix='application command failed',
+    )
+
+    assert client.command('status') == rpc.CommandResult(
+        ok=False,
+        message='application command failed: offline',
+        result={},
+    )
+
+
 class FakeListener:
     def __init__(self, endpoint: str, *, family: str) -> None:
         self.endpoint = endpoint
