@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
-from reccy import ipc
+from reccy import ipc, rpc
 
 WINDOWS_PIPE = r'\\.\pipe\reccy-test'
 
@@ -253,6 +253,34 @@ def test_parse_message_uses_supplied_adapter() -> None:
     assert parsed == AppMessage(type='app', value='x')
     with pytest.raises(ValidationError):
         ipc.parse_message('{"type":"missing"}', MESSAGE)
+
+
+def test_rpc_server_handles_requests_and_publishes_events() -> None:
+    received: list[rpc.Event] = []
+    server = rpc.Server(
+        Path('/tmp/reccy-rpc-control.sock'),
+        Path('/tmp/reccy-rpc-events.sock'),
+        lambda request: rpc.Response(
+            id=request.id,
+            ok=True,
+            result={'command': request.command},
+        ),
+        role='test',
+    )
+    server.start()
+    subscriber = rpc.EventClient(Path('/tmp/reccy-rpc-events.sock'), received.append)
+    try:
+        subscriber.start()
+        assert _eventually(lambda: len(server.event_connections) == 1)
+        response = rpc.Client(Path('/tmp/reccy-rpc-control.sock')).call('status')
+        server.publish('error', message='disk full')
+        assert response.result == {'command': 'status'}
+        assert _eventually(
+            lambda: received == [rpc.Event(name='error', data={'message': 'disk full'})]
+        )
+    finally:
+        subscriber.close()
+        server.close()
 
 
 class FakeListener:
