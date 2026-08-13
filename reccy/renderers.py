@@ -18,6 +18,7 @@ def service_metadata(
         executable=executable,
         platform=platform,
         control_endpoint=str(paths.control_endpoint),
+        event_endpoint=str(paths.event_endpoint) if paths.event_endpoint else None,
     )
 
 

@@ -25,6 +25,7 @@ def service_paths(
             stdout_log=home / 'Library/Logs' / service.stdout_log_file,
             stderr_log=home / 'Library/Logs' / service.stderr_log_file,
             control_endpoint=home / '.local/state' / service.socket_file,
+            event_endpoint=home / '.local/state' / service.name / 'events.sock',
         )
     if platform == Platform.windows:
         appdata = Path(os.environ.get('APPDATA', home / 'AppData/Roaming'))
@@ -36,6 +37,7 @@ def service_paths(
             stdout_log=local / service.name / 'logs' / f'{service.name}.out.log',
             stderr_log=local / service.name / 'logs' / f'{service.name}.err.log',
             control_endpoint=service.windows_pipe,
+            event_endpoint=None,
         )
     return ServicePaths(
         metadata=home / '.config' / service.metadata_file,
@@ -44,4 +46,5 @@ def service_paths(
         stdout_log=home / '.local/state' / service.stdout_log_file,
         stderr_log=home / '.local/state' / service.stderr_log_file,
         control_endpoint=home / '.local/state' / service.socket_file,
+        event_endpoint=home / '.local/state' / service.name / 'events.sock',
     )

@@ -61,6 +61,7 @@ class DaemonMetadata(BaseModel, frozen=True):
     executable: Path
     platform: Platform
     control_endpoint: str
+    event_endpoint: str | None = None
 
 
 class DaemonStatus(BaseModel):
@@ -79,6 +80,7 @@ class ServicePaths(BaseModel, frozen=True):
     stdout_log: Path
     stderr_log: Path
     control_endpoint: Path | str
+    event_endpoint: Path | str | None = None
 
 
 class ServiceDefinition(BaseModel, frozen=True):
