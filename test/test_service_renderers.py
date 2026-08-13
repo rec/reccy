@@ -84,6 +84,8 @@ def test_linux_systemd_unit() -> None:
     )
     assert 'Environment=LYTE_DAEMON=1' in definition.content
     assert 'Restart=always' in definition.content
+    assert 'StandardOutput=journal' in definition.content
+    assert 'StandardError=journal' in definition.content
     assert 'WantedBy=default.target' in definition.content
 
 
