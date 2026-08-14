@@ -8,7 +8,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field, PrivateAttr
 
-from . import logging, models, paths, renderers, rpc, service, settings
+from . import ipc, logging, models, paths, renderers, rpc, service, settings
 from .errors import ReccyError
 
 
@@ -145,12 +145,8 @@ class Reccy(BaseModel, frozen=True):
             self._rpc_server = None
         self.on_closed()
 
-    def rpc_response(self, request: rpc.Request) -> rpc.Response:
-        return rpc.Response(
-            id=request.id,
-            ok=False,
-            message=f'unknown command {request.command}',
-        )
+    def rpc_response(self, request: rpc.Request) -> rpc.Result:
+        return ipc.Error(type='error', message=f'unknown command {request.command}')
 
     def status_snapshot(self) -> ReccyStatus:
         return ReccyStatus(running=self._started, errors=self._errors.copy())

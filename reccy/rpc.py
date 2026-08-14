@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import threading
-import uuid
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Literal
@@ -15,23 +14,11 @@ VERSION = 1
 
 class Request(BaseModel):
     type: Literal['request'] = 'request'
-    id: str
     command: str
     params: dict[str, object] = Field(default_factory=dict)
 
 
-class Response(BaseModel):
-    type: Literal['response'] = 'response'
-    id: str
-    ok: bool
-    result: dict[str, object] = Field(default_factory=dict)
-    message: str | None = None
-
-
-class CommandResult(BaseModel, frozen=True):
-    ok: bool
-    message: str
-    result: dict[str, object]
+Result = str | dict[str, object] | ipc.Error
 
 
 class Event(BaseModel):
@@ -44,7 +31,7 @@ class Subscribe(BaseModel):
     type: Literal['subscribe'] = 'subscribe'
 
 
-MESSAGE = TypeAdapter(ipc.Hello | ipc.Error | Request | Response | Event | Subscribe)
+MESSAGE = TypeAdapter(ipc.Hello | ipc.Error | Request | Event | Subscribe)
 
 
 class Client:
@@ -52,56 +39,23 @@ class Client:
         self.endpoint = endpoint
         self.role = role
 
-    def call(self, command: str, **params: object) -> Response:
+    def call(self, command: str, **params: object) -> str | dict[str, object]:
         connection = ipc.client_connection(self.endpoint)
         try:
             lines = connection.read_lines()
             _hello(connection, self.role, lines)
-            request = Request(id=str(uuid.uuid4()), command=command, params=params)
+            request = Request(command=command, params=params)
             if not connection.write(ipc.message_json(request)):
                 raise BrokenPipeError('Could not send RPC request')
             for line in lines:
                 message = MESSAGE.validate_json(line)
-                if isinstance(message, Response) and message.id == request.id:
-                    return message
                 if isinstance(message, ipc.Error):
                     raise ConnectionError(message.message)
+                result = TypeAdapter(str | dict[str, object]).validate_json(line)
+                return result
             raise ConnectionError('RPC server closed the connection')
         finally:
             connection.close()
-
-
-class ClientAdapter:
-    def __init__(
-        self,
-        endpoint: Path | str,
-        *,
-        role: str = 'client',
-        error_prefix: str = 'RPC command failed',
-    ) -> None:
-        self.endpoint = endpoint
-        self.role = role
-        self.error_prefix = error_prefix
-
-    def command(self, command: str, **params: object) -> CommandResult:
-        try:
-            response = self._call(command, **params)
-        except (ConnectionError, OSError, TimeoutError, ValueError) as error:
-            return CommandResult(
-                ok=False,
-                message=f'{self.error_prefix}: {error}',
-                result={},
-            )
-        if response.ok:
-            return CommandResult(ok=True, message='ok', result=response.result)
-        return CommandResult(
-            ok=False,
-            message=response.message or self.error_prefix,
-            result=response.result,
-        )
-
-    def _call(self, command: str, **params: object) -> Response:
-        return Client(self.endpoint, role=self.role).call(command, **params)
 
 
 class EventClient:
@@ -144,7 +98,7 @@ class Server:
         self,
         control_endpoint: Path | str,
         event_endpoint: Path | str,
-        handle: Callable[[Request], Response],
+        handle: Callable[[Request], Result],
         *,
         role: str,
     ) -> None:

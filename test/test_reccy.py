@@ -28,8 +28,8 @@ class Application(Reccy):
     status_model = Status
     rpc_enabled = True
 
-    def rpc_response(self, request: rpc.Request) -> rpc.Response:
-        return rpc.Response(id=request.id, ok=True, result={'command': request.command})
+    def rpc_response(self, request: rpc.Request) -> rpc.Result:
+        return {'command': request.command}
 
     def status_snapshot(self) -> Status:
         return Status(running=self._started, errors=self._errors.copy(), state='ready')
@@ -72,7 +72,7 @@ def test_reccy_starts_rpc_and_writes_status(tmp_path: Path) -> None:
         status = Status.model_validate_json(application.status_path.read_text())
         application.publish_error('disk full')
 
-        assert response.result == {'command': 'status'}
+        assert response == {'command': 'status'}
         assert status.running
         assert (
             Status.model_validate_json(application.status_path.read_text())

@@ -260,11 +260,7 @@ def test_rpc_server_handles_requests_and_publishes_events() -> None:
     server = rpc.Server(
         Path('/tmp/reccy-rpc-control.sock'),
         Path('/tmp/reccy-rpc-events.sock'),
-        lambda request: rpc.Response(
-            id=request.id,
-            ok=True,
-            result={'command': request.command},
-        ),
+        lambda request: {'command': request.command},
         role='test',
     )
     server.start()
@@ -274,55 +270,13 @@ def test_rpc_server_handles_requests_and_publishes_events() -> None:
         assert _eventually(lambda: len(server.event_connections) == 1)
         response = rpc.Client(Path('/tmp/reccy-rpc-control.sock')).call('status')
         server.publish('error', message='disk full')
-        assert response.result == {'command': 'status'}
+        assert response == {'command': 'status'}
         assert _eventually(
             lambda: received == [rpc.Event(name='error', data={'message': 'disk full'})]
         )
     finally:
         subscriber.close()
         server.close()
-
-
-def test_rpc_client_adapter_returns_command_result(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    def call(client: rpc.Client, command: str, **params: object) -> rpc.Response:
-        assert client.endpoint == Path('/tmp/reccy-rpc-control.sock')
-        assert client.role == 'application'
-        assert command == 'status'
-        assert params == {'verbose': True}
-        return rpc.Response(id='response', ok=True, result={'state': 'running'})
-
-    monkeypatch.setattr(rpc.Client, 'call', call)
-    client = rpc.ClientAdapter(
-        Path('/tmp/reccy-rpc-control.sock'),
-        role='application',
-    )
-
-    assert client.command('status', verbose=True) == rpc.CommandResult(
-        ok=True,
-        message='ok',
-        result={'state': 'running'},
-    )
-
-
-def test_rpc_client_adapter_reports_connection_error(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    def call(client: rpc.Client, command: str, **params: object) -> rpc.Response:
-        raise ConnectionError('offline')
-
-    monkeypatch.setattr(rpc.Client, 'call', call)
-    client = rpc.ClientAdapter(
-        Path('/tmp/reccy-rpc-control.sock'),
-        error_prefix='application command failed',
-    )
-
-    assert client.command('status') == rpc.CommandResult(
-        ok=False,
-        message='application command failed: offline',
-        result={},
-    )
 
 
 class FakeListener:

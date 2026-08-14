@@ -1,3 +1,4 @@
+import json
 import logging
 import queue
 import socket
@@ -66,8 +67,12 @@ def client_connection(endpoint: str | Path) -> Connection:
     return WindowsPipeConnection.connect(endpoint)
 
 
-def message_json(message: BaseModel, *, exclude_none: bool = False) -> str:
-    return message.model_dump_json(exclude_none=exclude_none) + '\n'
+def message_json(
+    message: BaseModel | dict[str, object] | str, *, exclude_none: bool = False
+) -> str:
+    if isinstance(message, BaseModel):
+        return message.model_dump_json(exclude_none=exclude_none) + '\n'
+    return json.dumps(message, separators=(',', ':')) + '\n'
 
 
 def parse_message(line: str, adapter: TypeAdapter[object]) -> object:
