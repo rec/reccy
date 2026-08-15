@@ -37,26 +37,51 @@ MESSAGE = TypeAdapter(ipc.Hello | ipc.Error | Request | Event | Subscribe)
 
 
 class Client:
-    def __init__(self, endpoint: Path | str, *, role: str = 'client') -> None:
+    def __init__(
+        self, endpoint: Path | str, *, role: str = 'client', timeout: float = 1.0
+    ) -> None:
         self.endpoint = endpoint
         self.role = role
+        self.timeout = timeout
 
     def call(self, command: str, **params: object) -> str | dict[str, object]:
         connection = ipc.client_connection(self.endpoint)
+        expired = threading.Event()
+
+        def close_for_timeout() -> None:
+            expired.set()
+            connection.close()
+
+        timer = threading.Timer(self.timeout, close_for_timeout)
+        timer.start()
         try:
             lines = connection.read_lines()
             _hello(connection, self.role, lines)
             request = Request(command=command, params=params)
             if not connection.write(ipc.message_json(request)):
                 raise BrokenPipeError('Could not send RPC request')
-            for line in lines:
-                message = MESSAGE.validate_json(line)
-                if isinstance(message, ipc.Error):
-                    raise ConnectionError(message.message)
-                result = TypeAdapter(str | dict[str, object]).validate_json(line)
-                return result
+            try:
+                for line in lines:
+                    if expired.is_set():
+                        raise TimeoutError(
+                            f'RPC request timed out after {self.timeout}s'
+                        )
+                    message = MESSAGE.validate_json(line)
+                    if isinstance(message, ipc.Error):
+                        raise ConnectionError(message.message)
+                    result = TypeAdapter(str | dict[str, object]).validate_json(line)
+                    return result
+            except OSError:
+                if expired.is_set():
+                    raise TimeoutError(
+                        f'RPC request timed out after {self.timeout}s'
+                    ) from None
+                raise
+            if expired.is_set():
+                raise TimeoutError(f'RPC request timed out after {self.timeout}s')
             raise ConnectionError('RPC server closed the connection')
         finally:
+            timer.cancel()
             connection.close()
 
 
