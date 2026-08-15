@@ -1,3 +1,4 @@
+import threading
 import time
 import typing
 from pathlib import Path
@@ -91,6 +92,18 @@ def test_windows_pipe_client_times_out(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(TimeoutError, match='Timed out connecting'):
         ipc.WindowsPipeConnection.connect(WINDOWS_PIPE)
     assert calls == 1
+
+
+def test_rpc_client_times_out_when_server_does_not_reply(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = BlockingConnection()
+    monkeypatch.setattr(ipc, 'client_connection', lambda endpoint: connection)
+
+    with pytest.raises(TimeoutError, match='RPC request timed out'):
+        rpc.Client(Path('/tmp/reccy-timeout.sock'), timeout=0.01).call('status')
+
+    assert connection.closed
 
 
 def test_protocol_listener_replies_to_supported_hello() -> None:
@@ -332,6 +345,24 @@ class FakeConnection:
 
     def close(self) -> None:
         self.closed = True
+
+
+class BlockingConnection(FakeConnection):
+    def __init__(self) -> None:
+        super().__init__(
+            [
+                '{"type":"hello","role":"test","version":1}\n',
+            ]
+        )
+        self.closed_event = threading.Event()
+
+    def read_lines(self) -> typing.Iterator[str]:
+        yield from self.received
+        self.closed_event.wait()
+
+    def close(self) -> None:
+        super().close()
+        self.closed_event.set()
 
 
 def _eventually(check: typing.Callable[[], bool]) -> bool:
