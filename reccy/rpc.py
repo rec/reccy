@@ -12,6 +12,8 @@ from . import ipc
 
 VERSION = 1
 HANDSHAKE_TIMEOUT = 1.0
+MAX_CONCURRENT_REQUESTS = 16
+MAX_REQUEST_BYTES = 64 * 1024
 LOGGER = logging.getLogger(__name__)
 
 
@@ -136,6 +138,7 @@ class Server:
         self.role = role
         self.event_connections: list[ipc.Connection] = []
         self.lock = threading.Lock()
+        self.request_slots = threading.BoundedSemaphore(MAX_CONCURRENT_REQUESTS)
         self.running = False
 
     def start(self) -> None:
@@ -169,6 +172,9 @@ class Server:
     def _accept_control(self) -> None:
         while self.running:
             if (connection := self.control_backend.accept()) is not None:
+                if not self.request_slots.acquire(blocking=False):
+                    connection.close()
+                    continue
                 threading.Thread(
                     target=self._serve_control,
                     args=(connection,),
@@ -193,22 +199,33 @@ class Server:
             lines = connection.read_lines()
             try:
                 _receive_hello(connection, self.role, lines)
-            except ValidationError as error:
-                _write_error(connection, error)
+            except (ConnectionError, ValidationError) as error:
+                _write_error(connection, str(error))
                 return
             timer.cancel()
             for line in lines:
+                if len(line.encode()) > MAX_REQUEST_BYTES:
+                    _write_error(connection, 'RPC request exceeds the size limit')
+                    return
                 try:
                     message = MESSAGE.validate_json(line)
                 except ValidationError as error:
-                    _write_error(connection, error)
+                    _write_error(connection, str(error))
                     return
                 if isinstance(message, Request):
-                    connection.write(ipc.message_json(self.handle(message)))
+                    try:
+                        result = self.handle(message)
+                    except (AttributeError, KeyError, TypeError, ValueError) as error:
+                        _write_error(connection, f'RPC handler failed: {error}')
+                        return
+                    connection.write(ipc.message_json(result))
                     return
+                _write_error(connection, 'RPC request required')
+                return
         finally:
             timer.cancel()
             connection.close()
+            self.request_slots.release()
 
     def _serve_events(self, connection: ipc.Connection) -> None:
         timer = threading.Timer(HANDSHAKE_TIMEOUT, connection.close)
@@ -217,15 +234,18 @@ class Server:
             lines = connection.read_lines()
             try:
                 _receive_hello(connection, self.role, lines)
-            except ValidationError as error:
-                _write_error(connection, error)
+            except (ConnectionError, ValidationError) as error:
+                _write_error(connection, str(error))
                 return
             timer.cancel()
             for line in lines:
+                if len(line.encode()) > MAX_REQUEST_BYTES:
+                    _write_error(connection, 'RPC request exceeds the size limit')
+                    return
                 try:
                     message = MESSAGE.validate_json(line)
                 except ValidationError as error:
-                    _write_error(connection, error)
+                    _write_error(connection, str(error))
                     return
                 if isinstance(message, Subscribe):
                     with self.lock:
@@ -273,6 +293,6 @@ def _receive_hello(connection: ipc.Connection, role: str, lines: Iterator[str]) 
     raise ConnectionError('RPC hello required')
 
 
-def _write_error(connection: ipc.Connection, error: ValidationError) -> None:
-    LOGGER.error('Invalid RPC message: %s', error)
-    connection.write(ipc.message_json(ipc.Error(type='error', message=str(error))))
+def _write_error(connection: ipc.Connection, message: str) -> None:
+    LOGGER.error('Invalid RPC message: %s', message)
+    connection.write(ipc.message_json(ipc.Error(type='error', message=message)))
