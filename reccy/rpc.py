@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 from . import ipc
 
 VERSION = 1
+HANDSHAKE_TIMEOUT = 1.0
 LOGGER = logging.getLogger(__name__)
 
 
@@ -186,36 +187,54 @@ class Server:
                 ).start()
 
     def _serve_control(self, connection: ipc.Connection) -> None:
+        timer = threading.Timer(HANDSHAKE_TIMEOUT, connection.close)
+        timer.start()
         try:
             lines = connection.read_lines()
-            _receive_hello(connection, self.role, lines)
+            try:
+                _receive_hello(connection, self.role, lines)
+            except ValidationError as error:
+                _write_error(connection, error)
+                return
+            timer.cancel()
             for line in lines:
                 try:
                     message = MESSAGE.validate_json(line)
-                except ValidationError as e:
-                    LOGGER.error('Invalid RPC message: %s', e)
-                    connection.write(
-                        ipc.message_json(ipc.Error(type='error', message=str(e)))
-                    )
+                except ValidationError as error:
+                    _write_error(connection, error)
                     return
                 if isinstance(message, Request):
                     connection.write(ipc.message_json(self.handle(message)))
                     return
         finally:
+            timer.cancel()
             connection.close()
 
     def _serve_events(self, connection: ipc.Connection) -> None:
+        timer = threading.Timer(HANDSHAKE_TIMEOUT, connection.close)
+        timer.start()
         try:
             lines = connection.read_lines()
-            _receive_hello(connection, self.role, lines)
+            try:
+                _receive_hello(connection, self.role, lines)
+            except ValidationError as error:
+                _write_error(connection, error)
+                return
+            timer.cancel()
             for line in lines:
-                if isinstance(MESSAGE.validate_json(line), Subscribe):
+                try:
+                    message = MESSAGE.validate_json(line)
+                except ValidationError as error:
+                    _write_error(connection, error)
+                    return
+                if isinstance(message, Subscribe):
                     with self.lock:
                         self.event_connections.append(connection)
                     for _ in lines:
                         pass
                     return
         finally:
+            timer.cancel()
             self._remove_event_connection(connection)
             connection.close()
 
@@ -252,3 +271,8 @@ def _receive_hello(connection: ipc.Connection, role: str, lines: Iterator[str]) 
         ipc.message_json(ipc.Error(type='error', message='RPC hello required'))
     )
     raise ConnectionError('RPC hello required')
+
+
+def _write_error(connection: ipc.Connection, error: ValidationError) -> None:
+    LOGGER.error('Invalid RPC message: %s', error)
+    connection.write(ipc.message_json(ipc.Error(type='error', message=str(error))))
