@@ -90,6 +90,7 @@ class ProtocolListener:
         local_role: str,
         on_message: typing.Callable[['ProtocolListener', object], None],
         request_shutdown: typing.Callable[[], None] | None = None,
+        on_validation_error: typing.Callable[[str], None] | None = None,
         logger: logging.Logger | None = None,
     ) -> None:
         self.conn = conn
@@ -99,6 +100,7 @@ class ProtocolListener:
         self.local_role = local_role
         self.on_message = on_message
         self.request_shutdown = request_shutdown
+        self.on_validation_error = on_validation_error
         self.logger = logger or logging.getLogger(__name__)
         self.handshake_complete = False
         self.lock = threading.Lock()
@@ -120,8 +122,10 @@ class ProtocolListener:
         for line in self.conn.read_lines():
             try:
                 message = self.parse(line)
-            except ValidationError:
+            except ValidationError as e:
                 self.logger.warning('Ignoring malformed IPC message')
+                if self.on_validation_error is not None:
+                    self.on_validation_error(str(e))
                 continue
             if isinstance(message, Hello):
                 if not self.receive_hello(message):

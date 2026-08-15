@@ -1,15 +1,17 @@
 from __future__ import annotations
 
+import logging
 import threading
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, Field, TypeAdapter
+from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
 from . import ipc
 
 VERSION = 1
+LOGGER = logging.getLogger(__name__)
 
 
 class Request(BaseModel):
@@ -163,7 +165,14 @@ class Server:
             lines = connection.read_lines()
             _receive_hello(connection, self.role, lines)
             for line in lines:
-                message = MESSAGE.validate_json(line)
+                try:
+                    message = MESSAGE.validate_json(line)
+                except ValidationError as e:
+                    LOGGER.error('Invalid RPC message: %s', e)
+                    connection.write(
+                        ipc.message_json(ipc.Error(type='error', message=str(e)))
+                    )
+                    return
                 if isinstance(message, Request):
                     connection.write(ipc.message_json(self.handle(message)))
                     return
