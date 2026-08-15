@@ -292,6 +292,50 @@ def test_rpc_server_handles_requests_and_publishes_events() -> None:
         server.close()
 
 
+def test_rpc_server_rejects_invalid_control_messages() -> None:
+    server = rpc.Server(
+        Path('/tmp/reccy-rpc-control.sock'),
+        Path('/tmp/reccy-rpc-events.sock'),
+        lambda request: {'command': request.command},
+        role='test',
+    )
+    connection = FakeConnection(
+        [
+            '{"type":"hello","role":"client","version":1}\n',
+            '{"type":"event","name":"wrong"}\n',
+        ]
+    )
+
+    assert server.request_slots.acquire(blocking=False)
+    server._serve_control(connection)
+
+    assert connection.closed
+    assert connection.sent[-1] == '{"type":"error","message":"RPC request required"}\n'
+
+
+def test_rpc_server_rejects_oversized_control_messages() -> None:
+    server = rpc.Server(
+        Path('/tmp/reccy-rpc-control.sock'),
+        Path('/tmp/reccy-rpc-events.sock'),
+        lambda request: {'command': request.command},
+        role='test',
+    )
+    connection = FakeConnection(
+        [
+            '{"type":"hello","role":"client","version":1}\n',
+            'x' * (rpc.MAX_REQUEST_BYTES + 1),
+        ]
+    )
+
+    assert server.request_slots.acquire(blocking=False)
+    server._serve_control(connection)
+
+    assert connection.closed
+    assert connection.sent[-1] == (
+        '{"type":"error","message":"RPC request exceeds the size limit"}\n'
+    )
+
+
 class FakeListener:
     def __init__(self, endpoint: str, *, family: str) -> None:
         self.endpoint = endpoint
