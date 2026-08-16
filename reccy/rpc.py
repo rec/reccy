@@ -69,11 +69,11 @@ class Client:
                         raise TimeoutError(
                             f'RPC request timed out after {self.timeout}s'
                         )
-                    message = MESSAGE.validate_json(line)
-                    if isinstance(message, ipc.Error):
-                        raise ConnectionError(message.message)
-                    result = TypeAdapter(str | dict[str, object]).validate_json(line)
-                    return result
+                    try:
+                        error = ipc.Error.model_validate_json(line)
+                    except ValidationError:
+                        return TypeAdapter(str | dict[str, object]).validate_json(line)
+                    raise ConnectionError(error.message)
             except OSError:
                 if expired.is_set():
                     raise TimeoutError(
