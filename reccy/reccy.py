@@ -23,6 +23,11 @@ class ReccyStatus(BaseModel):
     errors: list[ErrorRecord] = Field(default_factory=list)
 
 
+class MutableAttribute(BaseModel, frozen=True):
+    address: str
+    value: object
+
+
 class Reccy(BaseModel, frozen=True):
     service_spec: ClassVar[models.ServiceSpec | None] = None
     settings_model: ClassVar[type[BaseModel] | None] = None
@@ -146,10 +151,42 @@ class Reccy(BaseModel, frozen=True):
         self.on_closed()
 
     def rpc_response(self, request: rpc.Request) -> rpc.Result:
+        if request.command == 'status':
+            return self.status_snapshot().model_dump(mode='json')
+        if request.command == 'mutable_attributes':
+            return {
+                'attributes': [
+                    attribute.model_dump(mode='json')
+                    for attribute in self.mutable_attributes()
+                ]
+            }
+        if request.command == 'set_attr':
+            if (address := request.params.get('address')) is None:
+                return ipc.Error(type='error', message='set_attr requires address')
+            if not isinstance(address, str):
+                return ipc.Error(
+                    type='error', message='set_attr address must be a string'
+                )
+            if 'value' not in request.params:
+                return ipc.Error(type='error', message='set_attr requires value')
+            try:
+                attribute = self.set_attr(address, request.params['value'])
+            except ValueError as error:
+                return ipc.Error(type='error', message=str(error))
+            return attribute.model_dump(mode='json')
+        return self.rpc_command(request)
+
+    def rpc_command(self, request: rpc.Request) -> rpc.Result:
         return ipc.Error(type='error', message=f'unknown command {request.command}')
 
     def status_snapshot(self) -> ReccyStatus:
         return ReccyStatus(running=self._started, errors=self._errors.copy())
+
+    def mutable_attributes(self) -> list[MutableAttribute]:
+        return []
+
+    def set_attr(self, address: str, value: object) -> MutableAttribute:
+        raise ValueError(f'unknown mutable attribute {address}')
 
     def publish_status(self) -> None:
         if self.status_model is None:
