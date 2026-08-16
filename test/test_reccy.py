@@ -4,7 +4,7 @@ import pytest
 from pydantic import BaseModel
 
 from reccy import models, rpc, settings
-from reccy.reccy import Reccy, ReccyStatus
+from reccy.reccy import MutableAttribute, Reccy, ReccyStatus
 
 
 class Settings(BaseModel, frozen=True):
@@ -28,11 +28,19 @@ class Application(Reccy):
     status_model = Status
     rpc_enabled = True
 
-    def rpc_response(self, request: rpc.Request) -> rpc.Result:
+    def rpc_command(self, request: rpc.Request) -> rpc.Result:
         return {'type': 'application_status', 'command': request.command}
 
     def status_snapshot(self) -> Status:
         return Status(running=self._started, errors=self._errors.copy(), state='ready')
+
+    def mutable_attributes(self) -> list[MutableAttribute]:
+        return [MutableAttribute(address='enabled', value=True)]
+
+    def set_attr(self, address: str, value: object) -> MutableAttribute:
+        if address != 'enabled' or not isinstance(value, bool):
+            raise ValueError('enabled must be a boolean')
+        return MutableAttribute(address=address, value=value)
 
 
 def test_settings_are_optional_and_saved_atomically(tmp_path: Path) -> None:
@@ -72,7 +80,10 @@ def test_reccy_starts_rpc_and_writes_status(tmp_path: Path) -> None:
         status = Status.model_validate_json(application.status_path.read_text())
         application.publish_error('disk full')
 
-        assert response == {'type': 'application_status', 'command': 'status'}
+        assert response['errors'] == []
+        assert response['running'] is True
+        assert response['state'] == 'ready'
+        assert isinstance(response['updated_at'], float)
         assert status.running
         assert (
             Status.model_validate_json(application.status_path.read_text())
@@ -80,6 +91,25 @@ def test_reccy_starts_rpc_and_writes_status(tmp_path: Path) -> None:
             .message
             == 'disk full'
         )
+    finally:
+        application.close()
+
+
+def test_reccy_handles_mutable_attribute_commands() -> None:
+    application = Application(home=Path('/tmp/reccy-mutable'))
+    application.start()
+    try:
+        client = rpc.Client(application.control_endpoint)
+
+        assert client.call('mutable_attributes') == {
+            'attributes': [{'address': 'enabled', 'value': True}]
+        }
+        assert client.call('set_attr', address='enabled', value=False) == {
+            'address': 'enabled',
+            'value': False,
+        }
+        with pytest.raises(ConnectionError, match='enabled must be a boolean'):
+            client.call('set_attr', address='enabled', value='false')
     finally:
         application.close()
 
