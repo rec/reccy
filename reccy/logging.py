@@ -55,6 +55,8 @@ def configure(path: Path | None = None, *, verbose: bool = False) -> None:
     formatter.converter = time.gmtime
     handler.setFormatter(formatter)
     root.addHandler(handler)
+    if path is not None:
+        root.info('reccy logging started')
 
 
 def get_logger(name: str) -> logging.Logger:
