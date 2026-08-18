@@ -52,6 +52,7 @@ def test_linux_controller_installs_user_service(tmp_path: Path) -> None:
     assert result.running
     assert controller.paths.metadata.exists()
     assert controller.paths.service.exists()
+    assert controller.paths.log.exists()
     assert runner.commands == [
         ['systemctl', '--user', 'daemon-reload'],
         ['systemctl', '--user', 'enable', 'lyte.service'],
@@ -106,6 +107,16 @@ def test_status_uses_platform_command(tmp_path: Path) -> None:
     assert result.running
     assert result.details == 'active'
     assert runner.commands == [['systemctl', '--user', 'is-active', 'lyte.service']]
+
+
+def test_start_creates_missing_log(tmp_path: Path) -> None:
+    controller = ServiceController(
+        lyte_service(), Platform.linux, tmp_path, FakeRunner()
+    )
+
+    controller.start()
+
+    assert controller.paths.log.exists()
 
 
 def test_status_reports_ipc_errors(tmp_path: Path) -> None:

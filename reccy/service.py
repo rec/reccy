@@ -33,6 +33,7 @@ class ServiceController:
 
     def install(self, metadata: models.DaemonMetadata) -> models.StatusResult:
         self._write_metadata(metadata)
+        self._ensure_log()
         if self.platform == models.Platform.macos:
             self._write_definition(
                 renderers.macos_launch_agent(metadata, self.paths, self.service)
@@ -91,6 +92,7 @@ class ServiceController:
         return models.StatusResult(installed=False, running=False)
 
     def start(self) -> models.StatusResult:
+        self._ensure_log()
         if self.platform == models.Platform.macos:
             self._run(
                 ['launchctl', 'bootstrap', f'gui/{_uid()}', str(self.paths.service)]
@@ -175,7 +177,6 @@ class ServiceController:
     def _write_definition(self, definition: models.ServiceDefinition) -> None:
         definition.path.parent.mkdir(parents=True, exist_ok=True)
         definition.path.write_text(definition.content)
-        self.paths.log.parent.mkdir(parents=True, exist_ok=True)
 
     def _write_windows_task(self, metadata: models.DaemonMetadata) -> None:
         task = renderers.windows_task(metadata, self.paths, self.service)
@@ -183,7 +184,10 @@ class ServiceController:
         self.paths.service.write_text(
             json.dumps(task.model_dump(mode='json'), indent=2) + '\n'
         )
+
+    def _ensure_log(self) -> None:
         self.paths.log.parent.mkdir(parents=True, exist_ok=True)
+        self.paths.log.touch(exist_ok=True)
 
     def _run(
         self,
