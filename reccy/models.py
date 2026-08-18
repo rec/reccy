@@ -54,7 +54,6 @@ class ServiceSpec(BaseModel, frozen=True):
 class DaemonMetadata(BaseModel, frozen=True):
     version: int = 1
     argv: list[str] = Field(default_factory=list)
-    executable: Path
     platform: Platform
     control_endpoint: str
     event_endpoint: str | None = None
@@ -85,7 +84,6 @@ class ServiceDefinition(BaseModel, frozen=True):
 
 class WindowsTaskDefinition(BaseModel, frozen=True):
     task_name: str
-    executable: Path
     arguments: list[str]
     argument_string: str
     working_directory: Path

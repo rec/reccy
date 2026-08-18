@@ -3,7 +3,6 @@ from __future__ import annotations
 import time
 from logging import Logger
 from pathlib import Path
-from sys import executable
 from typing import ClassVar
 
 from pydantic import BaseModel, Field, PrivateAttr
@@ -99,12 +98,7 @@ class Reccy(BaseModel, frozen=True):
         return service.ServiceController(self.service_spec, self.platform, self.home)
 
     def service_metadata(self, daemon_argv: list[str]) -> models.DaemonMetadata:
-        return renderers.service_metadata(
-            self.daemon_executable(), self.platform, daemon_argv, self.paths
-        )
-
-    def daemon_executable(self) -> Path:
-        return Path(executable)
+        return renderers.service_metadata(self.platform, daemon_argv, self.paths)
 
     def install_service(self, daemon_argv: list[str]) -> models.StatusResult:
         return self.service_controller().install(self.service_metadata(daemon_argv))

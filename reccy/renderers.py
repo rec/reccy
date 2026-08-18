@@ -2,20 +2,19 @@ import json
 import plistlib
 import shlex
 import subprocess
+import sys
 from pathlib import Path
 
 from . import logging, models
 
 
 def service_metadata(
-    executable: Path,
     platform: models.Platform,
     daemon_argv: list[str],
     paths: models.ServicePaths,
 ) -> models.DaemonMetadata:
     return models.DaemonMetadata(
         argv=daemon_argv,
-        executable=executable,
         platform=platform,
         control_endpoint=str(paths.control_endpoint),
         event_endpoint=str(paths.event_endpoint) if paths.event_endpoint else None,
@@ -34,7 +33,7 @@ def macos_launch_agent(
     plist = {
         'KeepAlive': True,
         'Label': service.launchd_label,
-        'ProgramArguments': [_posix(value.executable), *value.argv],
+        'ProgramArguments': [sys.executable, *value.argv],
         'RunAtLoad': True,
         'WorkingDirectory': str(Path.home()),
         'EnvironmentVariables': {
@@ -51,7 +50,7 @@ def linux_systemd_unit(
     paths: models.ServicePaths,
     service: models.ServiceSpec,
 ) -> models.ServiceDefinition:
-    command = shlex.join([_posix(value.executable), *value.argv])
+    command = shlex.join([sys.executable, *value.argv])
     content = '\n'.join(
         [
             '[Unit]',
@@ -79,7 +78,7 @@ def linux_xdg_autostart(
     home: Path,
     service: models.ServiceSpec,
 ) -> models.ServiceDefinition:
-    command = shlex.join([_posix(value.executable), *value.argv])
+    command = shlex.join([sys.executable, *value.argv])
     path = home / '.config/autostart' / service.desktop_file
     content = '\n'.join(
         [
@@ -101,12 +100,9 @@ def windows_task(
     paths: models.ServicePaths,
     service: models.ServiceSpec,
 ) -> models.WindowsTaskDefinition:
-    command = subprocess.list2cmdline([str(value.executable), *value.argv])
-    environment = f'{logging.LOG_PATH_ENVIRONMENT_VARIABLE}={paths.log}'
-    arguments = ['/d', '/s', '/c', f'set "{environment}" && {command}']
+    arguments = ['-m', 'reccy.service_runner', str(paths.log), *value.argv]
     return models.WindowsTaskDefinition(
         task_name=service.name,
-        executable=Path('cmd.exe'),
         arguments=arguments,
         argument_string=subprocess.list2cmdline(arguments),
         working_directory=Path.home(),
