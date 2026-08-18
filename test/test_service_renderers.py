@@ -71,6 +71,7 @@ def test_macos_launch_agent() -> None:
         'reccy.service_runner',
         '/Users/tom/Library/Logs/lyte/lyte.log',
         'lyte',
+        'lyte',
         'run-daemon',
     ]
     assert plist['EnvironmentVariables'] == {'LYTE_DAEMON': '1'}
@@ -94,7 +95,7 @@ def test_linux_systemd_unit() -> None:
     assert 'Description=lyte lighting daemon' in definition.content
     assert (
         'ExecStart=/opt/lyte/bin/lyte -m reccy.service_runner '
-        '/home/tom/.local/state/lyte/lyte.log lyte run-daemon --midi Launchkey'
+        '/home/tom/.local/state/lyte/lyte.log lyte lyte run-daemon --midi Launchkey'
         in definition.content
     )
     assert 'Environment=LYTE_DAEMON=1' in definition.content
@@ -118,7 +119,8 @@ def test_linux_xdg_autostart() -> None:
     assert 'Type=Application' in definition.content
     assert (
         'Exec=/opt/lyte/bin/lyte -m reccy.service_runner '
-        '/home/tom/.local/state/lyte/lyte.log lyte run-daemon' in definition.content
+        '/home/tom/.local/state/lyte/lyte.log lyte lyte run-daemon'
+        in definition.content
     )
     assert 'Terminal=false' in definition.content
 
@@ -140,6 +142,7 @@ def test_windows_task_definition() -> None:
         '-m',
         'reccy.service_runner',
         'C:/Users/tom/AppData/Local/lyte/logs/lyte.log',
+        'lyte',
         'lyte',
         'run-daemon',
         'Main Rig',

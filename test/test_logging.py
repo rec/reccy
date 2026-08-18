@@ -31,11 +31,11 @@ def test_configure_redirects_output_to_rotating_log(monkeypatch, tmp_path) -> No
     path = tmp_path / 'service.log'
     root.handlers = []
     try:
-        reccy_logging.configure(path)
+        reccy_logging.configure(path, service_name='test')
         print('standard output')
         reccy_logging.get_logger('test').error('failed')
 
-        assert 'INFO root: reccy logging started' in path.read_text()
+        assert 'INFO root: test logging started' in path.read_text()
         assert 'standard output' in path.read_text()
         assert 'ERROR test: failed' in path.read_text()
     finally:
