@@ -6,8 +6,8 @@ from . import logging
 
 
 def main() -> None:
-    log, module, *arguments = sys.argv[1:]
-    logging.configure(Path(log))
+    log, service_name, module, *arguments = sys.argv[1:]
+    logging.configure(Path(log), service_name=service_name)
     sys.argv = [module, *arguments]
     runpy.run_module(module, run_name='__main__')
 

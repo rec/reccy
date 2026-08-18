@@ -4,10 +4,12 @@ from reccy import service_runner
 
 
 def test_runner_configures_log_before_running_daemon(monkeypatch) -> None:
-    configured: list[Path] = []
+    configured: list[tuple[Path, str]] = []
     modules: list[tuple[str, str]] = []
     monkeypatch.setattr(
-        service_runner.logging, 'configure', lambda path: configured.append(path)
+        service_runner.logging,
+        'configure',
+        lambda path, *, service_name: configured.append((path, service_name)),
     )
     monkeypatch.setattr(
         service_runner.runpy,
@@ -17,11 +19,11 @@ def test_runner_configures_log_before_running_daemon(monkeypatch) -> None:
     monkeypatch.setattr(
         service_runner.sys,
         'argv',
-        ['runner', '/tmp/recs.log', 'recs', '--silent'],
+        ['runner', '/tmp/recs.log', 'recs', 'recs', '--silent'],
     )
 
     service_runner.main()
 
-    assert configured == [Path('/tmp/recs.log')]
+    assert configured == [(Path('/tmp/recs.log'), 'recs')]
     assert modules == [('recs', '__main__')]
     assert service_runner.sys.argv == ['recs', '--silent']

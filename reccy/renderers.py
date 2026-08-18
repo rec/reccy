@@ -35,7 +35,7 @@ def macos_launch_agent(
     plist = {
         'KeepAlive': True,
         'Label': service.launchd_label,
-        'ProgramArguments': _service_runner_arguments(value, paths),
+        'ProgramArguments': _service_runner_arguments(value, paths, service),
         'RunAtLoad': True,
         'WorkingDirectory': str(Path.home()),
         'EnvironmentVariables': {service.daemon_env_var: '1'},
@@ -49,7 +49,7 @@ def linux_systemd_unit(
     paths: models.ServicePaths,
     service: models.ServiceSpec,
 ) -> models.ServiceDefinition:
-    command = shlex.join(_service_runner_arguments(value, paths))
+    command = shlex.join(_service_runner_arguments(value, paths, service))
     content = '\n'.join(
         [
             '[Unit]',
@@ -77,7 +77,7 @@ def linux_xdg_autostart(
     service: models.ServiceSpec,
 ) -> models.ServiceDefinition:
     service_paths = paths.service_paths(service, value.platform, home)
-    command = shlex.join(_service_runner_arguments(value, service_paths))
+    command = shlex.join(_service_runner_arguments(value, service_paths, service))
     path = home / '.config/autostart' / service.desktop_file
     content = '\n'.join(
         [
@@ -99,7 +99,7 @@ def windows_task(
     paths: models.ServicePaths,
     service: models.ServiceSpec,
 ) -> models.WindowsTaskDefinition:
-    arguments = _service_runner_arguments(value, paths)[1:]
+    arguments = _service_runner_arguments(value, paths, service)[1:]
     return models.WindowsTaskDefinition(
         task_name=service.name,
         arguments=arguments,
@@ -110,13 +110,16 @@ def windows_task(
 
 
 def _service_runner_arguments(
-    value: models.DaemonMetadata, paths: models.ServicePaths
+    value: models.DaemonMetadata,
+    paths: models.ServicePaths,
+    service: models.ServiceSpec,
 ) -> list[str]:
     return [
         sys.executable,
         '-m',
         'reccy.service_runner',
         str(paths.log),
+        service.name,
         value.module,
         *value.argv,
     ]

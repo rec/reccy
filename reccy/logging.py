@@ -37,13 +37,20 @@ class RotatingLogStream:
         self.file = self.path.open('a')
 
 
-def configure(path: Path | None = None, *, verbose: bool = False) -> None:
+def configure(
+    path: Path | None = None,
+    *,
+    service_name: str | None = None,
+    verbose: bool = False,
+) -> None:
     root = logging.getLogger()
     root.setLevel(logging.DEBUG if verbose else logging.INFO)
     if root.handlers:
         return
     stream = sys.stderr
     if path is not None:
+        if service_name is None:
+            raise ValueError('service_name is required when logging to a file')
         stream = RotatingLogStream(path)
         sys.stdout = stream
         sys.stderr = stream
@@ -56,7 +63,7 @@ def configure(path: Path | None = None, *, verbose: bool = False) -> None:
     handler.setFormatter(formatter)
     root.addHandler(handler)
     if path is not None:
-        root.info('reccy logging started')
+        root.info('%s logging started', service_name)
 
 
 def get_logger(name: str) -> logging.Logger:
