@@ -35,6 +35,7 @@ def test_configure_redirects_output_to_rotating_log(monkeypatch, tmp_path) -> No
         print('standard output')
         reccy_logging.get_logger('test').error('failed')
 
+        assert 'INFO root: reccy logging started' in path.read_text()
         assert 'standard output' in path.read_text()
         assert 'ERROR test: failed' in path.read_text()
     finally:
