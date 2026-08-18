@@ -22,8 +22,7 @@ def service_paths(
             metadata=home / '.config' / service.metadata_file,
             service=home / 'Library/LaunchAgents' / f'{service.launchd_label}.plist',
             status=home / '.local/state' / service.status_file,
-            stdout_log=home / 'Library/Logs' / service.stdout_log_file,
-            stderr_log=home / 'Library/Logs' / service.stderr_log_file,
+            log=home / 'Library/Logs' / service.log_file,
             control_endpoint=home / '.local/state' / service.socket_file,
             event_endpoint=home / '.local/state' / service.name / 'events.sock',
         )
@@ -34,8 +33,7 @@ def service_paths(
             metadata=appdata / service.metadata_file,
             service=appdata / service.scheduled_task_file,
             status=local / service.status_file,
-            stdout_log=local / service.name / 'logs' / f'{service.name}.out.log',
-            stderr_log=local / service.name / 'logs' / f'{service.name}.err.log',
+            log=local / service.name / 'logs' / f'{service.name}.log',
             control_endpoint=service.windows_pipe,
             event_endpoint=None,
         )
@@ -43,8 +41,7 @@ def service_paths(
         metadata=home / '.config' / service.metadata_file,
         service=home / '.config/systemd/user' / service.systemd_unit,
         status=home / '.local/state' / service.status_file,
-        stdout_log=home / '.local/state' / service.stdout_log_file,
-        stderr_log=home / '.local/state' / service.stderr_log_file,
+        log=home / '.local/state' / service.log_file,
         control_endpoint=home / '.local/state' / service.socket_file,
         event_endpoint=home / '.local/state' / service.name / 'events.sock',
     )

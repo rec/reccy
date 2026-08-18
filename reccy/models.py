@@ -47,12 +47,8 @@ class ServiceSpec(BaseModel, frozen=True):
         return f'{self.name}/gui.sock'
 
     @property
-    def stdout_log_file(self) -> str:
-        return f'{self.name}/{self.name}.out.log'
-
-    @property
-    def stderr_log_file(self) -> str:
-        return f'{self.name}/{self.name}.err.log'
+    def log_file(self) -> str:
+        return f'{self.name}/{self.name}.log'
 
 
 class DaemonMetadata(BaseModel, frozen=True):
@@ -77,8 +73,7 @@ class ServicePaths(BaseModel, frozen=True):
     metadata: Path
     service: Path
     status: Path
-    stdout_log: Path
-    stderr_log: Path
+    log: Path
     control_endpoint: Path | str
     event_endpoint: Path | str | None = None
 
@@ -94,8 +89,7 @@ class WindowsTaskDefinition(BaseModel, frozen=True):
     arguments: list[str]
     argument_string: str
     working_directory: Path
-    stdout_log: Path
-    stderr_log: Path
+    log: Path
 
 
 class StatusResult(BaseModel):
