@@ -1,13 +1,15 @@
-import os
+import runpy
 import sys
+from pathlib import Path
 
-from .logging import LOG_PATH_ENVIRONMENT_VARIABLE
+from . import logging
 
 
 def main() -> None:
-    log, *arguments = sys.argv[1:]
-    os.environ[LOG_PATH_ENVIRONMENT_VARIABLE] = log
-    os.execv(sys.executable, [sys.executable, *arguments])
+    log, module, *arguments = sys.argv[1:]
+    logging.configure(Path(log))
+    sys.argv = [module, *arguments]
+    runpy.run_module(module, run_name='__main__')
 
 
 if __name__ == '__main__':

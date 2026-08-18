@@ -5,16 +5,18 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import logging, models
+from . import models, paths
 
 
 def service_metadata(
     platform: models.Platform,
+    module: str,
     daemon_argv: list[str],
     paths: models.ServicePaths,
 ) -> models.DaemonMetadata:
     return models.DaemonMetadata(
         argv=daemon_argv,
+        module=module,
         platform=platform,
         control_endpoint=str(paths.control_endpoint),
         event_endpoint=str(paths.event_endpoint) if paths.event_endpoint else None,
@@ -33,13 +35,10 @@ def macos_launch_agent(
     plist = {
         'KeepAlive': True,
         'Label': service.launchd_label,
-        'ProgramArguments': [sys.executable, *value.argv],
+        'ProgramArguments': _service_runner_arguments(value, paths),
         'RunAtLoad': True,
         'WorkingDirectory': str(Path.home()),
-        'EnvironmentVariables': {
-            service.daemon_env_var: '1',
-            logging.LOG_PATH_ENVIRONMENT_VARIABLE: _posix(paths.log),
-        },
+        'EnvironmentVariables': {service.daemon_env_var: '1'},
     }
     content = plistlib.dumps(plist, sort_keys=True).decode()
     return models.ServiceDefinition(path=paths.service, content=content)
@@ -50,7 +49,7 @@ def linux_systemd_unit(
     paths: models.ServicePaths,
     service: models.ServiceSpec,
 ) -> models.ServiceDefinition:
-    command = shlex.join([sys.executable, *value.argv])
+    command = shlex.join(_service_runner_arguments(value, paths))
     content = '\n'.join(
         [
             '[Unit]',
@@ -60,7 +59,6 @@ def linux_systemd_unit(
             '[Service]',
             f'ExecStart={command}',
             f'Environment={service.daemon_env_var}=1',
-            f'Environment={logging.LOG_PATH_ENVIRONMENT_VARIABLE}={_posix(paths.log)}',
             'Restart=always',
             'RestartSec=5',
             'WorkingDirectory=%h',
@@ -78,7 +76,8 @@ def linux_xdg_autostart(
     home: Path,
     service: models.ServiceSpec,
 ) -> models.ServiceDefinition:
-    command = shlex.join([sys.executable, *value.argv])
+    service_paths = paths.service_paths(service, value.platform, home)
+    command = shlex.join(_service_runner_arguments(value, service_paths))
     path = home / '.config/autostart' / service.desktop_file
     content = '\n'.join(
         [
@@ -100,7 +99,7 @@ def windows_task(
     paths: models.ServicePaths,
     service: models.ServiceSpec,
 ) -> models.WindowsTaskDefinition:
-    arguments = ['-m', 'reccy.service_runner', str(paths.log), *value.argv]
+    arguments = _service_runner_arguments(value, paths)[1:]
     return models.WindowsTaskDefinition(
         task_name=service.name,
         arguments=arguments,
@@ -110,5 +109,14 @@ def windows_task(
     )
 
 
-def _posix(path: Path) -> str:
-    return path.as_posix()
+def _service_runner_arguments(
+    value: models.DaemonMetadata, paths: models.ServicePaths
+) -> list[str]:
+    return [
+        sys.executable,
+        '-m',
+        'reccy.service_runner',
+        str(paths.log),
+        value.module,
+        *value.argv,
+    ]

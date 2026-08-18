@@ -29,10 +29,9 @@ def test_configure_redirects_output_to_rotating_log(monkeypatch, tmp_path) -> No
     original_stdout = reccy_logging.sys.stdout
     original_stderr = reccy_logging.sys.stderr
     path = tmp_path / 'service.log'
-    monkeypatch.setenv(reccy_logging.LOG_PATH_ENVIRONMENT_VARIABLE, str(path))
     root.handlers = []
     try:
-        reccy_logging.configure()
+        reccy_logging.configure(path)
         print('standard output')
         reccy_logging.get_logger('test').error('failed')
 

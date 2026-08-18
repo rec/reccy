@@ -34,6 +34,7 @@ class Reccy(BaseModel, frozen=True):
     rpc_enabled: ClassVar[bool] = False
     rpc_role: ClassVar[str | None] = None
     logger_name: ClassVar[str | None] = None
+    daemon_module: ClassVar[str | None] = None
 
     platform: models.Platform = Field(default_factory=paths.current_platform)
     home: Path = Field(default_factory=Path.home)
@@ -98,7 +99,11 @@ class Reccy(BaseModel, frozen=True):
         return service.ServiceController(self.service_spec, self.platform, self.home)
 
     def service_metadata(self, daemon_argv: list[str]) -> models.DaemonMetadata:
-        return renderers.service_metadata(self.platform, daemon_argv, self.paths)
+        if self.daemon_module is None:
+            raise ReccyError('daemon_module is required for service control')
+        return renderers.service_metadata(
+            self.platform, self.daemon_module, daemon_argv, self.paths
+        )
 
     def install_service(self, daemon_argv: list[str]) -> models.StatusResult:
         return self.service_controller().install(self.service_metadata(daemon_argv))
