@@ -1,10 +1,8 @@
 import logging
-import os
 import sys
 import time
 from pathlib import Path
 
-LOG_PATH_ENVIRONMENT_VARIABLE = 'RECCY_LOG_PATH'
 MAX_LOG_BYTES = 1024 * 1024
 MAX_LOG_FILES = 3
 
@@ -39,14 +37,14 @@ class RotatingLogStream:
         self.file = self.path.open('a')
 
 
-def configure(*, verbose: bool = False) -> None:
+def configure(path: Path | None = None, *, verbose: bool = False) -> None:
     root = logging.getLogger()
     root.setLevel(logging.DEBUG if verbose else logging.INFO)
     if root.handlers:
         return
     stream = sys.stderr
-    if path := os.environ.get(LOG_PATH_ENVIRONMENT_VARIABLE):
-        stream = RotatingLogStream(Path(path))
+    if path is not None:
+        stream = RotatingLogStream(path)
         sys.stdout = stream
         sys.stderr = stream
     handler = logging.StreamHandler(stream)

@@ -54,7 +54,9 @@ def test_service_identity_is_validated() -> None:
 def test_macos_launch_agent() -> None:
     service = lyte_service()
     service_paths = paths.service_paths(service, Platform.macos, Path('/Users/tom'))
-    metadata = renderers.service_metadata(Platform.macos, ['run-daemon'], service_paths)
+    metadata = renderers.service_metadata(
+        Platform.macos, 'lyte', ['run-daemon'], service_paths
+    )
 
     definition = renderers.macos_launch_agent(metadata, service_paths, service)
     plist = plistlib.loads(definition.content.encode())
@@ -63,11 +65,15 @@ def test_macos_launch_agent() -> None:
         '/Users/tom/Library/LaunchAgents/com.swirly.lyte.plist'
     )
     assert plist['Label'] == 'com.swirly.lyte'
-    assert plist['ProgramArguments'] == ['/opt/lyte/bin/lyte', 'run-daemon']
-    assert plist['EnvironmentVariables'] == {
-        'LYTE_DAEMON': '1',
-        'RECCY_LOG_PATH': '/Users/tom/Library/Logs/lyte/lyte.log',
-    }
+    assert plist['ProgramArguments'] == [
+        '/opt/lyte/bin/lyte',
+        '-m',
+        'reccy.service_runner',
+        '/Users/tom/Library/Logs/lyte/lyte.log',
+        'lyte',
+        'run-daemon',
+    ]
+    assert plist['EnvironmentVariables'] == {'LYTE_DAEMON': '1'}
     assert plist['RunAtLoad'] is True
     assert plist['KeepAlive'] is True
 
@@ -77,6 +83,7 @@ def test_linux_systemd_unit() -> None:
     service_paths = paths.service_paths(service, Platform.linux, Path('/home/tom'))
     metadata = renderers.service_metadata(
         Platform.linux,
+        'lyte',
         ['run-daemon', '--midi', 'Launchkey'],
         service_paths,
     )
@@ -86,13 +93,12 @@ def test_linux_systemd_unit() -> None:
     assert definition.path == Path('/home/tom/.config/systemd/user/lyte.service')
     assert 'Description=lyte lighting daemon' in definition.content
     assert (
-        'ExecStart=/opt/lyte/bin/lyte run-daemon --midi Launchkey' in definition.content
-    )
-    assert 'Environment=LYTE_DAEMON=1' in definition.content
-    assert (
-        'Environment=RECCY_LOG_PATH=/home/tom/.local/state/lyte/lyte.log'
+        'ExecStart=/opt/lyte/bin/lyte -m reccy.service_runner '
+        '/home/tom/.local/state/lyte/lyte.log lyte run-daemon --midi Launchkey'
         in definition.content
     )
+    assert 'Environment=LYTE_DAEMON=1' in definition.content
+    assert 'RECCY_LOG_PATH' not in definition.content
     assert 'Restart=always' in definition.content
     assert 'StandardOutput=journal' not in definition.content
     assert 'StandardError=journal' not in definition.content
@@ -102,13 +108,18 @@ def test_linux_systemd_unit() -> None:
 def test_linux_xdg_autostart() -> None:
     service = lyte_service()
     service_paths = paths.service_paths(service, Platform.linux, Path('/home/tom'))
-    metadata = renderers.service_metadata(Platform.linux, ['run-daemon'], service_paths)
+    metadata = renderers.service_metadata(
+        Platform.linux, 'lyte', ['run-daemon'], service_paths
+    )
 
     definition = renderers.linux_xdg_autostart(metadata, Path('/home/tom'), service)
 
     assert definition.path == Path('/home/tom/.config/autostart/lyte.desktop')
     assert 'Type=Application' in definition.content
-    assert 'Exec=/opt/lyte/bin/lyte run-daemon' in definition.content
+    assert (
+        'Exec=/opt/lyte/bin/lyte -m reccy.service_runner '
+        '/home/tom/.local/state/lyte/lyte.log lyte run-daemon' in definition.content
+    )
     assert 'Terminal=false' in definition.content
 
 
@@ -117,6 +128,7 @@ def test_windows_task_definition() -> None:
     service_paths = paths.service_paths(service, Platform.windows, Path('C:/Users/tom'))
     metadata = renderers.service_metadata(
         Platform.windows,
+        'lyte',
         ['run-daemon', 'Main Rig'],
         service_paths,
     )
@@ -128,6 +140,7 @@ def test_windows_task_definition() -> None:
         '-m',
         'reccy.service_runner',
         'C:/Users/tom/AppData/Local/lyte/logs/lyte.log',
+        'lyte',
         'run-daemon',
         'Main Rig',
     ]

@@ -54,6 +54,7 @@ class ServiceSpec(BaseModel, frozen=True):
 class DaemonMetadata(BaseModel, frozen=True):
     version: int = 1
     argv: list[str] = Field(default_factory=list)
+    module: str
     platform: Platform
     control_endpoint: str
     event_endpoint: str | None = None
