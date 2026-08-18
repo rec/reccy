@@ -175,7 +175,7 @@ class ServiceController:
     def _write_definition(self, definition: models.ServiceDefinition) -> None:
         definition.path.parent.mkdir(parents=True, exist_ok=True)
         definition.path.write_text(definition.content)
-        self.paths.stdout_log.parent.mkdir(parents=True, exist_ok=True)
+        self.paths.log.parent.mkdir(parents=True, exist_ok=True)
 
     def _write_windows_task(self, metadata: models.DaemonMetadata) -> None:
         task = renderers.windows_task(metadata, self.paths, self.service)
@@ -183,7 +183,7 @@ class ServiceController:
         self.paths.service.write_text(
             json.dumps(task.model_dump(mode='json'), indent=2) + '\n'
         )
-        self.paths.stdout_log.parent.mkdir(parents=True, exist_ok=True)
+        self.paths.log.parent.mkdir(parents=True, exist_ok=True)
 
     def _run(
         self,

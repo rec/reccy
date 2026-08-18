@@ -60,7 +60,10 @@ def test_macos_launch_agent() -> None:
     )
     assert plist['Label'] == 'com.swirly.lyte'
     assert plist['ProgramArguments'] == ['/opt/lyte/bin/lyte', 'run-daemon']
-    assert plist['EnvironmentVariables'] == {'LYTE_DAEMON': '1'}
+    assert plist['EnvironmentVariables'] == {
+        'LYTE_DAEMON': '1',
+        'RECCY_LOG_PATH': '/Users/tom/Library/Logs/lyte/lyte.log',
+    }
     assert plist['RunAtLoad'] is True
     assert plist['KeepAlive'] is True
 
@@ -83,9 +86,13 @@ def test_linux_systemd_unit() -> None:
         'ExecStart=/opt/lyte/bin/lyte run-daemon --midi Launchkey' in definition.content
     )
     assert 'Environment=LYTE_DAEMON=1' in definition.content
+    assert (
+        'Environment=RECCY_LOG_PATH=/home/tom/.local/state/lyte/lyte.log'
+        in definition.content
+    )
     assert 'Restart=always' in definition.content
-    assert 'StandardOutput=journal' in definition.content
-    assert 'StandardError=journal' in definition.content
+    assert 'StandardOutput=journal' not in definition.content
+    assert 'StandardError=journal' not in definition.content
     assert 'WantedBy=default.target' in definition.content
 
 
@@ -117,10 +124,14 @@ def test_windows_task_definition() -> None:
     task = renderers.windows_task(metadata, service_paths, service)
 
     assert task.task_name == 'lyte'
-    assert task.executable == Path('C:/Tools/lyte.exe')
-    assert task.arguments == ['run-daemon', 'Main Rig']
-    assert task.argument_string == 'run-daemon "Main Rig"'
-    assert task.stdout_log.name == 'lyte.out.log'
+    assert task.executable == Path('cmd.exe')
+    assert task.arguments[:3] == ['/d', '/s', '/c']
+    assert (
+        'RECCY_LOG_PATH=C:/Users/tom/AppData/Local/lyte/logs/lyte.log'
+        in task.arguments[3]
+    )
+    assert 'C:/Tools/lyte.exe run-daemon "Main Rig"' in task.arguments[3]
+    assert task.log.name == 'lyte.log'
 
 
 def lyte_service() -> ServiceSpec:

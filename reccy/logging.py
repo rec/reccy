@@ -1,6 +1,42 @@
 import logging
+import os
 import sys
 import time
+from pathlib import Path
+
+LOG_PATH_ENVIRONMENT_VARIABLE = 'RECCY_LOG_PATH'
+MAX_LOG_BYTES = 1024 * 1024
+MAX_LOG_FILES = 3
+
+
+class RotatingLogStream:
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.file = self.path.open('a')
+
+    def write(self, text: str) -> int:
+        if text:
+            self._rotate(len(text.encode()))
+        return self.file.write(text)
+
+    def flush(self) -> None:
+        self.file.flush()
+
+    def _rotate(self, size: int) -> None:
+        if self.file.tell() + size <= MAX_LOG_BYTES:
+            return
+        self.file.close()
+        oldest = self.path.with_suffix(self.path.suffix + f'.{MAX_LOG_FILES - 1}')
+        oldest.unlink(missing_ok=True)
+        for i in range(MAX_LOG_FILES - 2, 0, -1):
+            source = self.path.with_suffix(self.path.suffix + f'.{i}')
+            target = self.path.with_suffix(self.path.suffix + f'.{i + 1}')
+            if source.exists():
+                source.replace(target)
+        if self.path.exists():
+            self.path.replace(self.path.with_suffix(self.path.suffix + '.1'))
+        self.file = self.path.open('a')
 
 
 def configure(*, verbose: bool = False) -> None:
@@ -8,7 +44,12 @@ def configure(*, verbose: bool = False) -> None:
     root.setLevel(logging.DEBUG if verbose else logging.INFO)
     if root.handlers:
         return
-    handler = logging.StreamHandler(sys.stderr)
+    stream = sys.stderr
+    if path := os.environ.get(LOG_PATH_ENVIRONMENT_VARIABLE):
+        stream = RotatingLogStream(Path(path))
+        sys.stdout = stream
+        sys.stderr = stream
+    handler = logging.StreamHandler(stream)
     formatter = logging.Formatter(
         '%(asctime)sZ %(levelname)s %(name)s: %(message)s',
         datefmt='%Y-%m-%dT%H:%M:%S',

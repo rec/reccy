@@ -4,7 +4,7 @@ import shlex
 import subprocess
 from pathlib import Path
 
-from . import models
+from . import logging, models
 
 
 def service_metadata(
@@ -36,10 +36,11 @@ def macos_launch_agent(
         'Label': service.launchd_label,
         'ProgramArguments': [_posix(value.executable), *value.argv],
         'RunAtLoad': True,
-        'StandardErrorPath': _posix(paths.stderr_log),
-        'StandardOutPath': _posix(paths.stdout_log),
         'WorkingDirectory': str(Path.home()),
-        'EnvironmentVariables': {service.daemon_env_var: '1'},
+        'EnvironmentVariables': {
+            service.daemon_env_var: '1',
+            logging.LOG_PATH_ENVIRONMENT_VARIABLE: _posix(paths.log),
+        },
     }
     content = plistlib.dumps(plist, sort_keys=True).decode()
     return models.ServiceDefinition(path=paths.service, content=content)
@@ -60,11 +61,10 @@ def linux_systemd_unit(
             '[Service]',
             f'ExecStart={command}',
             f'Environment={service.daemon_env_var}=1',
+            f'Environment={logging.LOG_PATH_ENVIRONMENT_VARIABLE}={_posix(paths.log)}',
             'Restart=always',
             'RestartSec=5',
             'WorkingDirectory=%h',
-            'StandardOutput=journal',
-            'StandardError=journal',
             '',
             '[Install]',
             'WantedBy=default.target',
@@ -101,14 +101,16 @@ def windows_task(
     paths: models.ServicePaths,
     service: models.ServiceSpec,
 ) -> models.WindowsTaskDefinition:
+    command = subprocess.list2cmdline([str(value.executable), *value.argv])
+    environment = f'{logging.LOG_PATH_ENVIRONMENT_VARIABLE}={paths.log}'
+    arguments = ['/d', '/s', '/c', f'set "{environment}" && {command}']
     return models.WindowsTaskDefinition(
         task_name=service.name,
-        executable=value.executable,
-        arguments=value.argv,
-        argument_string=subprocess.list2cmdline(value.argv),
+        executable=Path('cmd.exe'),
+        arguments=arguments,
+        argument_string=subprocess.list2cmdline(arguments),
         working_directory=Path.home(),
-        stdout_log=paths.stdout_log,
-        stderr_log=paths.stderr_log,
+        log=paths.log,
     )
 
 
