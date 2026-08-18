@@ -1,4 +1,5 @@
 import plistlib
+import sys
 from pathlib import Path
 
 import pytest
@@ -6,6 +7,11 @@ from pydantic import ValidationError
 
 from reccy import paths, renderers
 from reccy.models import Platform, ServiceSpec
+
+
+@pytest.fixture(autouse=True)
+def executable(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, 'executable', '/opt/lyte/bin/lyte')
 
 
 def test_paths_support_service_identity() -> None:
@@ -48,9 +54,7 @@ def test_service_identity_is_validated() -> None:
 def test_macos_launch_agent() -> None:
     service = lyte_service()
     service_paths = paths.service_paths(service, Platform.macos, Path('/Users/tom'))
-    metadata = renderers.service_metadata(
-        Path('/opt/lyte/bin/lyte'), Platform.macos, ['run-daemon'], service_paths
-    )
+    metadata = renderers.service_metadata(Platform.macos, ['run-daemon'], service_paths)
 
     definition = renderers.macos_launch_agent(metadata, service_paths, service)
     plist = plistlib.loads(definition.content.encode())
@@ -72,7 +76,6 @@ def test_linux_systemd_unit() -> None:
     service = lyte_service()
     service_paths = paths.service_paths(service, Platform.linux, Path('/home/tom'))
     metadata = renderers.service_metadata(
-        Path('/opt/lyte/bin/lyte'),
         Platform.linux,
         ['run-daemon', '--midi', 'Launchkey'],
         service_paths,
@@ -99,9 +102,7 @@ def test_linux_systemd_unit() -> None:
 def test_linux_xdg_autostart() -> None:
     service = lyte_service()
     service_paths = paths.service_paths(service, Platform.linux, Path('/home/tom'))
-    metadata = renderers.service_metadata(
-        Path('/opt/lyte/bin/lyte'), Platform.linux, ['run-daemon'], service_paths
-    )
+    metadata = renderers.service_metadata(Platform.linux, ['run-daemon'], service_paths)
 
     definition = renderers.linux_xdg_autostart(metadata, Path('/home/tom'), service)
 
@@ -115,7 +116,6 @@ def test_windows_task_definition() -> None:
     service = lyte_service()
     service_paths = paths.service_paths(service, Platform.windows, Path('C:/Users/tom'))
     metadata = renderers.service_metadata(
-        Path('C:/Tools/lyte.exe'),
         Platform.windows,
         ['run-daemon', 'Main Rig'],
         service_paths,
@@ -124,13 +124,13 @@ def test_windows_task_definition() -> None:
     task = renderers.windows_task(metadata, service_paths, service)
 
     assert task.task_name == 'lyte'
-    assert task.executable == Path('cmd.exe')
-    assert task.arguments[:3] == ['/d', '/s', '/c']
-    assert (
-        'RECCY_LOG_PATH=C:/Users/tom/AppData/Local/lyte/logs/lyte.log'
-        in task.arguments[3]
-    )
-    assert 'C:/Tools/lyte.exe run-daemon "Main Rig"' in task.arguments[3]
+    assert task.arguments == [
+        '-m',
+        'reccy.service_runner',
+        'C:/Users/tom/AppData/Local/lyte/logs/lyte.log',
+        'run-daemon',
+        'Main Rig',
+    ]
     assert task.log.name == 'lyte.log'
 
 

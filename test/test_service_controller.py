@@ -1,4 +1,5 @@
 import subprocess
+import sys
 from io import StringIO
 from pathlib import Path
 
@@ -9,6 +10,11 @@ from reccy import service
 from reccy.models import DaemonMetadata, DaemonStatus, Platform, ServiceSpec
 from reccy.renderers import service_metadata
 from reccy.service import ServiceController, ServiceRegistry
+
+
+@pytest.fixture(autouse=True)
+def executable(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, 'executable', '/opt/lyte/bin/lyte')
 
 
 class FakeRunner:
@@ -36,9 +42,7 @@ def test_linux_controller_installs_user_service(tmp_path: Path) -> None:
     service = lyte_service()
     runner = FakeRunner()
     controller = ServiceController(service, Platform.linux, tmp_path, runner)
-    metadata = service_metadata(
-        Path('/opt/lyte/bin/lyte'), Platform.linux, ['run-daemon'], controller.paths
-    )
+    metadata = service_metadata(Platform.linux, ['run-daemon'], controller.paths)
 
     result = controller.install(metadata)
 
@@ -60,9 +64,7 @@ def test_macos_controller_installs_launch_agent(
     runner = FakeRunner()
     monkeypatch.setattr(service, '_uid', lambda: 501)
     controller = ServiceController(service_spec, Platform.macos, tmp_path, runner)
-    metadata = service_metadata(
-        Path('/opt/lyte/bin/lyte'), Platform.macos, ['run-daemon'], controller.paths
-    )
+    metadata = service_metadata(Platform.macos, ['run-daemon'], controller.paths)
 
     controller.install(metadata)
 
@@ -76,9 +78,7 @@ def test_macos_controller_installs_launch_agent(
 def test_controller_writes_metadata_atomically(tmp_path: Path) -> None:
     service = lyte_service()
     controller = ServiceController(service, Platform.linux, tmp_path, FakeRunner())
-    metadata = service_metadata(
-        Path('/opt/lyte/bin/lyte'), Platform.linux, ['run-daemon'], controller.paths
-    )
+    metadata = service_metadata(Platform.linux, ['run-daemon'], controller.paths)
 
     controller.install(metadata)
 

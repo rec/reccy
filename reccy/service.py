@@ -272,11 +272,12 @@ def print_service_status(
 
 
 def _register_windows_task_command(path: Path) -> str:
+    python = _powershell_value(sys.executable)
     return (
         '$task = Get-Content '
         + _powershell_string(path)
         + ' | ConvertFrom-Json; '
-        + '$action = New-ScheduledTaskAction -Execute $task.executable '
+        + f'$action = New-ScheduledTaskAction -Execute {python} '
         + '-Argument $task.argument_string '
         + '-WorkingDirectory $task.working_directory; '
         + '$trigger = New-ScheduledTaskTrigger -AtLogOn; '
