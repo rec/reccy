@@ -94,9 +94,19 @@ class ServiceController:
     def start(self) -> models.StatusResult:
         self._ensure_log()
         if self.platform == models.Platform.macos:
-            self._run(
-                ['launchctl', 'bootstrap', f'gui/{_uid()}', str(self.paths.service)]
+            domain = f'gui/{_uid()}'
+            target = f'{domain}/{self.service.launchd_label}'
+            loaded = self._run(
+                ['launchctl', 'print', target],
+                check=False,
+                capture_output=True,
             )
+            command = (
+                ['launchctl', 'kickstart', target]
+                if loaded.returncode == 0
+                else ['launchctl', 'bootstrap', domain, str(self.paths.service)]
+            )
+            self._run(command)
         elif self.platform == models.Platform.windows:
             self._run(
                 [
