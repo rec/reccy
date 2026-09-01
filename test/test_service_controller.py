@@ -18,8 +18,10 @@ def executable(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 class FakeRunner:
-    def __init__(self) -> None:
+    def __init__(self, stdout: str = 'active\n', returncode: int = 0) -> None:
         self.commands: list[list[str]] = []
+        self.stdout = stdout
+        self.returncode = returncode
 
     def __call__(
         self,
@@ -32,8 +34,8 @@ class FakeRunner:
         self.commands.append(command)
         return subprocess.CompletedProcess(
             args=command,
-            returncode=0,
-            stdout='active\n' if capture_output else '',
+            returncode=self.returncode,
+            stdout=self.stdout if capture_output else '',
             stderr='',
         )
 
@@ -107,6 +109,35 @@ def test_status_uses_platform_command(tmp_path: Path) -> None:
     assert result.running
     assert result.details == 'active'
     assert runner.commands == [['systemctl', '--user', 'is-active', 'lyte.service']]
+
+
+@pytest.mark.parametrize(
+    ('platform', 'stdout', 'running'),
+    [
+        (Platform.macos, 'state = running\n', True),
+        (Platform.macos, 'state = waiting\n', False),
+        (Platform.windows, 'Running\n', True),
+        (Platform.windows, 'Ready\n', False),
+    ],
+)
+def test_status_parses_platform_service_state(
+    platform: Platform, stdout: str, running: bool, tmp_path: Path
+) -> None:
+    runner = FakeRunner(stdout)
+    controller = ServiceController(lyte_service(), platform, tmp_path, runner)
+
+    result = controller.status()
+
+    assert result.running is running
+    if platform == Platform.windows:
+        assert runner.commands == [
+            [
+                'powershell',
+                '-NoProfile',
+                '-Command',
+                "(Get-ScheduledTask -TaskName 'lyte').State",
+            ]
+        ]
 
 
 def test_start_creates_missing_log(tmp_path: Path) -> None:
