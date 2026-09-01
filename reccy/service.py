@@ -166,7 +166,7 @@ class ServiceController:
         return models.StatusResult(
             health=status,
             installed=installed,
-            running=result.returncode == 0,
+            running=_is_running(self.platform, result),
             details=details,
         )
 
@@ -307,7 +307,21 @@ def _stop_windows_task_command(name: str) -> str:
 
 
 def _get_windows_task_command(name: str) -> str:
-    return f'Get-ScheduledTask -TaskName {_powershell_value(name)}'
+    return f'(Get-ScheduledTask -TaskName {_powershell_value(name)}).State'
+
+
+def _is_running(
+    platform: models.Platform, result: subprocess.CompletedProcess[str]
+) -> bool:
+    if result.returncode:
+        return False
+    if platform == models.Platform.macos:
+        return any(
+            line.strip() == 'state = running' for line in result.stdout.splitlines()
+        )
+    if platform == models.Platform.windows:
+        return result.stdout.strip().casefold() == 'running'
+    return True
 
 
 def _powershell_string(path: Path) -> str:
