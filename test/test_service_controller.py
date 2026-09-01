@@ -18,10 +18,16 @@ def executable(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 class FakeRunner:
-    def __init__(self, stdout: str = 'active\n', returncode: int = 0) -> None:
+    def __init__(
+        self,
+        stdout: str = 'active\n',
+        returncode: int = 0,
+        responses: list[tuple[int, str]] | None = None,
+    ) -> None:
         self.commands: list[list[str]] = []
         self.stdout = stdout
         self.returncode = returncode
+        self.responses = list(responses or [])
 
     def __call__(
         self,
@@ -32,10 +38,13 @@ class FakeRunner:
         capture_output: bool,
     ) -> subprocess.CompletedProcess[str]:
         self.commands.append(command)
+        returncode, stdout = (
+            self.responses.pop(0) if self.responses else (self.returncode, self.stdout)
+        )
         return subprocess.CompletedProcess(
             args=command,
-            returncode=self.returncode,
-            stdout=self.stdout if capture_output else '',
+            returncode=returncode,
+            stdout=stdout if capture_output else '',
             stderr='',
         )
 
@@ -148,6 +157,36 @@ def test_start_creates_missing_log(tmp_path: Path) -> None:
     controller.start()
 
     assert controller.paths.log.exists()
+
+
+def test_macos_start_kickstarts_loaded_service(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    runner = FakeRunner(stdout='state = waiting\n')
+    monkeypatch.setattr(service, '_uid', lambda: 501)
+    controller = ServiceController(lyte_service(), Platform.macos, tmp_path, runner)
+
+    controller.start()
+
+    assert runner.commands == [
+        ['launchctl', 'print', 'gui/501/com.swirly.lyte'],
+        ['launchctl', 'kickstart', 'gui/501/com.swirly.lyte'],
+    ]
+
+
+def test_macos_start_bootstraps_unloaded_service(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    runner = FakeRunner(responses=[(1, ''), (0, '')])
+    monkeypatch.setattr(service, '_uid', lambda: 501)
+    controller = ServiceController(lyte_service(), Platform.macos, tmp_path, runner)
+
+    controller.start()
+
+    assert runner.commands == [
+        ['launchctl', 'print', 'gui/501/com.swirly.lyte'],
+        ['launchctl', 'bootstrap', 'gui/501', str(controller.paths.service)],
+    ]
 
 
 def test_status_reports_ipc_errors(tmp_path: Path) -> None:
