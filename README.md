@@ -18,6 +18,9 @@ The initial consumers are expected to be `recs`, `showco`, `tuney`, and `lyte`.
 - `reccy.cli`: small first-token command routing and user-facing exception
   handling.
 - `reccy.config`: shared Tyro option and prefix parser helpers.
+- `reccy.units`: unit-aware Pydantic numeric types for configuration values;
+  validation converts values such as `250ms`, `2.4kHz`, and `1GiB` to ordinary
+  numbers in each type's canonical unit.
 - `reccy.subprocess`: frozen-aware app command construction and a no-shell
   subprocess wrapper.
 - `reccy.validators`: reusable value-level validators for Pydantic models.
