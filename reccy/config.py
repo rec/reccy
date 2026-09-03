@@ -2,9 +2,21 @@ from collections.abc import Callable, Mapping
 from typing import TypeVar
 
 import tyro
+from pydantic import TypeAdapter
 from tyro.constructors import PrimitiveConstructorSpec
 
 _T = TypeVar('_T')
+
+
+def unit_spec(annotation: object, metavar: str) -> PrimitiveConstructorSpec:
+    adapter = TypeAdapter(annotation)
+    return PrimitiveConstructorSpec(
+        nargs=1,
+        metavar=metavar,
+        instance_from_str=lambda a: adapter.validate_python(a[0]),
+        is_instance=lambda v: isinstance(v, (float, int)),
+        str_from_instance=lambda v: [str(v)],
+    )
 
 
 def tyro_option(
