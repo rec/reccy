@@ -7,6 +7,7 @@ requires-python = ">=3.10"
 license = "MIT"
 authors = [{ name = "Tom Ritchford", email = "tom@swirly.com" }]
 dependencies = [
+    "pint>=0.24.4",
     "pydantic>=2.13.4",
     "strenum",
     "tomli>=2.0.1",
