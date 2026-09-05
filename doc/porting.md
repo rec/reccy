@@ -1,13 +1,10 @@
 # Porting to grouped Reccy modules
 
-Reccy's implementation modules are now grouped by responsibility. The old flat
-module paths remain as temporary compatibility imports, so consumers can migrate
-independently without coordinating releases. New code should use the grouped
-paths.
+Reccy's implementation modules are grouped by responsibility. The old flat
+module paths have been removed; consumers must use the grouped paths.
 
 This is an import-only change. Public classes and functions retain their existing
-behavior, and objects imported through an old path are the same objects exposed
-through the corresponding new path.
+behavior at their new paths.
 
 ## Module mapping
 
@@ -33,8 +30,7 @@ through the corresponding new path.
 `reccy.cli`, `reccy.device`, `reccy.errors`, and `reccy.reccy` remain at their
 existing paths.
 
-The service compatibility module also exposes `current_platform` and
-`service_paths`. Import those functions from `reccy.services.paths`, not
+Import `current_platform` and `service_paths` from `reccy.services.paths`, not
 `reccy.services.controller`.
 
 ## Updating imports
@@ -76,10 +72,9 @@ The canonical module invocation for the service runner is now:
 python -m reccy.services.runner
 ```
 
-Existing service definitions that invoke `python -m reccy.service_runner`
-continue to work through the compatibility entry point. Reinstall or regenerate
-each application's service definition after porting so it records the canonical
-runner path.
+Existing service definitions that invoke `python -m reccy.service_runner` no
+longer work. Reinstall or regenerate each application's service definition after
+porting so it records the canonical runner path.
 
 ## Suggested procedure
 
@@ -97,7 +92,3 @@ A useful initial search is:
 ```shell
 rg 'reccy\.(config|settings|units|validators|ipc|rpc|jsonl|logging|process|subprocess|service|models|paths|renderers|service_runner|service_spec)'
 ```
-
-Do not remove the compatibility modules as part of porting one consumer. They
-must remain until all Reccy consumers have migrated and a separate compatibility
-removal is approved.
