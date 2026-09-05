@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from reccy import service_spec
+from reccy.services import spec
 
 
 def test_load_reads_service_specification() -> None:
@@ -18,7 +18,7 @@ def test_load_reads_service_specification() -> None:
             'windows_pipe = "\\\\\\\\.\\\\pipe\\\\example"\n'
         )
 
-        result = service_spec.load(path)
+        result = spec.load(path)
 
     assert result.name == 'example'
     assert result.launchd_label == 'com.example.service'

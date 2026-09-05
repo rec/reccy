@@ -7,8 +7,11 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field, PrivateAttr
 
-from . import ipc, logging, models, paths, renderers, rpc, service, settings
+from .configuration import settings
 from .errors import ReccyError
+from .protocol import ipc, rpc
+from .runtime import logging
+from .services import controller, models, paths, renderers
 
 
 class ErrorRecord(BaseModel, frozen=True):
@@ -93,10 +96,10 @@ class Reccy(BaseModel, frozen=True):
             raise ReccyError(f'settings must be {self.settings_model.__name__}')
         settings.save(self.settings_path, value)
 
-    def service_controller(self) -> service.ServiceController:
+    def service_controller(self) -> controller.ServiceController:
         if self.service_spec is None:
             raise ReccyError('service_spec is required for service control')
-        return service.ServiceController(self.service_spec, self.platform, self.home)
+        return controller.ServiceController(self.service_spec, self.platform, self.home)
 
     def service_metadata(self, daemon_argv: list[str]) -> models.DaemonMetadata:
         if self.daemon_module is None:

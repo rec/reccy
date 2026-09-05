@@ -6,10 +6,10 @@ from pathlib import Path
 import pytest
 from pydantic import BaseModel
 
-from reccy import service
-from reccy.models import DaemonMetadata, DaemonStatus, Platform, ServiceSpec
-from reccy.renderers import service_metadata
-from reccy.service import ServiceController, ServiceRegistry
+import reccy.services.controller
+from reccy.services.controller import ServiceController, ServiceRegistry
+from reccy.services.models import DaemonMetadata, DaemonStatus, Platform, ServiceSpec
+from reccy.services.renderers import service_metadata
 
 
 @pytest.fixture(autouse=True)
@@ -76,7 +76,7 @@ def test_macos_controller_installs_launch_agent(
 ) -> None:
     service_spec = lyte_service()
     runner = FakeRunner()
-    monkeypatch.setattr(service, '_uid', lambda: 501)
+    monkeypatch.setattr(reccy.services.controller, '_uid', lambda: 501)
     controller = ServiceController(service_spec, Platform.macos, tmp_path, runner)
     metadata = service_metadata(
         Platform.macos, 'lyte', ['run-daemon'], controller.paths
@@ -163,7 +163,7 @@ def test_macos_start_kickstarts_loaded_service(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     runner = FakeRunner(stdout='state = waiting\n')
-    monkeypatch.setattr(service, '_uid', lambda: 501)
+    monkeypatch.setattr(reccy.services.controller, '_uid', lambda: 501)
     controller = ServiceController(lyte_service(), Platform.macos, tmp_path, runner)
 
     controller.start()
@@ -178,7 +178,7 @@ def test_macos_start_bootstraps_unloaded_service(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     runner = FakeRunner(responses=[(1, ''), (0, '')])
-    monkeypatch.setattr(service, '_uid', lambda: 501)
+    monkeypatch.setattr(reccy.services.controller, '_uid', lambda: 501)
     controller = ServiceController(lyte_service(), Platform.macos, tmp_path, runner)
 
     controller.start()

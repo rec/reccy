@@ -4,7 +4,8 @@ import pytest
 import tyro
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
-from reccy import config, units
+from reccy.configuration import units
+from reccy.configuration.tyro import unit_spec
 
 
 @pytest.mark.parametrize(
@@ -82,7 +83,7 @@ def test_invalid_or_inexact_units_are_rejected(
 
 
 def test_unit_spec_preserves_authored_value() -> None:
-    spec = config.unit_spec(units.Seconds, 'TIME')
+    spec = unit_spec(units.Seconds, 'TIME')
     result = spec.instance_from_str(['250ms'])
     assert result == 0.25
     assert spec.str_from_instance(result) == ['250ms']
@@ -90,7 +91,7 @@ def test_unit_spec_preserves_authored_value() -> None:
 
 
 class CliConfig(BaseModel, frozen=True):
-    interval: Annotated[units.Seconds, config.unit_spec(units.Seconds, 'SECONDS')]
+    interval: Annotated[units.Seconds, unit_spec(units.Seconds, 'SECONDS')]
 
 
 def test_tyro_parses_unit_spec() -> None:

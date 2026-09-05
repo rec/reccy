@@ -1,12 +1,5 @@
-from __future__ import annotations
+"""Compatibility imports for :mod:`reccy.services.spec`."""
 
-from pathlib import Path
+from .services.spec import load
 
-import tomli
-
-from . import models
-
-
-def load(path: Path) -> models.ServiceSpec:
-    with path.open('rb') as file:
-        return models.ServiceSpec.model_validate(tomli.load(file))
+__all__ = ['load']

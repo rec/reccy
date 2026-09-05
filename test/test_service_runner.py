@@ -1,29 +1,29 @@
 from pathlib import Path
 
-from reccy import service_runner
+from reccy.services import runner
 
 
 def test_runner_configures_log_before_running_daemon(monkeypatch) -> None:
     configured: list[tuple[Path, str]] = []
     modules: list[tuple[str, str]] = []
     monkeypatch.setattr(
-        service_runner.logging,
+        runner.logging,
         'configure',
         lambda path, *, service_name: configured.append((path, service_name)),
     )
     monkeypatch.setattr(
-        service_runner.runpy,
+        runner.runpy,
         'run_module',
         lambda module, *, run_name: modules.append((module, run_name)),
     )
     monkeypatch.setattr(
-        service_runner.sys,
+        runner.sys,
         'argv',
         ['runner', '/tmp/recs.log', 'recs', 'recs', '--silent'],
     )
 
-    service_runner.main()
+    runner.main()
 
     assert configured == [(Path('/tmp/recs.log'), 'recs')]
     assert modules == [('recs', '__main__')]
-    assert service_runner.sys.argv == ['recs', '--silent']
+    assert runner.sys.argv == ['recs', '--silent']
