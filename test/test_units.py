@@ -1,4 +1,7 @@
+from typing import Annotated
+
 import pytest
+import tyro
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from reccy import config, units
@@ -15,6 +18,8 @@ from reccy import config, units
         (units.Milliseconds, '0.0005s', 0.5),
         (units.WholeMilliseconds, '0.029s', 29),
         (units.Hertz, '2.4kHz', 2400.0),
+        (units.WholeHertz, '48kHz', 48_000),
+        (units.MusicalCents, '100 cents', 100.0),
         (units.Bytes, '2MB', 2_000_000),
         (units.Bytes, '2MiB', 2_097_152),
         (units.Bytes, '1KB', 1000),
@@ -36,6 +41,8 @@ def test_units_normalize_to_numbers(
                 units.Milliseconds: 'millisecond',
                 units.WholeMilliseconds: 'millisecond',
                 units.Hertz: 'hertz',
+                units.WholeHertz: 'hertz',
+                units.MusicalCents: 'musical_cent',
                 units.Bytes: 'byte',
                 units.Megabytes: 'megabyte',
             }[annotation],
@@ -49,6 +56,8 @@ def test_units_normalize_to_numbers(
     [
         (units.Seconds, '3Hz'),
         (units.Hertz, '3ms'),
+        (units.WholeHertz, '440.5Hz'),
+        (units.MusicalCents, '3Hz'),
         (units.Bytes, '2s'),
         (units.Bytes, '90degree'),
         (units.Bytes, '2radian'),
@@ -78,6 +87,16 @@ def test_unit_spec_preserves_authored_value() -> None:
     assert result == 0.25
     assert spec.str_from_instance(result) == ['250ms']
     assert spec.str_from_instance(0.25) == ['0.25']
+
+
+class CliConfig(BaseModel, frozen=True):
+    interval: Annotated[units.Seconds, config.unit_spec(units.Seconds, 'SECONDS')]
+
+
+def test_tyro_parses_unit_spec() -> None:
+    value = tyro.cli(CliConfig, args=['--interval', '250ms'])
+    assert value.interval == 0.25
+    assert value.interval.provenance.authored == '250ms'
 
 
 class Nested(BaseModel, frozen=True):

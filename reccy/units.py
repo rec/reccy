@@ -92,6 +92,7 @@ def _registry() -> UnitRegistry:
     registry.load_definitions(str(files('pint').joinpath('default_en.txt')))
     registry.define('bit = [information]')
     registry.define('kilobyte = 1000 * byte = kB = KB')
+    registry.define('musical_cent = octave / 1200 = cent = cents')
     return registry
 
 
@@ -200,6 +201,14 @@ WholeMilliseconds = Annotated[
 
 Hertz = Annotated[
     float, Field(allow_inf_nan=False), WrapValidator(partial(_unit_value, unit='hertz'))
+]
+
+WholeHertz = Annotated[int, WrapValidator(partial(_unit_value, unit='hertz'))]
+
+MusicalCents = Annotated[
+    float,
+    Field(allow_inf_nan=False),
+    WrapValidator(partial(_unit_value, unit='musical_cent')),
 ]
 
 Bytes = Annotated[int, WrapValidator(partial(_unit_value, unit='byte'))]
