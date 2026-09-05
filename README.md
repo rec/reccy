@@ -20,8 +20,8 @@ The initial consumers are expected to be `recs`, `showco`, `tuney`, and `lyte`.
 - `reccy.cli`: first-token command routing and user-facing exception handling.
 - `reccy.device`: shared audio and MIDI device matching.
 
-The previous flat module paths remain as temporary compatibility imports. New
-Reccy code uses the grouped module paths.
+The previous flat module paths have been removed. Reccy code and consumers use
+the grouped module paths.
 
 Application-specific recording, show control, audio, MIDI, lighting, web UI, and
 IPC payloads stay in the consuming projects.
