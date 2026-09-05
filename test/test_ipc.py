@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
-from reccy import ipc, rpc
+from reccy.protocol import ipc, rpc
 
 WINDOWS_PIPE = r'\\.\pipe\reccy-test'
 

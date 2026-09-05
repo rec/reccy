@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from reccy import paths, renderers
-from reccy.models import Platform, ServiceSpec
+from reccy.services import paths, renderers
+from reccy.services.models import Platform, ServiceSpec
 
 
 @pytest.fixture(autouse=True)
@@ -68,7 +68,7 @@ def test_macos_launch_agent() -> None:
     assert plist['ProgramArguments'] == [
         '/opt/lyte/bin/lyte',
         '-m',
-        'reccy.service_runner',
+        'reccy.services.runner',
         '/Users/tom/Library/Logs/lyte/lyte.log',
         'lyte',
         'lyte',
@@ -94,7 +94,7 @@ def test_linux_systemd_unit() -> None:
     assert definition.path == Path('/home/tom/.config/systemd/user/lyte.service')
     assert 'Description=lyte lighting daemon' in definition.content
     assert (
-        'ExecStart=/opt/lyte/bin/lyte -m reccy.service_runner '
+        'ExecStart=/opt/lyte/bin/lyte -m reccy.services.runner '
         '/home/tom/.local/state/lyte/lyte.log lyte lyte run-daemon --midi Launchkey'
         in definition.content
     )
@@ -118,7 +118,7 @@ def test_linux_xdg_autostart() -> None:
     assert definition.path == Path('/home/tom/.config/autostart/lyte.desktop')
     assert 'Type=Application' in definition.content
     assert (
-        'Exec=/opt/lyte/bin/lyte -m reccy.service_runner '
+        'Exec=/opt/lyte/bin/lyte -m reccy.services.runner '
         '/home/tom/.local/state/lyte/lyte.log lyte lyte run-daemon'
         in definition.content
     )
@@ -140,7 +140,7 @@ def test_windows_task_definition() -> None:
     assert task.task_name == 'lyte'
     assert task.arguments == [
         '-m',
-        'reccy.service_runner',
+        'reccy.services.runner',
         'C:/Users/tom/AppData/Local/lyte/logs/lyte.log',
         'lyte',
         'lyte',

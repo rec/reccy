@@ -2,7 +2,7 @@ import subprocess
 
 import pytest
 
-from reccy import process
+from reccy.runtime import process
 
 
 class FakeProcess:

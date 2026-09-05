@@ -2,8 +2,10 @@ import sys
 
 import pytest
 
-from reccy import cli, config, subprocess, validators
+from reccy import cli
+from reccy.configuration import tyro, validators
 from reccy.errors import ReccyError
+from reccy.runtime import subprocess
 
 
 def test_route_command_dispatches_to_selected_command() -> None:
@@ -39,7 +41,7 @@ def test_run_main_prints_user_facing_errors(capsys: pytest.CaptureFixture[str]) 
 
 
 def test_prefix_spec_parses_named_values() -> None:
-    spec = config.prefix_spec({'fast': 10, 'slow': 1}, 'SPEED')
+    spec = tyro.prefix_spec({'fast': 10, 'slow': 1}, 'SPEED')
 
     assert spec.instance_from_str(['fast']) == 10
     assert spec.str_from_instance(10) == ['10']

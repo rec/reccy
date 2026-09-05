@@ -7,23 +7,21 @@ The initial consumers are expected to be `recs`, `showco`, `tuney`, and `lyte`.
 
 ## Included modules
 
-- `reccy.service`: per-user service install, uninstall, start, stop, restart, and
-  status control for Linux `systemd --user`, macOS `launchd`, and Windows
-  scheduled tasks.
-- `reccy.models`: generic service metadata, paths, daemon status, and result
-  models.
-- `reccy.renderers`: service-definition renderers and metadata JSON rendering.
-- `reccy.paths`: platform-specific user config, state, service, log, and control
-  endpoint paths.
-- `reccy.cli`: small first-token command routing and user-facing exception
-  handling.
-- `reccy.config`: shared Tyro option and prefix parser helpers.
-- `reccy.units`: unit-aware Pydantic numeric types for configuration values;
-  validation converts values such as `250ms`, `2.4kHz`, and `1GiB` to ordinary
-  numbers in each type's canonical unit.
-- `reccy.subprocess`: frozen-aware app command construction and a no-shell
-  subprocess wrapper.
-- `reccy.validators`: reusable value-level validators for Pydantic models.
+- `reccy.protocol`: IPC transports, RPC clients and servers, and JSONL stream
+  compression.
+- `reccy.services`: per-user service definitions, rendering, paths, lifecycle
+  control, and runner support for Linux `systemd --user`, macOS `launchd`, and
+  Windows scheduled tasks.
+- `reccy.configuration`: Tyro helpers, settings persistence, unit-aware Pydantic
+  numeric types, and reusable value validators.
+- `reccy.runtime`: logging and child-process utilities.
+- `reccy.reccy`: shared application lifecycle, status, settings, RPC, and
+  service integration.
+- `reccy.cli`: first-token command routing and user-facing exception handling.
+- `reccy.device`: shared audio and MIDI device matching.
+
+The previous flat module paths remain as temporary compatibility imports. New
+Reccy code uses the grouped module paths.
 
 Application-specific recording, show control, audio, MIDI, lighting, web UI, and
 IPC payloads stay in the consuming projects.

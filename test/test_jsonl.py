@@ -1,4 +1,4 @@
-from reccy.jsonl import Compress, Decompress
+from reccy.protocol.jsonl import Compress, Decompress
 
 
 def test_compresses_sparse_records_and_retains_none_state() -> None:

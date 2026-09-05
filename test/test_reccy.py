@@ -3,8 +3,10 @@ from pathlib import Path
 import pytest
 from pydantic import BaseModel
 
-from reccy import models, rpc, settings
+from reccy.configuration import settings
+from reccy.protocol import rpc
 from reccy.reccy import MutableAttribute, Reccy, ReccyStatus
+from reccy.services import models
 
 
 class Settings(BaseModel, frozen=True):

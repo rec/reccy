@@ -1,7 +1,7 @@
 import logging
 from io import StringIO
 
-from reccy import logging as reccy_logging
+from reccy.runtime import logging as reccy_logging
 
 
 def test_configure_adds_utc_stderr_handler(monkeypatch) -> None:
