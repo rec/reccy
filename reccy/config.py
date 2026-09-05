@@ -15,7 +15,9 @@ def unit_spec(annotation: object, metavar: str) -> PrimitiveConstructorSpec:
         metavar=metavar,
         instance_from_str=lambda a: adapter.validate_python(a[0]),
         is_instance=lambda v: isinstance(v, (float, int)),
-        str_from_instance=lambda v: [str(v)],
+        str_from_instance=lambda v: [
+            v.provenance.authored if hasattr(v, 'provenance') else str(v)
+        ],
     )
 
 
