@@ -18,6 +18,7 @@ class Status(ReccyStatus):
 
 
 class Application(Reccy):
+    name = 'application'
     service_spec = models.ServiceSpec(
         name='application',
         display_name='Application',
@@ -125,3 +126,9 @@ def test_reccy_derives_paired_service_endpoints(tmp_path: Path) -> None:
     assert (
         application.event_endpoint == tmp_path / '.local/state/application/events.sock'
     )
+
+
+def test_reccy_uses_its_name_as_the_default_daemon_module(tmp_path: Path) -> None:
+    application = Application(home=tmp_path)
+
+    assert application.service_metadata(['run']).module == 'application'

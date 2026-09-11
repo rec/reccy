@@ -31,6 +31,8 @@ class MutableAttribute(BaseModel, frozen=True):
 
 
 class Reccy(BaseModel, frozen=True):
+    name: ClassVar[str]
+
     service_spec: ClassVar[models.ServiceSpec | None] = None
     settings_model: ClassVar[type[BaseModel] | None] = None
     status_model: ClassVar[type[ReccyStatus] | None] = None
@@ -47,14 +49,8 @@ class Reccy(BaseModel, frozen=True):
     _started: bool = PrivateAttr(default=False)
 
     @property
-    def name(self) -> str:
-        if self.service_spec is not None:
-            return self.service_spec.name
-        return type(self).__name__.lower()
-
-    @property
     def logger(self) -> Logger:
-        return logging.get_logger(self.logger_name or type(self).__name__)
+        return logging.get_logger(self.logger_name or self.name)
 
     @property
     def paths(self) -> models.ServicePaths:
@@ -102,10 +98,8 @@ class Reccy(BaseModel, frozen=True):
         return controller.ServiceController(self.service_spec, self.platform, self.home)
 
     def service_metadata(self, daemon_argv: list[str]) -> models.DaemonMetadata:
-        if self.daemon_module is None:
-            raise ReccyError('daemon_module is required for service control')
         return renderers.service_metadata(
-            self.platform, self.daemon_module, daemon_argv, self.paths
+            self.platform, self.daemon_module or self.name, daemon_argv, self.paths
         )
 
     def install_service(self, daemon_argv: list[str]) -> models.StatusResult:
