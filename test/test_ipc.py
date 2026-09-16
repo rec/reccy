@@ -373,7 +373,12 @@ def test_protocol_listener_requests_shutdown_once_message_arrives() -> None:
 
 def test_protocol_client_sends_hello_and_reads_messages() -> None:
     received: list[object] = []
-    connection = FakeConnection(['{"type":"app","value":"x"}\n'])
+    connection = FakeConnection(
+        [
+            '{"type":"hello","role":"daemon","version":1}\n',
+            '{"type":"app","value":"x"}\n',
+        ]
+    )
 
     def append_message(message: object) -> bool:
         received.append(message)
@@ -391,7 +396,10 @@ def test_protocol_client_sends_hello_and_reads_messages() -> None:
 
     client.start()
 
-    assert _eventually(lambda: received == [AppMessage(type='app', value='x')])
+    assert _eventually(lambda: client.closed)
+    assert received[0] == ipc.Hello(type='hello', role='daemon', version=1)
+    assert received[1:] == [AppMessage(type='app', value='x')]
+    assert connection.closed
     assert connection.sent == ['{"type":"hello","role":"gui","version":1}\n']
 
 
@@ -413,6 +421,47 @@ def test_protocol_client_reports_error(
 
     assert _eventually(lambda: client.closed)
     assert capsys.readouterr().err == 'bad\n'
+
+
+def test_protocol_client_rejects_application_data_before_hello(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    connection = FakeConnection(['{"type":"app","value":"premature"}\n'])
+    received: list[object] = []
+    client = ipc.ProtocolClient(
+        Path('/unused.sock'),
+        parse=parse_message,
+        version=1,
+        local_role='client',
+        peer_role='server',
+        on_message=lambda message: not received.append(message),
+        connect=lambda endpoint: connection,
+    )
+
+    client.start()
+
+    assert _eventually(lambda: connection.closed)
+    assert received == []
+    assert 'hello required' in capsys.readouterr().err
+
+
+def test_protocol_client_closes_when_hello_write_fails() -> None:
+    connection = FakeConnection(broken=True)
+    client = ipc.ProtocolClient(
+        Path('/unused.sock'),
+        parse=parse_message,
+        version=1,
+        local_role='client',
+        peer_role='server',
+        on_message=lambda message: True,
+        connect=lambda endpoint: connection,
+    )
+
+    with pytest.raises(BrokenPipeError, match='Could not send'):
+        client.start()
+
+    assert connection.closed
+    assert client.closed
 
 
 def test_parse_message_uses_supplied_adapter() -> None:

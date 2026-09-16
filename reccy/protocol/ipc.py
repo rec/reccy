@@ -15,6 +15,7 @@ from pydantic import BaseModel, TypeAdapter, ValidationError
 PIPE_CONNECT_TIMEOUT = 0.2
 SOCKET_TIMEOUT = 0.2
 WRITE_TIMEOUT = 0.2
+HANDSHAKE_TIMEOUT = 1.0
 CONNECTING_PIPES: set[str] = set()
 CONNECTING_PIPES_LOCK = threading.Lock()
 
@@ -182,16 +183,36 @@ class ProtocolClient:
         self.on_message = on_message
         self.connect = connect
         self.connection: Connection | None = None
-        self.closed = False
+        self.closed = True
+        self.handshake_complete = False
+        self.handshake_timer: threading.Timer | None = None
 
     def start(self, *, thread_name: str = 'IpcClient') -> None:
-        self.connection = self.connect(self.endpoint)
-        if not self.write_model(
-            Hello(type='hello', role=self.local_role, version=self.version)
-        ):
-            self.closed = True
-            raise BrokenPipeError(f'Could not send {self.local_role} hello')
-        threading.Thread(target=self.read, daemon=True, name=thread_name).start()
+        if self.connection is not None:
+            raise RuntimeError('IPC client has already been started')
+        started = False
+        try:
+            self.connection = self.connect(self.endpoint)
+            self.closed = False
+            self.handshake_complete = False
+            self.handshake_timer = threading.Timer(HANDSHAKE_TIMEOUT, self.close)
+            self.handshake_timer.start()
+            if not self.write_model(
+                Hello(type='hello', role=self.local_role, version=self.version)
+            ):
+                raise BrokenPipeError(f'Could not send {self.local_role} hello')
+            threading.Thread(target=self.read, daemon=True, name=thread_name).start()
+            started = True
+        finally:
+            if not started:
+                self.close()
+
+    def close(self) -> None:
+        self.closed = True
+        if self.handshake_timer is not None:
+            self.handshake_timer.cancel()
+        if self.connection is not None:
+            self.connection.close()
 
     def shutdown(self) -> None:
         self.write_model(Shutdown(type='shutdown'))
@@ -207,33 +228,37 @@ class ProtocolClient:
     def read(self) -> None:
         if self.connection is None:
             return
-        for line in self.connection.read_lines():
-            try:
-                message = self.parse(line)
-            except ValidationError:
-                continue
-            if isinstance(message, Error):
-                print(message.message, file=sys.stderr)
-                self.closed = True
-                return
-            if isinstance(message, Hello) and message.version != self.version:
-                error = (
-                    f'{self.peer_role} protocol version {message.version} is not '
-                    f'supported; {self.local_role} requires {self.version}'
-                )
-                print(
-                    error,
-                    file=sys.stderr,
-                )
-                self.closed = True
-                return
-            if isinstance(message, Shutdown):
-                self.closed = True
-                return
-            if not self.on_message(message):
-                self.closed = True
-                return
-        self.closed = True
+        try:
+            for line in self.connection.read_lines():
+                try:
+                    message = self.parse(line)
+                except ValidationError:
+                    continue
+                if isinstance(message, Error):
+                    print(message.message, file=sys.stderr)
+                    return
+                if isinstance(message, Hello):
+                    if message.version != self.version:
+                        print(
+                            f'{self.peer_role} protocol version '
+                            f'{message.version} is not '
+                            f'supported; {self.local_role} requires {self.version}',
+                            file=sys.stderr,
+                        )
+                        return
+                    self.handshake_complete = True
+                    if self.handshake_timer is not None:
+                        self.handshake_timer.cancel()
+                if not self.handshake_complete:
+                    print(
+                        f'{self.peer_role} hello required before other messages',
+                        file=sys.stderr,
+                    )
+                    return
+                if isinstance(message, Shutdown) or not self.on_message(message):
+                    return
+        finally:
+            self.close()
 
 
 class UnixSocketServerBackend:
