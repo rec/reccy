@@ -41,6 +41,8 @@ class FakeRunner:
         returncode, stdout = (
             self.responses.pop(0) if self.responses else (self.returncode, self.stdout)
         )
+        if check and returncode:
+            raise subprocess.CalledProcessError(returncode, command, output=stdout)
         return subprocess.CompletedProcess(
             args=command,
             returncode=returncode,
@@ -60,7 +62,7 @@ def test_linux_controller_installs_user_service(tmp_path: Path) -> None:
     result = controller.install(metadata)
 
     assert result.installed
-    assert result.running
+    assert result.running is None
     assert controller.paths.metadata.exists()
     assert controller.paths.service.exists()
     assert controller.paths.log.exists()
@@ -118,6 +120,65 @@ def test_status_uses_platform_command(tmp_path: Path) -> None:
     assert result.running
     assert result.details == 'active'
     assert runner.commands == [['systemctl', '--user', 'is-active', 'lyte.service']]
+
+
+def test_windows_install_registers_then_starts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv('APPDATA', str(tmp_path / 'roaming'))
+    monkeypatch.setenv('LOCALAPPDATA', str(tmp_path / 'local'))
+    runner = FakeRunner()
+    controller = ServiceController(lyte_service(), Platform.windows, tmp_path, runner)
+    metadata = service_metadata(Platform.windows, 'lyte', ['run'], controller.paths)
+    result = controller.install(metadata)
+    assert result.running is None
+    assert len(runner.commands) == 2
+    assert 'Register-ScheduledTask' in runner.commands[0][-1]
+    assert 'Start-ScheduledTask' in runner.commands[1][-1]
+
+
+@pytest.mark.parametrize('platform', list(Platform))
+def test_failed_uninstall_preserves_records(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, platform: Platform
+) -> None:
+    monkeypatch.setenv('APPDATA', str(tmp_path / 'roaming'))
+    monkeypatch.setenv('LOCALAPPDATA', str(tmp_path / 'local'))
+    controller = ServiceController(
+        lyte_service(), platform, tmp_path, FakeRunner(returncode=1)
+    )
+    files = [
+        controller.paths.service,
+        controller.paths.metadata,
+        controller.paths.status,
+    ]
+    for p in files:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text('original')
+    with pytest.raises(subprocess.CalledProcessError):
+        controller.uninstall()
+    assert all(p.read_text() == 'original' for p in files)
+
+
+def test_linux_uninstall_removes_unit_before_reload(tmp_path: Path) -> None:
+    commands: list[list[str]] = []
+
+    def run(
+        command: list[str], *, check: bool, text: bool, capture_output: bool
+    ) -> subprocess.CompletedProcess[str]:
+        commands.append(command)
+        if command[-1] == 'daemon-reload':
+            assert not controller.paths.service.exists()
+            assert controller.paths.metadata.exists()
+        return subprocess.CompletedProcess(command, 0)
+
+    controller = ServiceController(lyte_service(), Platform.linux, tmp_path, run)
+    for p in [controller.paths.service, controller.paths.metadata]:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.touch()
+    result = controller.uninstall()
+    assert not result.installed
+    assert not controller.paths.metadata.exists()
+    assert [c[2] for c in commands] == ['stop', 'disable', 'daemon-reload']
 
 
 @pytest.mark.parametrize(

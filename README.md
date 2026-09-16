@@ -61,3 +61,10 @@ default snapshot constructs that model, and the service controller reads the sam
 model. Override `status_snapshot()` when additional required fields need values.
 Status retains the latest 1,000 errors. Every error is also logged; older log
 history is subject to the configured log retention policy.
+
+Service lifecycle results confirm manager command completion, not the running
+state (`running=None`). Call `status()` to observe the manager's current state.
+Installation requests startup on every platform. Uninstall errors propagate and
+retain local metadata; an already-unloaded service may require manager-specific
+attention before uninstall can complete. Linux reloads its manager after removing
+the unit file and before deleting metadata.
