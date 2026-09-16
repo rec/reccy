@@ -50,3 +50,8 @@ for protocol errors and must not be used in successful results. Errors require
 a string `message`; clients raise `ConnectionError` with that message. Application
 data describing an error can use a different discriminator or a nested object.
 This contract does not require a response envelope or a wire-version change.
+
+`Reccy.start()` rejects an already-started application. `close()` is idempotent.
+RPC cleanup and `on_closed()` run even if startup, shutdown hooks, or status
+publication fail. Release application-owned resources in `on_closed()` and allow
+for partial startup there. Exceptions still propagate to the caller.

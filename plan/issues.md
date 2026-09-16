@@ -201,6 +201,11 @@ covered by tests. Apply the same correction to both implementations.
 
 ### R10 [P1] Shutdown can permanently skip RPC cleanup after a status-write error
 
+Resolved: failed startup and shutdown always release RPC ownership and call
+`on_closed()`. Repeated starts raise; repeated closes are harmless. Failure-hook
+and publication tests verify cleanup. Application-owned resources should be
+released in `on_closed()`, including after partial startup.
+
 Evidence: `reccy/reccy.py:123-147`.
 
 `close()` clears `_started` before saving status and publishing events. If either
