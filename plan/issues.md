@@ -369,6 +369,9 @@ terminal-capability queries, and concurrent print/log output near rotation.
 
 ### R19 [P2] Status-printing defaults retain the original stdout and stderr
 
+Resolved: optional output streams resolve at call time. Capture after module import
+verifies both standard output and error output.
+
 Evidence: `reccy/services/controller.py:259-285`.
 
 Default arguments bind `sys.stdout` and `sys.stderr` when the module is imported.
