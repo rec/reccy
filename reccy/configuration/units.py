@@ -101,7 +101,7 @@ def _clock_seconds(value: str) -> float:
     if not 1 <= len(parts) <= 3:
         raise ValueError('A time can only have three parts')
     seconds = float(parts.pop())
-    if seconds < 0 or parts and seconds > 59:
+    if seconds < 0 or parts and seconds >= 60:
         raise ValueError('Invalid seconds in time')
     minutes = int(parts.pop()) if parts else 0
     if minutes < 0 or parts and minutes > 59:

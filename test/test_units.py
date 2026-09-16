@@ -8,12 +8,21 @@ from reccy.configuration import units
 from reccy.configuration.tyro import unit_spec
 
 
+@pytest.mark.parametrize('value', ['0:60', '1:00:60'])
+def test_clock_seconds_reject_next_minute(value: str) -> None:
+    with pytest.raises(ValidationError, match='Invalid seconds'):
+        TypeAdapter(units.Seconds).validate_python(value)
+
+
 @pytest.mark.parametrize(
     ('annotation', 'value', 'expected'),
     [
         (units.Seconds, '10ms', 0.01),
         (units.Seconds, '2 min', 120.0),
         (units.Seconds, '1:30', 90.0),
+        (units.Seconds, '0:59', 59.0),
+        (units.Seconds, '0:59.5', 59.5),
+        (units.Seconds, '1:00:59.5', 3659.5),
         (units.Seconds, '0.5', 0.5),
         (units.Seconds, 0.5, 0.5),
         (units.Milliseconds, '0.0005s', 0.5),

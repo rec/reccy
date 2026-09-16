@@ -408,6 +408,9 @@ gap: runner arguments always use `sys.executable -m`, whereas
 
 ### R21 [P2] Clock syntax rejects valid fractional seconds above 59
 
+Resolved: fractional seconds below 60 are accepted in clock notation. Tests cover
+minute and hour forms and reject the 60-second boundary.
+
 Evidence: `reccy/configuration/units.py:99-112`.
 
 With a preceding minutes component, seconds are rejected when greater than 59.
