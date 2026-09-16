@@ -1,5 +1,9 @@
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from io import StringIO
+from pathlib import Path
+
+import pytest
 
 from reccy.runtime import logging as reccy_logging
 
@@ -58,3 +62,39 @@ def test_rotating_log_stream_limits_retained_files(monkeypatch, tmp_path) -> Non
         'service.log.1',
         'service.log.2',
     ]
+
+
+def test_explicit_file_logging_replaces_existing_handlers(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    root = logging.getLogger()
+    monkeypatch.setattr(root, 'handlers', [logging.StreamHandler(StringIO())])
+    monkeypatch.setattr(root, 'level', root.level)
+    monkeypatch.setattr(reccy_logging.sys, 'stdout', StringIO())
+    monkeypatch.setattr(reccy_logging.sys, 'stderr', StringIO())
+    path = tmp_path / 'output.log'
+    reccy_logging.configure(path, service_name='test')
+    stream = reccy_logging.sys.stdout
+    try:
+        reccy_logging.configure(path, service_name='test')
+        assert reccy_logging.sys.stdout is stream
+        assert len(root.handlers) == 1
+        assert not stream.isatty()
+        assert stream.encoding
+        print('redirected')
+        stream.flush()
+        assert 'redirected' in path.read_text()
+    finally:
+        stream.close()
+
+
+def test_concurrent_rotation_preserves_complete_writes(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(reccy_logging, 'MAX_LOG_BYTES', 100)
+    monkeypatch.setattr(reccy_logging, 'MAX_LOG_FILES', 100)
+    with reccy_logging.RotatingLogStream(tmp_path / 'output.log') as stream:
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            list(pool.map(stream.write, [f'{i:04d}\n' for i in range(400)]))
+    lines = [s for p in tmp_path.iterdir() for s in p.read_text().splitlines()]
+    assert sorted(lines) == [f'{i:04d}' for i in range(400)]
