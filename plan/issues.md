@@ -384,6 +384,11 @@ stdout/stderr following import.
 
 ### R20 [P2, design gap] Service metadata and platform configuration have split ownership
 
+Resolved: README defines metadata as discovery/installation information, not
+runtime injection. Only version 1 is accepted. Frozen installation/rendering is
+rejected, and explicit home controls generated paths and working directories,
+including Windows environment precedence.
+
 Evidence: `reccy/services/models.py:54-60`; `reccy/services/renderers.py:11-23,112-125`;
 `reccy/services/runner.py:8-12`; `reccy/services/paths.py:29-39`.
 

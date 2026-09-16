@@ -37,7 +37,7 @@ def macos_launch_agent(
         'Label': service.launchd_label,
         'ProgramArguments': _service_runner_arguments(value, paths, service),
         'RunAtLoad': True,
-        'WorkingDirectory': str(Path.home()),
+        'WorkingDirectory': str(paths.home),
         'EnvironmentVariables': {service.daemon_env_var: '1'},
     }
     content = plistlib.dumps(plist, sort_keys=True).decode()
@@ -63,7 +63,8 @@ def linux_systemd_unit(
             f'Environment={service.daemon_env_var}=1',
             'Restart=always',
             'RestartSec=5',
-            'WorkingDirectory=%h',
+            'WorkingDirectory='
+            + json.dumps(str(paths.home).replace('%', '%%'), ensure_ascii=False),
             '',
             '[Install]',
             'WantedBy=default.target',
@@ -109,7 +110,7 @@ def windows_task(
         task_name=service.name,
         arguments=arguments,
         argument_string=subprocess.list2cmdline(arguments),
-        working_directory=Path.home(),
+        working_directory=paths.home,
         log=paths.log,
     )
 
@@ -119,6 +120,8 @@ def _service_runner_arguments(
     paths: models.ServicePaths,
     service: models.ServiceSpec,
 ) -> list[str]:
+    if getattr(sys, 'frozen', False):
+        raise ValueError('Service installation does not support frozen applications')
     return [
         sys.executable,
         '-m',

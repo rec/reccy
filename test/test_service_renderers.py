@@ -97,6 +97,7 @@ def test_macos_launch_agent() -> None:
     assert plist['EnvironmentVariables'] == {'LYTE_DAEMON': '1'}
     assert plist['RunAtLoad'] is True
     assert plist['KeepAlive'] is True
+    assert plist['WorkingDirectory'] == '/Users/tom'
 
 
 def test_linux_systemd_unit() -> None:
@@ -124,6 +125,7 @@ def test_linux_systemd_unit() -> None:
     assert 'StandardOutput=journal' not in definition.content
     assert 'StandardError=journal' not in definition.content
     assert 'WantedBy=default.target' in definition.content
+    assert 'WorkingDirectory="/home/tom"' in definition.content
 
 
 def test_linux_xdg_autostart() -> None:
@@ -168,6 +170,21 @@ def test_windows_task_definition() -> None:
         'Main Rig',
     ]
     assert task.log.name == 'lyte.log'
+    assert task.working_directory == Path('C:/Users/tom')
+
+
+def test_explicit_windows_home_overrides_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv('APPDATA', '/other/roaming')
+    monkeypatch.setenv('LOCALAPPDATA', '/other/local')
+    service = lyte_service()
+    explicit = paths.service_paths(service, Platform.windows, Path('/chosen'))
+    default = paths.service_paths(service, Platform.windows)
+    assert explicit.metadata == Path('/chosen/AppData/Roaming/lyte/daemon.json')
+    assert explicit.status == Path('/chosen/AppData/Local/lyte/status.json')
+    assert default.metadata == Path('/other/roaming/lyte/daemon.json')
+    assert default.status == Path('/other/local/lyte/status.json')
 
 
 @pytest.mark.parametrize(

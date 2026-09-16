@@ -72,3 +72,21 @@ the unit file and before deleting metadata.
 `logging.configure(path=..., service_name=...)` replaces root handlers and redirects
 stdout/stderr to the rotating file. Repeating the same path reuses the stream.
 Without a path, existing handlers are preserved and only the log level changes.
+
+## Service installation contract
+
+Installation requires a normal Python interpreter; frozen applications are
+rejected before any files are written. Definitions use the installing interpreter
+and run `reccy.services.runner`, which configures logging and runs the application
+module with the recorded arguments. Reinstall after changing interpreters.
+
+Metadata version 1 describes the installed module, arguments, platform and
+endpoints. Clients may use its endpoints for discovery, but the runner does not
+load this file or inject endpoints into the application. Applications own their
+endpoint configuration and must agree with the installation metadata. Unsupported
+metadata versions fail validation.
+
+An explicit `home` controls generated file paths and the working directory. On
+Windows it also overrides APPDATA/LOCALAPPDATA; those environment variables are
+used only when home is omitted. These paths do not change the service-manager
+account: installation still targets the current user.
