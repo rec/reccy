@@ -1,5 +1,6 @@
 import json
 import logging
+import pickle
 import queue
 import socket
 import stat
@@ -18,7 +19,7 @@ CONNECTING_PIPES_LOCK = threading.Lock()
 
 
 class Connection(typing.Protocol):
-    def read_lines(self) -> typing.Iterator[str]: ...
+    def read_lines(self, *, max_bytes: int | None = None) -> typing.Iterator[str]: ...
 
     def write(self, message: str) -> bool: ...
 
@@ -266,7 +267,7 @@ class UnixSocketServerBackend:
 class UnixSocketConnection:
     def __init__(self, conn: socket.socket) -> None:
         self.conn = conn
-        self.file = conn.makefile('r', encoding='utf-8')
+        self.file = conn.makefile('rb')
 
     @classmethod
     def connect(cls, endpoint: Path) -> 'UnixSocketConnection':
@@ -276,9 +277,14 @@ class UnixSocketConnection:
         conn.settimeout(None)
         return cls(conn)
 
-    def read_lines(self) -> typing.Iterator[str]:
+    def read_lines(self, *, max_bytes: int | None = None) -> typing.Iterator[str]:
         try:
-            yield from self.file
+            while line := self.file.readline(
+                -1 if max_bytes is None else max_bytes + 1
+            ):
+                if max_bytes is not None and len(line) > max_bytes:
+                    raise ValueError('RPC request exceeds the size limit')
+                yield line.decode('utf-8')
         except ValueError:
             if not self.file.closed:
                 raise
@@ -330,12 +336,13 @@ class WindowsPipeConnection:
     def connect(cls, endpoint: str) -> 'WindowsPipeConnection':
         return cls(connect_windows_pipe(endpoint))
 
-    def read_lines(self) -> typing.Iterator[str]:
+    def read_lines(self, *, max_bytes: int | None = None) -> typing.Iterator[str]:
         while True:
             try:
-                yield str(self.conn.recv())
+                frame = self.conn.recv_bytes(maxlength=max_bytes)
             except (EOFError, OSError):
                 return
+            yield str(pickle.loads(frame))
 
     def write(self, message: str) -> bool:
         try:

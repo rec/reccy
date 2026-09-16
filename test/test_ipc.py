@@ -500,7 +500,7 @@ class FakeConnection:
         self.received = received or []
         self.sent: list[str] = []
 
-    def read_lines(self) -> typing.Iterator[str]:
+    def read_lines(self, *, max_bytes: int | None = None) -> typing.Iterator[str]:
         return iter(self.received)
 
     def write(self, message: str) -> bool:
@@ -520,7 +520,7 @@ class BlockingConnection(FakeConnection):
         )
         self.closed_event = threading.Event()
 
-    def read_lines(self) -> typing.Iterator[str]:
+    def read_lines(self, *, max_bytes: int | None = None) -> typing.Iterator[str]:
         yield from self.received
         self.closed_event.wait()
 
