@@ -104,3 +104,36 @@ instance discovery separately. Stop old consumers before migration: PID-file
 claims and OS locks do not coordinate. Migrations are deferred. Tests exercise
 separate-process contention, exit/crash release, contents preservation and errors
 on macOS; native Windows validation remains outstanding.
+
+## Retry scheduling
+
+Import `RetryPolicy`, `RetrySchedule` and `RetryStopReason` from
+`reccy.runtime.retry`. The first attempt is immediately eligible. `attempts`
+counts total attempts, including the first; None means unlimited. `delay` is the
+first failure's wait, `backoff` defaults to 1 (fixed delay), `backoff_after` selects
+the failed attempt after which later delays multiply, and `max_delay` caps every
+delay (default 60 seconds). Timing must be finite and nonnegative; backoff is at
+least 1. Supply a monotonic clock for deterministic tests and an optional absolute
+deadline in that same clock domain.
+
+`begin_attempt()` returns True only when an attempt may start, and counts it.
+After a retryable failure, call `failed()`. `seconds_until_attempt()` returns a
+nonnegative delay, or None when stopped. `stop_reason` distinguishes cancellation,
+deadline and exhaustion. After success, `reset()` clears the cycle, including
+cancellation, but preserves the absolute deadline. A successful operation returning
+None is not confused with failure: the schedule never executes operations.
+
+Only one attempt may be active per schedule; finish it with failed/reset before
+asking for another. Methods require caller serialization. `cancel()` blocks future
+attempts but does not interrupt an active operation or wake a caller-owned wait.
+Consumers using a stop event should use its interruptible wait, then cancel the
+schedule when signalled. No sleeping, threads, exception handling or implicit
+retries are performed by this API. Operations still need their own timeouts.
+
+Lyte migration: use the schedule inside its synchronous retry loop, keeping
+exception selection, logging and stop-event waiting. Explicitly choose a delay cap
+when migrating its formerly uncapped backoff. Streamo migration: call
+`begin_attempt()` from update loops, use failed/reset for recovery, and retain
+device/process ownership locally. Use separate schedules for distinct recovery
+policies. Do not migrate hardware safety decisions into Reccy. Neither consumer
+migration is implemented here.
