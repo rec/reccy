@@ -2,6 +2,7 @@ import socket
 import threading
 import time
 import typing
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -153,6 +154,40 @@ def test_rpc_timeout_wakes_real_socket_reader(monkeypatch: pytest.MonkeyPatch) -
             watchdog.join()
             connection.file.close()
             local.close()
+
+
+def test_unix_write_disconnects_a_peer_that_stops_reading(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(ipc, 'WRITE_TIMEOUT', 0.02)
+    local, peer = socket.socketpair()
+    local.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 1024)
+    connection = ipc.UnixSocketConnection(local)
+    with peer:
+        started = time.monotonic()
+        try:
+            assert not connection.write('x' * 1_000_000)
+            assert time.monotonic() - started < 0.5
+        finally:
+            connection.close()
+
+
+def test_unix_writes_do_not_interleave_between_threads() -> None:
+    local, peer = socket.socketpair()
+    connection = ipc.UnixSocketConnection(local)
+    messages = [f'{i}' * 20_000 + '\n' for i in range(4)]
+
+    def read() -> list[str]:
+        with peer.makefile() as lines:
+            return [lines.readline() for _ in messages]
+
+    with peer, ThreadPoolExecutor(max_workers=5) as executor:
+        received = executor.submit(read)
+        try:
+            assert all(executor.map(connection.write, messages))
+            assert sorted(received.result(timeout=1)) == messages
+        finally:
+            connection.close()
 
 
 def test_windows_pipe_server_accepts_connections(

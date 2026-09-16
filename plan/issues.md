@@ -78,6 +78,12 @@ post-hello clients, unterminated oversized input, and capacity exhaustion.
 
 ### R04 [P1] A slow event subscriber can block the publisher
 
+Resolved: each transport serializes complete writes and disconnects on send or
+write-lock timeout (0.2 seconds each). Failed event writes already remove the
+subscriber. Tests use a non-reading socket peer and concurrent long messages.
+The Windows path uses the same deadline helper and the existing pipe close
+operation; native Windows overlapped-write cancellation remains platform validation.
+
 Evidence: `reccy/protocol/rpc.py:164-170`;
 `reccy/protocol/ipc.py:258,273-286,331-336`.
 
