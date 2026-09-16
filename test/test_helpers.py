@@ -40,11 +40,15 @@ def test_run_main_prints_user_facing_errors(capsys: pytest.CaptureFixture[str]) 
     assert capsys.readouterr().err == 'ERROR: bad config\n'
 
 
-def test_prefix_spec_parses_named_values() -> None:
-    spec = tyro.prefix_spec({'fast': 10, 'slow': 1}, 'SPEED')
+def test_named_choice_spec_round_trips_values() -> None:
+    spec = tyro.named_choice_spec({'fast': 10, 'quick': 10, 'slow': 1}, 'SPEED')
 
     assert spec.instance_from_str(['fast']) == 10
-    assert spec.str_from_instance(10) == ['10']
+    assert spec.str_from_instance(10) == ['fast']
+    assert spec.instance_from_str(spec.str_from_instance(1)) == 1
+    assert spec.instance_from_str(['quick']) == 10
+    with pytest.raises(ValueError, match='No SPEED name'):
+        spec.str_from_instance(5)
     with pytest.raises(ValueError, match='Cannot understand SPEED="medium"'):
         spec.instance_from_str(['medium'])
 

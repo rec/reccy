@@ -455,6 +455,9 @@ Verify both collision cases.
 
 ### R24 [P2] Named Tyro values do not serialize to accepted CLI input
 
+Resolved: renamed to `named_choice_spec`, with exact-name parsing and formatting
+using the first matching name. Tests cover round trips, aliases and unknown values.
+
 Evidence: `reccy/configuration/tyro.py:42-55`; `test/test_helpers.py:49-56`.
 
 `prefix_spec({'fast': 10}, 'SPEED')` accepts `fast`, but formats the corresponding

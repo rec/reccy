@@ -107,3 +107,7 @@ custom serialization is needed, without unit-provenance restoration.
 `collect_unit_provenance()` returns JSON Pointer paths: `/nested/delay` and
 `/history/0`, with `~` escaped as `~0` and `/` as `~1`. Dictionary keys must be
 strings. The empty path identifies a quantity passed directly to the collector.
+
+`named_choice_spec()` (formerly `prefix_spec`) parses exact choice names, not
+prefixes. Formatting selects the first matching name in mapping order, so aliases
+for the same value are deterministic and formatted values parse back successfully.

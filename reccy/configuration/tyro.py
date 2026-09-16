@@ -39,17 +39,27 @@ def tyro_option(
     )
 
 
-def prefix_spec(values: Mapping[str, _T], metavar: str) -> PrimitiveConstructorSpec[_T]:
+def named_choice_spec(
+    values: Mapping[str, _T], metavar: str
+) -> PrimitiveConstructorSpec[_T]:
+    """Parse exact names; format equivalent values using the first matching name."""
+
     def parse(args: list[str]) -> _T:
         try:
             return values[args[0]]
         except KeyError:
             raise ValueError(f'Cannot understand {metavar}="{args[0]}"') from None
 
+    def format_value(value: _T) -> list[str]:
+        for name, item in values.items():
+            if item == value:
+                return [name]
+        raise ValueError(f'No {metavar} name for {value!r}')
+
     return PrimitiveConstructorSpec(
         nargs=1,
         metavar=metavar,
         instance_from_str=parse,
         is_instance=lambda value: value in values.values(),
-        str_from_instance=lambda value: [str(value)],
+        str_from_instance=format_value,
     )
