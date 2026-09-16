@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import TypeVar
 
 from pydantic import BaseModel, ValidationError
@@ -30,11 +31,22 @@ def save(path: Path, value: BaseModel) -> None:
 def write_json_model(
     path: Path, value: BaseModel, *, indent: int | None = None, sync: bool = True
 ) -> None:
+    write_text_atomically(path, value.model_dump_json(indent=indent) + '\n', sync=sync)
+
+
+def write_text_atomically(path: Path, content: str, *, sync: bool = True) -> None:
+    """Publish one complete write; concurrent writers use last-replacement-wins."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f'.{path.name}.tmp')
-    with temporary.open('w') as file:
-        file.write(value.model_dump_json(indent=indent) + '\n')
-        file.flush()
-        if sync:
-            os.fsync(file.fileno())
-    temporary.replace(path)
+    file = NamedTemporaryFile(
+        mode='w', dir=path.parent, prefix=f'.{path.name}.', suffix='.tmp', delete=False
+    )
+    temporary = Path(file.name)
+    try:
+        with file:
+            file.write(content)
+            file.flush()
+            if sync:
+                os.fsync(file.fileno())
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)

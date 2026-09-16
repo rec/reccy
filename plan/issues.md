@@ -182,6 +182,10 @@ dictionary with those keys before changing the wire format.
 
 ### R09 [P1] Concurrent atomic writes share the same temporary file
 
+Resolved: JSON and service metadata writers share a unique-temporary-file writer.
+Concurrent publication is last-replacement-wins, without mixing contents. Failed
+writes clean up their temporary file. Tests force overlapping replacements.
+
 Evidence: `reccy/configuration/settings.py:30-40`;
 `reccy/services/controller.py:352-358`.
 
