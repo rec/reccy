@@ -125,7 +125,9 @@ def _collect_unit_provenance(
             )
     elif isinstance(value, dict):
         for key, item in value.items():
-            _collect_unit_provenance(item, _child_path(path, str(key)), result)
+            if not isinstance(key, str):
+                raise TypeError('Unit provenance requires string dictionary keys')
+            _collect_unit_provenance(item, _child_path(path, key), result)
     elif isinstance(value, list):
         for index, item in enumerate(value):
             _collect_unit_provenance(item, _child_path(path, str(index)), result)
@@ -186,7 +188,8 @@ def _validate_dump_annotation(annotation: object) -> None:
 
 
 def _child_path(parent: str, child: str) -> str:
-    return f'{parent}.{child}' if parent else child
+    child = child.replace('~', '~0').replace('/', '~1')
+    return f'{parent}/{child}'
 
 
 class _UnitFloat(float):

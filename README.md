@@ -103,3 +103,7 @@ These helpers support ordinary models, nested models, lists and dictionaries.
 They reject `RootModel` and custom field/model or annotated serializers with
 `TypeError`, including in nested values. Use Pydantic's own dump methods when
 custom serialization is needed, without unit-provenance restoration.
+
+`collect_unit_provenance()` returns JSON Pointer paths: `/nested/delay` and
+`/history/0`, with `~` escaped as `~0` and `/` as `~1`. Dictionary keys must be
+strings. The empty path identifies a quantity passed directly to the collector.

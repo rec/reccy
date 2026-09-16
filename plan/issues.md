@@ -440,6 +440,10 @@ custom list serialization, and root models with explicit cases.
 
 ### R23 [P2] Provenance paths are ambiguous for dictionary keys containing dots
 
+Resolved: provenance paths use JSON Pointer escaping; non-string dictionary keys
+raise TypeError. Tests distinguish dotted, nested, empty and escaped keys, and
+reject integer/string key collisions.
+
 Evidence: `reccy/configuration/units.py:115-130,159-160`.
 
 Paths concatenate components with a dot and stringify dictionary keys. A key
