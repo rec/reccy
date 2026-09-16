@@ -320,6 +320,21 @@ def test_service_registry_reports_unknown_services(tmp_path: Path) -> None:
     assert error_output.getvalue() == 'unknown service: missing\n'
 
 
+def test_status_defaults_follow_current_streams(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    registry = ServiceRegistry(
+        {'lyte': lyte_service()},
+        platform=Platform.linux,
+        home=tmp_path,
+        runner=FakeRunner(),
+    )
+    assert registry.report_status(['lyte', 'missing']) == 1
+    captured = capsys.readouterr()
+    assert captured.out == 'lyte: active\nactive\n'
+    assert captured.err == 'unknown service: missing\n'
+
+
 def test_service_registry_supports_custom_status_model(tmp_path: Path) -> None:
     registry = ServiceRegistry(
         {'lyte': lyte_service()},

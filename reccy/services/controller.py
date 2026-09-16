@@ -260,9 +260,11 @@ class ServiceRegistry:
         self,
         service_names: list[str],
         *,
-        output: TextIO = sys.stdout,
-        error_output: TextIO = sys.stderr,
+        output: TextIO | None = None,
+        error_output: TextIO | None = None,
     ) -> int:
+        output = sys.stdout if output is None else output
+        error_output = sys.stderr if error_output is None else error_output
         failures = 0
         for name in service_names:
             if name not in self.services:
@@ -277,8 +279,9 @@ class ServiceRegistry:
 
 
 def print_service_status(
-    name: str, result: models.StatusResult, *, output: TextIO = sys.stdout
+    name: str, result: models.StatusResult, *, output: TextIO | None = None
 ) -> None:
+    output = sys.stdout if output is None else output
     state = 'active' if result.running else 'inactive'
     print(f'{name}: {state}', file=output)
     if result.details:
