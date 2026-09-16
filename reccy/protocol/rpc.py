@@ -138,28 +138,38 @@ class Server:
         self.handle = handle
         self.role = role
         self.event_connections: list[ipc.Connection] = []
+        self.connections: list[ipc.Connection] = []
         self.lock = threading.Lock()
         self.request_slots = threading.BoundedSemaphore(MAX_CONCURRENT_REQUESTS)
         self.event_slots = threading.BoundedSemaphore(MAX_EVENT_CONNECTIONS)
         self.running = False
 
     def start(self) -> None:
-        self.control_backend.start()
-        self.event_backend.start()
-        self.running = True
-        threading.Thread(
-            target=self._accept_control, daemon=True, name='RpcControl'
-        ).start()
-        threading.Thread(
-            target=self._accept_events, daemon=True, name='RpcEvents'
-        ).start()
+        if self.running:
+            raise RuntimeError('RPC server is already running')
+        started = False
+        try:
+            self.control_backend.start()
+            self.event_backend.start()
+            self.running = True
+            threading.Thread(
+                target=self._accept_control, daemon=True, name='RpcControl'
+            ).start()
+            threading.Thread(
+                target=self._accept_events, daemon=True, name='RpcEvents'
+            ).start()
+            started = True
+        finally:
+            if not started:
+                self.close()
 
     def close(self) -> None:
-        self.running = False
+        with self.lock:
+            self.running = False
+            connections, self.connections = self.connections, []
+            self.event_connections = []
         self.control_backend.close()
         self.event_backend.close()
-        with self.lock:
-            connections, self.event_connections = self.event_connections, []
         for connection in connections:
             connection.close()
 
@@ -169,14 +179,18 @@ class Server:
             connections = list(self.event_connections)
         for connection in connections:
             if not connection.write(message):
-                self._remove_event_connection(connection)
+                self._close_connection(connection)
 
     def _accept_control(self) -> None:
         while self.running:
             if (connection := self.control_backend.accept()) is not None:
-                if not self.request_slots.acquire(blocking=False):
-                    connection.close()
-                    continue
+                with self.lock:
+                    if not self.running or not self.request_slots.acquire(
+                        blocking=False
+                    ):
+                        connection.close()
+                        continue
+                    self.connections.append(connection)
                 threading.Thread(
                     target=self._serve_control,
                     args=(connection,),
@@ -187,9 +201,11 @@ class Server:
     def _accept_events(self) -> None:
         while self.running:
             if (connection := self.event_backend.accept()) is not None:
-                if not self.event_slots.acquire(blocking=False):
-                    connection.close()
-                    continue
+                with self.lock:
+                    if not self.running or not self.event_slots.acquire(blocking=False):
+                        connection.close()
+                        continue
+                    self.connections.append(connection)
                 threading.Thread(
                     target=self._serve_events,
                     args=(connection,),
@@ -218,6 +234,8 @@ class Server:
                     return
                 if isinstance(message, Request):
                     timer.cancel()
+                    if not self.running:
+                        return
                     try:
                         result = self.handle(message)
                     except (AttributeError, KeyError, TypeError, ValueError) as error:
@@ -231,7 +249,7 @@ class Server:
             _write_error(connection, str(error))
         finally:
             timer.cancel()
-            connection.close()
+            self._close_connection(connection)
             self.request_slots.release()
 
     def _serve_events(self, connection: ipc.Connection) -> None:
@@ -256,6 +274,8 @@ class Server:
                 if isinstance(message, Subscribe):
                     timer.cancel()
                     with self.lock:
+                        if not self.running:
+                            return
                         self.event_connections.append(connection)
                     for _ in lines:
                         pass
@@ -266,14 +286,15 @@ class Server:
             _write_error(connection, str(error))
         finally:
             timer.cancel()
-            self._remove_event_connection(connection)
-            connection.close()
+            self._close_connection(connection)
             self.event_slots.release()
 
-    def _remove_event_connection(self, connection: ipc.Connection) -> None:
+    def _close_connection(self, connection: ipc.Connection) -> None:
         with self.lock:
             if connection in self.event_connections:
                 self.event_connections.remove(connection)
+            if connection in self.connections:
+                self.connections.remove(connection)
         connection.close()
 
 

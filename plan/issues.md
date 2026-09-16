@@ -98,6 +98,12 @@ connection. Verify a non-reading subscriber and simultaneous publishers.
 
 ### R05 [P2] Server shutdown does not own all accepted connections
 
+Resolved: the server registers accepted connections before dispatch, closes all
+of them on shutdown, prevents new dispatch/subscription registration once closed,
+and rolls back partial startup. Already executing application handlers may finish;
+Python threads are not forcibly interrupted. Tests cover failed event-backend
+startup, post-hello control/event clients, and an active handler during shutdown.
+
 Evidence: `reccy/protocol/rpc.py:144-162,172-259`.
 
 `close()` closes listeners and registered event subscribers, but does not track
