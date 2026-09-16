@@ -59,3 +59,5 @@ for partial startup there. Exceptions still propagate to the caller.
 Set `status_model` to a `ReccyStatus` subclass to enable status persistence. The
 default snapshot constructs that model, and the service controller reads the same
 model. Override `status_snapshot()` when additional required fields need values.
+Status retains the latest 1,000 errors. Every error is also logged; older log
+history is subject to the configured log retention policy.

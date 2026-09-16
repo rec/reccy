@@ -221,7 +221,9 @@ class Reccy(BaseModel, frozen=True):
             self._rpc_server.publish(name, **data)
 
     def publish_error(self, message: str) -> None:
+        self.logger.error('%s', message)
         self._errors.append(ErrorRecord(message=message))
+        del self._errors[:-1000]
         self.publish_status()
         self.publish_event('error', message=message)
 

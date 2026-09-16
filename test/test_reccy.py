@@ -14,6 +14,21 @@ class Settings(BaseModel, frozen=True):
     enabled: bool = False
 
 
+def test_error_status_retains_latest_thousand(caplog: pytest.LogCaptureFixture) -> None:
+    class Application(Reccy):
+        name = 'error-retention'
+
+    application = Application()
+    for i in range(1005):
+        application.publish_error(f'error {i}')
+    errors = application.status_snapshot().errors
+    assert len(errors) == 1000
+    assert errors[0].message == 'error 5'
+    assert errors[-1].message == 'error 1004'
+    assert len(caplog.records) == 1005
+    assert caplog.records[0].message == 'error 0'
+
+
 class Status(ReccyStatus):
     state: str = 'idle'
 
