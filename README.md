@@ -43,3 +43,10 @@ one-second deadline. Set RPC request deadlines using
 RPC server shutdown disconnects accepted clients, including incomplete handshakes.
 Application handlers already executing may finish; shutdown does not forcibly
 interrupt them.
+
+RPC handlers return raw strings or dictionaries for success, and `ipc.Error`
+for failure. The top-level dictionary discriminator `type="error"` is reserved
+for protocol errors and must not be used in successful results. Errors require
+a string `message`; clients raise `ConnectionError` with that message. Application
+data describing an error can use a different discriminator or a nested object.
+This contract does not require a response envelope or a wire-version change.
