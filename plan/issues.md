@@ -221,6 +221,10 @@ and repeated lifecycle calls with controlled fakes.
 
 ### R11 [P2] Reccy's status format is incompatible with its default controller
 
+Resolved: controller readers and the default snapshot use `status_model` (or
+`ReccyStatus` when unspecified). Subclasses with required additional fields must
+override `status_snapshot()` to provide those values.
+
 Evidence: `reccy/reccy.py:17-25,95-98,178-192`;
 `reccy/services/models.py:63-69`; `reccy/services/controller.py:22,216-222`.
 
