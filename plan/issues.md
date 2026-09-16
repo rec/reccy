@@ -523,6 +523,9 @@ whether a byte bound is required. Verify a failing callback and a long line.
 
 ### R28 [P2] Subprocess wrapper advertises text output even in binary mode
 
+Resolved: return annotation permits both text and bytes results. The docstring
+states that disabling capture leaves stdout/stderr as None; delegation is unchanged.
+
 Evidence: `reccy/runtime/subprocess.py:12-28`.
 
 `text=False` is accepted, but the return annotation is always

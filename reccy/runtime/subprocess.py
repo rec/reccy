@@ -17,7 +17,11 @@ def run(
     env: Mapping[str, str] | None = None,
     text: bool = True,
     timeout: float | None = None,
-) -> subprocess.CompletedProcess[str]:
+) -> subprocess.CompletedProcess[str] | subprocess.CompletedProcess[bytes]:
+    """Run a command with str output in text mode, bytes otherwise.
+
+    With capture_output=False, stdout and stderr on the result are None.
+    """
     return subprocess.run(
         command,
         capture_output=capture_output,
