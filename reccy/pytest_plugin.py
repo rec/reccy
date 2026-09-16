@@ -1,32 +1,69 @@
+import sys
 from collections.abc import Callable, Iterable
+from typing import Protocol
 
 import pytest
 
 
+class CliHelp(Protocol):
+    def __call__(
+        self,
+        program: str,
+        invoke: Callable[[], int],
+        subcommands: Iterable[str] = (),
+    ) -> None: ...
+
+
+class FileRegression(Protocol):
+    def check(self, contents: str) -> None: ...
+
+
+@pytest.fixture
 def cli_help(
+    capsys: pytest.CaptureFixture[str],
+    file_regression: FileRegression,
+    monkeypatch: pytest.MonkeyPatch,
+) -> CliHelp:
+    def check(
+        program: str,
+        invoke: Callable[[], int],
+        subcommands: Iterable[str] = (),
+    ) -> None:
+        file_regression.check(
+            _help_text(program, invoke, capsys, monkeypatch, subcommands)
+        )
+
+    return check
+
+
+def _help_text(
     program: str,
-    invoke: Callable[[list[str]], int],
+    invoke: Callable[[], int],
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
-    subcommands: Iterable[str] = (),
+    subcommands: Iterable[str],
 ) -> str:
-    """Return normalized help text for a CLI and its immediate subcommands."""
     monkeypatch.setenv('COLUMNS', '120')
     monkeypatch.setenv('NO_COLOR', '1')
 
     commands = [['--help'], *([name, '--help'] for name in sorted(subcommands))]
-    sections = [_help_section(program, command, invoke, capsys) for command in commands]
+    sections = [
+        _help_section(program, command, invoke, capsys, monkeypatch)
+        for command in commands
+    ]
     return '\n\n'.join(sections)
 
 
 def _help_section(
     program: str,
     command: list[str],
-    invoke: Callable[[list[str]], int],
+    invoke: Callable[[], int],
     capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> str:
+    monkeypatch.setattr(sys, 'argv', [program, *command])
     try:
-        result = invoke(command)
+        result = invoke()
     except SystemExit as e:
         result = e.code
 
