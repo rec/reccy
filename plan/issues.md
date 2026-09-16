@@ -422,6 +422,10 @@ Follow-up: test `0:59`, `0:59.5`, and `0:60`, including hour-bearing forms.
 
 ### R22 [P2] Unit-aware dump helpers assume serialization preserves model structure
 
+Resolved: unit-aware dumps use canonical field names regardless of serialization
+aliases. RootModel and custom field/model/annotated serializers are explicitly
+rejected, including nested values. README defines the supported model contract.
+
 Evidence: `reccy/configuration/units.py:26-48,133-155`.
 
 The helpers walk a normal model dump using original field names and original list

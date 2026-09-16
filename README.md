@@ -90,3 +90,16 @@ An explicit `home` controls generated file paths and the working directory. On
 Windows it also overrides APPDATA/LOCALAPPDATA; those environment variables are
 used only when home is omitted. These paths do not change the service-manager
 account: installation still targets the current user.
+
+## Unit-aware configuration dumps
+
+`runtime_dump()` emits normalized numbers; `authored_dump()` retains authored
+unit strings. Both emit canonical field names, even when a model has aliases or
+enables alias serialization. `revalidation_dump()` is the Python-mode authored
+dump intended for rebuilding a model without losing provenance. Models using
+validation aliases must also accept field names to revalidate these dumps.
+
+These helpers support ordinary models, nested models, lists and dictionaries.
+They reject `RootModel` and custom field/model or annotated serializers with
+`TypeError`, including in nested values. Use Pydantic's own dump methods when
+custom serialization is needed, without unit-provenance restoration.

@@ -4,11 +4,12 @@ import re
 from decimal import Decimal
 from functools import cache, partial
 from importlib.resources import files
-from typing import Annotated, Literal, cast
+from typing import Annotated, Literal, cast, get_args
 
 from pint import UnitRegistry
 from pint.errors import PintError
 from pydantic import BaseModel, Field, ValidatorFunctionWrapHandler, WrapValidator
+from pydantic.functional_serializers import PlainSerializer, WrapSerializer
 
 
 class UnitProvenance(BaseModel, frozen=True):
@@ -26,7 +27,8 @@ def collect_unit_provenance(value: object) -> dict[str, UnitProvenance]:
 def runtime_dump(
     value: BaseModel, *, mode: Literal['json', 'python'] = 'python'
 ) -> dict[str, object]:
-    dumped = value.model_dump(mode=mode)
+    _validate_dump_source(value)
+    dumped = value.model_dump(mode=mode, by_alias=False)
     result = _replace_unit_values(value, dumped, authored=False)
     assert isinstance(result, dict)
     return cast(dict[str, object], result)
@@ -35,17 +37,16 @@ def runtime_dump(
 def authored_dump(
     value: BaseModel, *, mode: Literal['json', 'python'] = 'python'
 ) -> dict[str, object]:
-    dumped = value.model_dump(mode=mode)
+    _validate_dump_source(value)
+    dumped = value.model_dump(mode=mode, by_alias=False)
     result = _replace_unit_values(value, dumped, authored=True)
     assert isinstance(result, dict)
     return cast(dict[str, object], result)
 
 
 def revalidation_dump(value: BaseModel) -> dict[str, object]:
-    dumped = value.model_dump(mode='python')
-    result = _replace_unit_values(value, dumped, authored=True)
-    assert isinstance(result, dict)
-    return cast(dict[str, object], result)
+    """Return authored Python values for validation, preserving unit provenance."""
+    return authored_dump(value)
 
 
 def magnitude(value: object, unit: str) -> object:
@@ -154,6 +155,34 @@ def _replace_unit_values(source: object, dumped: object, *, authored: bool) -> o
             for index, item in enumerate(source)
         ]
     return dumped
+
+
+def _validate_dump_source(value: object) -> None:
+    if isinstance(value, BaseModel):
+        model = type(value)
+        decorators = model.__pydantic_decorators__
+        if model.__pydantic_root_model__:
+            raise TypeError('Unit-aware dumps do not support RootModel')
+        if decorators.field_serializers or decorators.model_serializers:
+            raise TypeError('Unit-aware dumps do not support custom serializers')
+        for name, field in model.model_fields.items():
+            _validate_dump_annotation(field.annotation)
+            for metadata in field.metadata:
+                _validate_dump_annotation(metadata)
+            _validate_dump_source(getattr(value, name))
+    elif isinstance(value, dict):
+        for item in value.values():
+            _validate_dump_source(item)
+    elif isinstance(value, list):
+        for item in value:
+            _validate_dump_source(item)
+
+
+def _validate_dump_annotation(annotation: object) -> None:
+    if isinstance(annotation, (PlainSerializer, WrapSerializer)):
+        raise TypeError('Unit-aware dumps do not support custom serializers')
+    for argument in get_args(annotation):
+        _validate_dump_annotation(argument)
 
 
 def _child_path(parent: str, child: str) -> str:
