@@ -2,6 +2,7 @@ import json
 import logging
 import queue
 import socket
+import stat
 import sys
 import threading
 import typing
@@ -351,13 +352,17 @@ class WindowsPipeConnection:
 
 
 def remove_stale_socket(path: Path) -> None:
-    if not path.exists():
+    try:
+        mode = path.lstat().st_mode
+    except FileNotFoundError:
         return
+    if not stat.S_ISSOCK(mode):
+        raise FileExistsError(f'Refusing to remove non-socket endpoint: {path}')
     try:
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as conn:
             conn.settimeout(SOCKET_TIMEOUT)
             conn.connect(str(path))
-    except OSError:
+    except ConnectionRefusedError:
         path.unlink()
 
 
