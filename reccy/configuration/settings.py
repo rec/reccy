@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from typing import TypeVar
 
 from pydantic import BaseModel, ValidationError
 
 from ..errors import ReccyError
+from ..runtime.files import atomic_output
 
 Settings = TypeVar('Settings', bound=BaseModel)
 
@@ -36,17 +35,5 @@ def write_json_model(
 
 def write_text_atomically(path: Path, content: str, *, sync: bool = True) -> None:
     """Publish one complete write; concurrent writers use last-replacement-wins."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    file = NamedTemporaryFile(
-        mode='w', dir=path.parent, prefix=f'.{path.name}.', suffix='.tmp', delete=False
-    )
-    temporary = Path(file.name)
-    try:
-        with file:
-            file.write(content)
-            file.flush()
-            if sync:
-                os.fsync(file.fileno())
-        temporary.replace(path)
-    finally:
-        temporary.unlink(missing_ok=True)
+    with atomic_output(path, sync=sync) as temporary:
+        temporary.write_text(content)

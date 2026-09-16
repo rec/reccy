@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from reccy.configuration import settings
 from reccy.protocol import ipc, rpc
 from reccy.reccy import MutableAttribute, Reccy, ReccyStatus
+from reccy.runtime import files
 from reccy.services import models
 
 
@@ -136,7 +137,7 @@ def test_write_json_model_writes_compact_json_atomically(tmp_path: Path) -> None
 def test_write_json_model_can_skip_sync(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(settings.os, 'fsync', pytest.fail)
+    monkeypatch.setattr(files.os, 'fsync', pytest.fail)
 
     settings.write_json_model(
         tmp_path / 'status.json', Settings(enabled=True), sync=False

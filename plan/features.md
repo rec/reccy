@@ -19,6 +19,16 @@ All names below are provisional.
 
 ## F01. Atomic output for arbitrary file writers
 
+Implemented in Reccy: `reccy.runtime.files.atomic_output(path, sync=False)`.
+Creates parent directories, preserves the suffix and closes the initial handle
+before yielding. Existing text/JSON writers use it with their sync setting.
+Tests cover text/binary writers, failure cleanup, concurrency and fsync ordering.
+Native Windows execution remains unverified. Consumer adoption is deferred.
+
+Migration: Tuney can replace its local context manager with a direct import;
+Streamo can wrap its byte writer with this context. Keep consumer validation and
+permission policy outside it. See `doc/shared-features.md` for the contract.
+
 Consumers and evidence:
 
 - Tuney's [atomic_output](</Users/tom/code/tuney/tuney/app/file_output.py>) yields
