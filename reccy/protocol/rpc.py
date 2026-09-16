@@ -64,28 +64,24 @@ class Client:
             request = Request(command=command, params=params)
             if not connection.write(ipc.message_json(request)):
                 raise BrokenPipeError('Could not send RPC request')
-            try:
-                for line in lines:
-                    if expired.is_set():
-                        raise TimeoutError(
-                            f'RPC request timed out after {self.timeout}s'
-                        )
-                    try:
-                        error = ipc.Error.model_validate_json(line)
-                    except ValidationError:
-                        return TypeAdapter(str | dict[str, object]).validate_json(line)
-                    raise ConnectionError(error.message)
-            except OSError:
+            for line in lines:
                 if expired.is_set():
-                    raise TimeoutError(
-                        f'RPC request timed out after {self.timeout}s'
-                    ) from None
-                raise
-            if expired.is_set():
-                raise TimeoutError(f'RPC request timed out after {self.timeout}s')
+                    raise TimeoutError(f'RPC request timed out after {self.timeout}s')
+                try:
+                    error = ipc.Error.model_validate_json(line)
+                except ValidationError:
+                    return TypeAdapter(str | dict[str, object]).validate_json(line)
+                raise ConnectionError(error.message)
             raise ConnectionError('RPC server closed the connection')
+        except OSError:
+            if expired.is_set():
+                raise TimeoutError(
+                    f'RPC request timed out after {self.timeout}s'
+                ) from None
+            raise
         finally:
             timer.cancel()
+            timer.join()
             connection.close()
 
 
@@ -102,26 +98,60 @@ class EventClient:
         self.role = role
         self.connection: ipc.Connection | None = None
         self.lines: Iterator[str] | None = None
+        self.closed = True
 
     def start(self) -> None:
+        if self.connection is not None:
+            raise RuntimeError('RPC event client has already been started')
         self.connection = ipc.client_connection(self.endpoint)
+        self.closed = False
         self.lines = self.connection.read_lines()
-        _hello(self.connection, self.role, self.lines)
-        if not self.connection.write(ipc.message_json(Subscribe())):
-            raise BrokenPipeError('Could not subscribe to RPC events')
-        threading.Thread(target=self._read, daemon=True, name='RpcEvents').start()
+        expired = threading.Event()
+
+        def expire() -> None:
+            expired.set()
+            self.close()
+
+        timer = threading.Timer(HANDSHAKE_TIMEOUT, expire)
+        started = False
+        timer.start()
+        try:
+            _hello(self.connection, self.role, self.lines)
+            if not self.connection.write(ipc.message_json(Subscribe())):
+                raise BrokenPipeError('Could not subscribe to RPC events')
+            timer.cancel()
+            timer.join()
+            if expired.is_set():
+                raise TimeoutError('RPC event subscription timed out')
+            threading.Thread(target=self._read, daemon=True, name='RpcEvents').start()
+            started = True
+        except OSError:
+            if expired.is_set():
+                raise TimeoutError('RPC event subscription timed out') from None
+            raise
+        finally:
+            timer.cancel()
+            timer.join()
+            if not started:
+                self.close()
 
     def close(self) -> None:
+        self.closed = True
         if self.connection is not None:
             self.connection.close()
 
     def _read(self) -> None:
         assert self.connection is not None
         assert self.lines is not None
-        for line in self.lines:
-            message = MESSAGE.validate_json(line)
-            if isinstance(message, Event):
-                self.on_event(message)
+        try:
+            for line in self.lines:
+                message = MESSAGE.validate_json(line)
+                if isinstance(message, Event):
+                    self.on_event(message)
+        except (OSError, ValidationError) as error:
+            LOGGER.error('RPC event stream failed: %s', error)
+        finally:
+            self.close()
 
 
 class Server:

@@ -116,6 +116,15 @@ Verify failure of the second backend and shutdown during a request or handshake.
 
 ### R06 [P2] Client lifecycle and handshake contracts are inconsistent
 
+Resolved: IPC clients expose local `close()`, track hello completion, require it
+before forwarding application data, and release connections on reader exits or
+startup failure. RPC request timeouts now include hello; event subscription
+startup has a one-second deadline and cleanup on failure. Event reader failures
+also close the transport. Client instances are single-use after connecting, so
+restart cannot race an old reader's cleanup. Tests cover premature application
+data, failed hello sends, real-socket handshake timeouts, malformed hello/events,
+and an event callback exception.
+
 Evidence: `reccy/protocol/ipc.py:184-233`;
 `reccy/protocol/rpc.py:50-88,105-123`;
 `test/test_ipc.py:219-240`.
