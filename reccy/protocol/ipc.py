@@ -276,7 +276,11 @@ class UnixSocketConnection:
         return cls(conn)
 
     def read_lines(self) -> typing.Iterator[str]:
-        yield from self.file
+        try:
+            yield from self.file
+        except ValueError:
+            if not self.file.closed:
+                raise
 
     def write(self, message: str) -> bool:
         try:
@@ -287,9 +291,13 @@ class UnixSocketConnection:
 
     def close(self) -> None:
         try:
-            self.conn.close()
+            self.conn.shutdown(socket.SHUT_RDWR)
         except OSError:
             pass
+        try:
+            self.file.close()
+        finally:
+            self.conn.close()
 
 
 class WindowsPipeServerBackend:
