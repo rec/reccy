@@ -123,3 +123,13 @@ is not promised. In an encoded delta, an absent field means unchanged.
 Each codec keeps state per string key across calls. Consume batches in order and
 create fresh codec instances for every independent stream. A fresh decoder cannot
 reconstruct values omitted by a compressor continuing an earlier stream.
+
+## Child-process output
+
+`capture_stderr()` drains in chunks of at most 4,096 bytes, splitting oversized
+lines. Its `OutputTail` retains at most 80 chunks of 4,096 characters. Callbacks
+receive those chunks, not necessarily complete lines; invalid or split UTF-8 is
+decoded with replacement. If a callback raises, capture stops calling it but
+continues draining before reporting the exception through `threading.excepthook`.
+After child exit, `tail.wait(timeout)` waits for capture completion and returns
+whether it finished. A blocking callback can still delay capture.

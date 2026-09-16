@@ -6,15 +6,25 @@ import threading
 from collections import deque
 from collections.abc import Callable, Sequence
 
+OUTPUT_CHUNK_SIZE = 4096
+
 
 class OutputTail:
     def __init__(self, line_count: int = 80) -> None:
         self._lines: deque[str] = deque(maxlen=line_count)
         self._lock = threading.Lock()
+        self._reader: threading.Thread | None = None
 
     def append(self, line: str) -> None:
         with self._lock:
-            self._lines.append(line)
+            self._lines.append(line[-OUTPUT_CHUNK_SIZE:])
+
+    def wait(self, timeout: float | None = None) -> bool:
+        """Wait for capture to finish; return False if the timeout expires."""
+        if self._reader is None:
+            return True
+        self._reader.join(timeout)
+        return not self._reader.is_alive()
 
     def text(self) -> str:
         with self._lock:
@@ -54,12 +64,13 @@ def capture_stderr(
     tail = OutputTail()
     if process.stderr is None:
         return tail
-    threading.Thread(
+    tail._reader = threading.Thread(
         target=_read_stderr,
         args=(process, tail, on_line),
         name=thread_name,
         daemon=True,
-    ).start()
+    )
+    tail._reader.start()
     return tail
 
 
@@ -117,11 +128,17 @@ def _read_stderr(
     on_line: Callable[[str], None] | None,
 ) -> None:
     assert process.stderr is not None
-    for line in process.stderr:
-        text = line.decode(errors='replace')
-        tail.append(text)
-        if on_line is not None:
-            on_line(text)
+    try:
+        while line := process.stderr.readline(OUTPUT_CHUNK_SIZE):
+            text = line.decode(errors='replace')
+            tail.append(text)
+            if on_line is not None:
+                on_line(text)
+    finally:
+        # A callback failure must not leave a child blocked on its stderr pipe.
+        # The original exception reaches threading.excepthook after EOF.
+        while line := process.stderr.readline(OUTPUT_CHUNK_SIZE):
+            tail.append(line.decode(errors='replace'))
 
 
 def _write_output(
