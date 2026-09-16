@@ -26,14 +26,20 @@ def parse_message(line: str) -> object:
     return MESSAGE.validate_json(line)
 
 
-def test_backend_selects_unix_socket_for_path() -> None:
-    backend = ipc.server_backend(Path('/tmp/reccy.sock'))
+@pytest.mark.parametrize('endpoint', ['/tmp/reccy.sock', Path('/tmp/reccy.sock')])
+def test_backend_selects_unix_socket_for_filesystem_endpoint(
+    endpoint: str | Path,
+) -> None:
+    backend = ipc.server_backend(endpoint)
 
     assert isinstance(backend, ipc.UnixSocketServerBackend)
 
 
-def test_backend_selects_windows_pipe_for_string() -> None:
-    backend = ipc.server_backend(WINDOWS_PIPE)
+@pytest.mark.parametrize('endpoint', [WINDOWS_PIPE, Path(WINDOWS_PIPE)])
+def test_backend_selects_windows_pipe_for_named_pipe_endpoint(
+    endpoint: str | Path,
+) -> None:
+    backend = ipc.server_backend(endpoint)
 
     assert isinstance(backend, ipc.WindowsPipeServerBackend)
 

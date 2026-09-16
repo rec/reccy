@@ -6,6 +6,7 @@ from tempfile import TemporaryDirectory
 import pytest
 
 from reccy.protocol import ipc, rpc
+from reccy.services.models import DaemonMetadata, Platform
 
 
 @pytest.fixture
@@ -67,6 +68,17 @@ def test_event_capacity_counts_subscribed_connections(
             second.settimeout(1)
             second.connect(str(endpoints[1]))
             assert second.recv(1) == b''
+
+
+def test_rpc_accepts_filesystem_endpoint_loaded_from_metadata(
+    endpoints: tuple[Path, Path],
+) -> None:
+    metadata = DaemonMetadata(
+        module='app', platform=Platform.linux, control_endpoint=str(endpoints[0])
+    )
+    restored = DaemonMetadata.model_validate_json(metadata.model_dump_json())
+
+    assert rpc.Client(restored.control_endpoint).call('status') == 'ok'
 
 
 def test_pipe_reader_accepts_existing_serialized_messages_with_a_limit() -> None:

@@ -25,3 +25,21 @@ the grouped module paths.
 
 Application-specific recording, show control, audio, MIDI, lighting, web UI, and
 IPC payloads stay in the consuming projects.
+
+## IPC endpoints and lifecycle
+
+IPC accepts filesystem socket paths as either `Path` or `str`. Local Windows
+named-pipe addresses, such as `\\.\pipe\app`, select the pipe transport regardless
+of the Python argument type. Serialized service metadata endpoints can therefore
+be passed directly to an RPC client.
+
+`ProtocolClient` and `EventClient` are single-use after connecting; create a new
+client to reconnect. Both expose `close()` to release their local connection.
+`ProtocolClient.shutdown()` requests shutdown of the peer instead. Application
+messages are accepted only after hello, and event subscription startup has a
+one-second deadline. Set RPC request deadlines using
+`rpc.Client(endpoint, timeout=...).call(...)`.
+
+RPC server shutdown disconnects accepted clients, including incomplete handshakes.
+Application handlers already executing may finish; shutdown does not forcibly
+interrupt them.
