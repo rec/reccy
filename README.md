@@ -18,7 +18,7 @@ The initial consumers are expected to be `recs`, `showco`, `tuney`, and `lyte`.
 - `reccy.reccy`: shared application lifecycle, status, settings, RPC, and
   service integration.
 - `reccy.cli`: first-token command routing and user-facing exception handling.
-- `reccy.device`: shared audio and MIDI device matching.
+- `reccy.device`: audio/MIDI candidate-name specifications and device-key helpers.
 
 The previous flat module paths have been removed. Reccy code and consumers use
 the grouped module paths.
@@ -133,3 +133,71 @@ decoded with replacement. If a callback raises, capture stops calling it but
 continues draining before reporting the exception through `threading.excepthook`.
 After child exit, `tail.wait(timeout)` waits for capture completion and returns
 whether it finished. A blocking callback can still delay capture.
+
+Use `runtime.process` for managed child lifetimes, bounded output tails and
+`run_silent()` (capture output, log it on failure, then re-raise).
+`runtime.subprocess.run()` is the configurable standard-library wrapper;
+`app_command()` chooses source versus frozen command arguments for ordinary
+application launches, not service installation.
+
+## Application lifecycle and extension points
+
+`Reccy` is the application/daemon lifecycle base, not an event loop. A minimal
+application can publish status without enabling RPC or service installation:
+
+```python
+from reccy.reccy import Reccy, ReccyStatus
+
+
+class Application(Reccy):
+    name = 'example'
+    status_model = ReccyStatus
+
+
+def main() -> None:
+    application = Application()
+    try:
+        application.start()
+        print(application.status_snapshot().model_dump())
+    finally:
+        application.close()
+```
+
+The caller owns the run loop and calls start/close serially. `on_started()` may
+allocate application resources; `on_stopping()` runs before shutdown publication;
+`on_closed()` releases resources even after partial startup. Cleanup must tolerate
+missing resources. Override `status_snapshot()`, `rpc_command()` and mutable
+attribute hooks only as needed. Set `rpc_enabled=True` to expose RPC, and provide
+`service_spec` separately for service-manager integration.
+
+RPC commands execute concurrently in worker threads. Applications must protect
+their own shared state and coordinate shutdown with running handlers; closing the
+server disconnects clients but does not stop executing handlers. Event callbacks
+run on the event-reader thread, so they must not block that reader.
+
+Controller `health` is the last saved status snapshot, not proof of current
+health. Inspect its `updated_at` using an application-appropriate freshness limit;
+the manager's `running` value is a separate observation.
+
+## API naming and ownership notes
+
+- `cli_help` performs a regression assertion and returns nothing. Its short name
+  is retained for consumer tests. See the [CLI help guide](doc/testing-cli-help.md).
+- `Jsonl`, `Compress` and `Decompress` retain their existing names for consumers;
+  they encode dictionary deltas as described above, not JSONL text or compression
+  of arbitrary data.
+- `ServiceSpec.socket_file` is the generic control socket's relative path. Its
+  existing `gui.sock` basename is retained to avoid changing endpoint discovery;
+  it does not imply a GUI-only service.
+- `ProtocolClient.shutdown()` sends a peer-shutdown request; `close()` releases
+  the local connection. Neither name is an alias for the other.
+- `run_main()` reports interruption on stderr and returns 130, distinct from
+  successful completion.
+- `linux_xdg_autostart()` only renders a desktop entry. Its caller owns writing
+  and removing that file. `ServiceController` manages systemd on Linux, not XDG
+  autostart entries.
+- `AudioMidiDeviceSpec` stores candidate names; consumers own matching and
+  ambiguity handling. `device_key()` prefers a supplied persistent ID but falls
+  back to a display name, which is not guaranteed unique.
+- Control RPC has no request IDs or reply envelope; use raw results or
+  `ipc.Error`. The unused `ipc.Reply` model has been removed.

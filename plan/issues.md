@@ -613,6 +613,11 @@ concurrent test runs and the intended Windows test selection.
 
 ### R33 [P3, design] Several names hide the actual operation or scope
 
+Resolved: README explicitly defines existing consumer-facing names, ownership and
+the retained generic `gui.sock` endpoint. No naming sweep is needed. The duplicate
+revalidation implementation was consolidated in R22. KeyboardInterrupt now returns
+130, with a focused test, instead of reporting success.
+
 These are candidate API improvements, not authorization for a naming sweep:
 
 - `reccy.reccy.Reccy` (`reccy/reccy.py:33`) names the project, not its role as an
@@ -642,6 +647,11 @@ These are candidate API improvements, not authorization for a naming sweep:
   this policy or use a distinct interruption result.
 
 ### R34 [P3, design] Some public concepts have no complete usage story
+
+Resolved: removed unused ipc.Reply after checking Reccy and sibling Python sources
+for consumers. README now includes a minimal lifecycle example, RPC threading
+responsibilities, XDG ownership, device identity limitations and last-snapshot
+status semantics, plus the CLI regression guide link.
 
 - `ipc.Reply` retains `id`, `ok`, and `result` (`reccy/protocol/ipc.py:41-46`), while
   RPC uses a direct result and no request ID. Nothing inside this repository uses

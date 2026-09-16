@@ -8,6 +8,16 @@ from reccy.errors import ReccyError
 from reccy.runtime import subprocess
 
 
+def test_interruption_has_distinct_exit_status(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def interrupted() -> int:
+        raise KeyboardInterrupt
+
+    assert cli.run_main(interrupted) == 130
+    assert capsys.readouterr().err == 'Interrupted\n'
+
+
 @pytest.mark.parametrize('value', [float('nan'), float('-inf'), -1.0])
 def test_numeric_sign_validators_reject_nan_and_negative_values(value: float) -> None:
     for f in [validators.positive_number, validators.non_negative_number]:
