@@ -1,6 +1,6 @@
 import json
 import plistlib
-import shlex
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -49,7 +49,9 @@ def linux_systemd_unit(
     paths: models.ServicePaths,
     service: models.ServiceSpec,
 ) -> models.ServiceDefinition:
-    command = shlex.join(_service_runner_arguments(value, paths, service))
+    command = ' '.join(
+        _systemd_argument(a) for a in _service_runner_arguments(value, paths, service)
+    )
     content = '\n'.join(
         [
             '[Unit]',
@@ -77,7 +79,10 @@ def linux_xdg_autostart(
     service: models.ServiceSpec,
 ) -> models.ServiceDefinition:
     service_paths = paths.service_paths(service, value.platform, home)
-    command = shlex.join(_service_runner_arguments(value, service_paths, service))
+    command = ' '.join(
+        _desktop_argument(a)
+        for a in _service_runner_arguments(value, service_paths, service)
+    )
     path = home / '.config/autostart' / service.desktop_file
     content = '\n'.join(
         [
@@ -123,3 +128,20 @@ def _service_runner_arguments(
         value.module,
         *value.argv,
     ]
+
+
+def _systemd_argument(value: str) -> str:
+    value = value.replace('%', '%%').replace('$', '$$')
+    if re.fullmatch(r'[a-zA-Z0-9_./:-]+', value):
+        return value
+    return json.dumps(value, ensure_ascii=False)
+
+
+def _desktop_argument(value: str) -> str:
+    value = value.replace('%', '%%')
+    if re.fullmatch(r'[a-zA-Z0-9_./:-]+', value):
+        return value
+    value = ''.join('\\' + c if c in '\\"`$' else c for c in value)
+    value = value.replace('\\', '\\\\')
+    value = value.replace('\n', r'\n').replace('\r', r'\r').replace('\t', r'\t')
+    return f'"{value}"'

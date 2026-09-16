@@ -150,6 +150,37 @@ def test_windows_task_definition() -> None:
     assert task.log.name == 'lyte.log'
 
 
+@pytest.mark.parametrize(
+    ('argument', 'desktop', 'systemd'),
+    [
+        ('Main Rig', '"Main Rig"', '"Main Rig"'),
+        ('', '""', '""'),
+        ('%f', '"%%f"', '"%%f"'),
+        ('$HOME', r'"\\$HOME"', '"$$HOME"'),
+        ('a"b', r'"a\\"b"', r'"a\"b"'),
+        (r'a\b', r'"a\\\\b"', r'"a\\b"'),
+        ("a'b", '"a\'b"', '"a\'b"'),
+    ],
+)
+def test_linux_command_argument_escaping(
+    argument: str, desktop: str, systemd: str
+) -> None:
+    service = lyte_service()
+    home = Path('/home/tom')
+    service_paths = paths.service_paths(service, Platform.linux, home)
+    metadata = renderers.service_metadata(
+        Platform.linux, 'lyte', [argument], service_paths
+    )
+    xdg = renderers.linux_xdg_autostart(metadata, home, service)
+    unit = renderers.linux_systemd_unit(metadata, service_paths, service)
+    assert next(s for s in xdg.content.splitlines() if s.startswith('Exec=')).endswith(
+        ' ' + desktop
+    )
+    assert next(
+        s for s in unit.content.splitlines() if s.startswith('ExecStart=')
+    ).endswith(' ' + systemd)
+
+
 def lyte_service() -> ServiceSpec:
     return ServiceSpec(
         name='lyte',

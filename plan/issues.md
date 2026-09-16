@@ -310,6 +310,10 @@ absence of local files.
 
 ### R16 [P2] XDG autostart uses shell quoting for a different command grammar
 
+Resolved: separate desktop-entry and systemd argument escaping replaces shell
+quoting. Tests cover spaces, empty strings, quotes, backslashes, dollars and
+literal percent signs. Rendering is verified; native manager execution is not.
+
 Evidence: `reccy/services/renderers.py:74-94`.
 
 `shlex.join()` produces shell quoting, including single quotes around arguments
