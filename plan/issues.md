@@ -241,6 +241,9 @@ the snapshot hook, and the controller's reader. Verify status through
 
 ### R12 [P2] Error history grows forever and makes repeated publication quadratic
 
+Resolved: retain the latest 1,000 errors in status and log every error. A test
+publishes beyond the limit and checks both retained order and complete logging.
+
 Evidence: `reccy/reccy.py:178-201`.
 
 Every error is retained for the lifetime of the application. Each new error
