@@ -8,33 +8,33 @@ test and be usable by the other command-line applications.
 
 ## Interface
 
-Import `cli_help` from `reccy.testing`. It receives the program name, an
-application-supplied adapter, Pytest's `capsys` and `monkeypatch` fixtures, and
-an optional iterable of immediate subcommand names:
+Enable Reccy's Pytest plugin in the consumer's top-level `conftest.py`:
 
 ```python
-from reccy.testing import cli_help
-
-
-def test_help(file_regression, capsys, monkeypatch) -> None:
-    file_regression.check(
-        cli_help('my-app', main, capsys, monkeypatch, subcommands=['config', 'run'])
-    )
+pytest_plugins = ['reccy.pytest_plugin']
 ```
 
-The adapter accepts the argument list without the program name and returns zero
-for successful help. `SystemExit(0)` is also accepted, so a Tyro entry point can
-be passed directly when it accepts argv.
+The plugin provides a `cli_help` fixture. It owns Pytest's capture, environment,
+and `file_regression` fixtures. The test supplies only the program name, an
+application-specific adapter, and an optional iterable of immediate subcommands:
+
+```python
+def test_help(cli_help) -> None:
+    cli_help('my-app', main, subcommands=['config', 'run'])
+```
+
+The fixture sets `sys.argv` for each command before it calls the entry point. The
+entry point returns zero for successful help; `SystemExit(0)` is also accepted.
+This lets a typical CLI, including Tuney's, pass `main` directly. An entry point
+that requires an argv list can read the supplied `sys.argv` in a small wrapper:
+
+```python
+cli_help('my-app', lambda: main(sys.argv[1:]))
+```
 
 The adapter keeps the facility independent of a CLI framework and of how an
-application accepts arguments. For example, a CLI whose `main` accepts argv can
-pass that function directly. Tuney's `sys.argv` entry point needs this adapter:
-
-```python
-def invoke(arguments: list[str]) -> int:
-    monkeypatch.setattr(sys, 'argv', ['tuney', *arguments])
-    return main()
-```
+application accepts arguments. The fixture supplies the argument list through
+`sys.argv`, so consumer tests never need Pytest's capture or monkeypatch fixtures.
 
 Command names remain explicit because the applications currently expose
 subcommands through different mechanisms, and parsing formatted help to discover
@@ -68,12 +68,12 @@ content.
 
 ## Consumer test shape
 
-Each application keeps a thin test that supplies its adapter and subcommands,
-then passes the returned text to its existing `file_regression` fixture. A
+Each application keeps a thin test that supplies its adapter and subcommands. A
 single-command CLI omits subcommands and therefore records only its top-level
 help. Applications list only their direct public subcommands. Nested command
-groups use a separate invocation of the utility if their help needs its own
-fixture.
+groups use a separate invocation of the fixture if their help needs its own
+fixture. The consumer must have `pytest-regressions` installed so its
+`file_regression` fixture is available to the plugin.
 
 ## Rollout
 
