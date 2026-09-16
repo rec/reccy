@@ -76,9 +76,28 @@ at test teardown.
 Each application keeps a thin test that supplies its adapter and subcommands. A
 single-command CLI omits subcommands and therefore records only its top-level
 help. Applications list only their direct public subcommands. Nested command
-groups use a separate invocation of the fixture if their help needs its own
-fixture. The consumer must have `pytest-regressions` installed so its
+groups use separate test functions so each gets its own baseline. Call `cli_help`
+once per test. The consumer must have `pytest-regressions` installed so its
 `file_regression` fixture is available to the plugin.
+
+For a nested group, the display label is not an argument prefix. Insert the group
+tokens in the adapter explicitly:
+
+```python
+def test_config_help(cli_help) -> None:
+    def invoke() -> int | None:
+        return main(['config', *sys.argv[1:]])
+
+    cli_help('my-app config', invoke, subcommands=['get', 'set'])
+```
+
+Here `main` accepts an argv list. For an entry point that reads `sys.argv`, replace
+its contents in the adapter with `['my-app', 'config', *sys.argv[1:]]`, then call
+`main()`. The fixture resets argv before each invocation.
+
+`test/test_cli_help_regression.py` exercises real baseline creation, matching and
+mismatch detection when pytest-regressions is installed. It skips otherwise, so
+Reccy does not require that optional consumer test dependency.
 
 ## Rollout
 
