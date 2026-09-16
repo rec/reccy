@@ -8,6 +8,7 @@ from typing import TextIO
 
 from pydantic import BaseModel, ValidationError
 
+from ..configuration.settings import write_text_atomically
 from . import models, renderers
 from .paths import current_platform, service_paths
 
@@ -182,7 +183,7 @@ class ServiceController:
 
     def _write_metadata(self, metadata: models.DaemonMetadata) -> None:
         self.paths.metadata.parent.mkdir(parents=True, exist_ok=True)
-        _write_text_atomically(self.paths.metadata, renderers.metadata_json(metadata))
+        write_text_atomically(self.paths.metadata, renderers.metadata_json(metadata))
 
     def _write_definition(self, definition: models.ServiceDefinition) -> None:
         definition.path.parent.mkdir(parents=True, exist_ok=True)
@@ -347,12 +348,3 @@ def _uid() -> int:
         return os.getuid()
     except AttributeError:
         return 0
-
-
-def _write_text_atomically(path: Path, content: str) -> None:
-    tmp = path.with_name(f'.{path.name}.tmp')
-    with tmp.open('w') as fp:
-        fp.write(content)
-        fp.flush()
-        os.fsync(fp.fileno())
-    tmp.replace(path)
