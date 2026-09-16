@@ -72,12 +72,16 @@ class Reccy(BaseModel, frozen=True):
     def control_endpoint(self) -> Path | str:
         if self.service_spec is not None:
             return self.paths.control_endpoint
+        if self.platform == models.Platform.windows:
+            return rf'\\.\pipe\{self.name}'
         return self.home / '.local/state' / self.name / 'control.sock'
 
     @property
     def event_endpoint(self) -> Path | str:
         if self.service_spec is not None and self.paths.event_endpoint is not None:
             return self.paths.event_endpoint
+        if self.platform == models.Platform.windows:
+            return f'{self.control_endpoint}-events'
         return self.home / '.local/state' / self.name / 'events.sock'
 
     def load_settings(self) -> BaseModel | None:

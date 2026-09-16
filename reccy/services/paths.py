@@ -35,7 +35,7 @@ def service_paths(
             status=local / service.status_file,
             log=local / service.name / 'logs' / f'{service.name}.log',
             control_endpoint=service.windows_pipe,
-            event_endpoint=None,
+            event_endpoint=f'{service.windows_pipe}-events',
         )
     return ServicePaths(
         metadata=home / '.config' / service.metadata_file,
