@@ -1,5 +1,8 @@
 import subprocess
+import sys
+from collections.abc import Iterator
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import pytest
 from pydantic import BaseModel
@@ -8,6 +11,14 @@ from reccy.configuration import settings
 from reccy.protocol import ipc, rpc
 from reccy.reccy import MutableAttribute, Reccy, ReccyStatus
 from reccy.services import models
+
+
+@pytest.fixture
+def socket_home() -> Iterator[Path]:
+    if sys.platform == 'win32':
+        pytest.skip('Unix socket lifecycle test')
+    with TemporaryDirectory(dir='/tmp') as directory:
+        yield Path(directory)
 
 
 class Settings(BaseModel, frozen=True):
@@ -132,8 +143,8 @@ def test_write_json_model_can_skip_sync(
     )
 
 
-def test_reccy_starts_rpc_and_writes_status(tmp_path: Path) -> None:
-    application = Application(home=Path('/tmp/reccy-test'))
+def test_reccy_starts_rpc_and_writes_status(socket_home: Path) -> None:
+    application = Application(home=socket_home)
     application.start()
     try:
         response = rpc.Client(application.control_endpoint).call('status')
@@ -155,8 +166,8 @@ def test_reccy_starts_rpc_and_writes_status(tmp_path: Path) -> None:
         application.close()
 
 
-def test_reccy_handles_mutable_attribute_commands() -> None:
-    application = Application(home=Path('/tmp/reccy-mutable'))
+def test_reccy_handles_mutable_attribute_commands(socket_home: Path) -> None:
+    application = Application(home=socket_home)
     application.start()
     try:
         client = rpc.Client(application.control_endpoint)

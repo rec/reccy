@@ -1,4 +1,5 @@
 import socket
+import sys
 import threading
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -6,6 +7,10 @@ from tempfile import TemporaryDirectory
 import pytest
 
 from reccy.protocol import ipc, rpc
+
+pytestmark = pytest.mark.skipif(
+    sys.platform == 'win32', reason='Unix socket filesystem tests'
+)
 
 
 def test_failed_server_start_releases_control_listener() -> None:
