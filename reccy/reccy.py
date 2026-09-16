@@ -95,7 +95,12 @@ class Reccy(BaseModel, frozen=True):
     def service_controller(self) -> controller.ServiceController:
         if self.service_spec is None:
             raise ReccyError('service_spec is required for service control')
-        return controller.ServiceController(self.service_spec, self.platform, self.home)
+        return controller.ServiceController(
+            self.service_spec,
+            self.platform,
+            self.home,
+            status_model=self.status_model or ReccyStatus,
+        )
 
     def service_metadata(self, daemon_argv: list[str]) -> models.DaemonMetadata:
         return renderers.service_metadata(
@@ -195,7 +200,8 @@ class Reccy(BaseModel, frozen=True):
         return ipc.Error(type='error', message=f'unknown command {request.command}')
 
     def status_snapshot(self) -> ReccyStatus:
-        return ReccyStatus(running=self._started, errors=self._errors.copy())
+        model = self.status_model or ReccyStatus
+        return model(running=self._started, errors=self._errors.copy())
 
     def mutable_attributes(self) -> list[MutableAttribute]:
         return []

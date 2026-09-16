@@ -55,3 +55,7 @@ This contract does not require a response envelope or a wire-version change.
 RPC cleanup and `on_closed()` run even if startup, shutdown hooks, or status
 publication fail. Release application-owned resources in `on_closed()` and allow
 for partial startup there. Exceptions still propagate to the caller.
+
+Set `status_model` to a `ReccyStatus` subclass to enable status persistence. The
+default snapshot constructs that model, and the service controller reads the same
+model. Override `status_snapshot()` when additional required fields need values.

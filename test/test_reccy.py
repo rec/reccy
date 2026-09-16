@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -44,6 +45,34 @@ class Application(Reccy):
         if address != 'enabled' or not isinstance(value, bool):
             raise ValueError('enabled must be a boolean')
         return MutableAttribute(address=address, value=value)
+
+
+def test_service_status_reads_configured_model_with_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def run(
+        command: list[str], *, check: bool, text: bool, capture_output: bool
+    ) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(command, 0, stdout='active', stderr='')
+
+    class DefaultSnapshotApplication(Reccy):
+        name = 'application'
+        service_spec = Application.service_spec
+        status_model = Status
+
+    application = DefaultSnapshotApplication(
+        home=tmp_path, platform=models.Platform.linux
+    )
+    monkeypatch.setattr(subprocess, 'run', run)
+    application.publish_status()
+    status = application.service_status().health
+    assert isinstance(status, Status)
+    assert status.state == 'idle'
+    assert status.errors == []
+    application.publish_error('disk full')
+    status = application.service_status().health
+    assert isinstance(status, Status)
+    assert [e.message for e in status.errors] == ['disk full']
 
 
 def test_settings_are_optional_and_saved_atomically(tmp_path: Path) -> None:
