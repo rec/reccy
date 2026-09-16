@@ -1,4 +1,5 @@
 import socket
+import sys
 import threading
 import time
 import typing
@@ -46,6 +47,8 @@ def test_backend_selects_windows_pipe_for_named_pipe_endpoint(
 
 @pytest.fixture
 def unix_socket_path() -> typing.Iterator[Path]:
+    if sys.platform == 'win32':
+        pytest.skip('Unix socket filesystem test')
     with TemporaryDirectory(dir='/tmp') as directory:
         yield Path(directory) / 'control.sock'
 
@@ -478,20 +481,23 @@ def test_parse_message_uses_supplied_adapter() -> None:
         ipc.parse_message('{"type":"missing"}', MESSAGE)
 
 
-def test_rpc_server_handles_requests_and_publishes_events() -> None:
+def test_rpc_server_handles_requests_and_publishes_events(
+    unix_socket_path: Path,
+) -> None:
     received: list[rpc.Event] = []
+    events = unix_socket_path.with_name('events.sock')
     server = rpc.Server(
-        Path('/tmp/reccy-rpc-control.sock'),
-        Path('/tmp/reccy-rpc-events.sock'),
+        unix_socket_path,
+        events,
         lambda request: {'command': request.command},
         role='test',
     )
     server.start()
-    subscriber = rpc.EventClient(Path('/tmp/reccy-rpc-events.sock'), received.append)
+    subscriber = rpc.EventClient(events, received.append)
     try:
         subscriber.start()
         assert _eventually(lambda: len(server.event_connections) == 1)
-        response = rpc.Client(Path('/tmp/reccy-rpc-control.sock')).call('status')
+        response = rpc.Client(unix_socket_path).call('status')
         server.publish('error', message='disk full')
         assert response == {'command': 'status'}
         assert _eventually(

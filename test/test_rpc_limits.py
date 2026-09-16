@@ -1,4 +1,5 @@
 import socket
+import sys
 from collections.abc import Iterator
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -11,6 +12,8 @@ from reccy.services.models import DaemonMetadata, Platform
 
 @pytest.fixture
 def endpoints(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[Path, Path]]:
+    if sys.platform == 'win32':
+        pytest.skip('Unix socket filesystem test')
     monkeypatch.setattr(rpc, 'HANDSHAKE_TIMEOUT', 0.1)
     monkeypatch.setattr(rpc, 'MAX_REQUEST_BYTES', 128)
     monkeypatch.setattr(rpc, 'MAX_EVENT_CONNECTIONS', 1)

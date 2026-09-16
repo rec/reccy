@@ -592,6 +592,11 @@ nonzero exits, normalization of both bullet variants, and environment behavior.
 
 ### R32 [P2] Tests use fixed global temporary paths
 
+Resolved: filesystem-writing lifecycle/RPC tests use isolated short temporary
+directories. Unix filesystem tests skip on Windows; fake pipe and portable pipe
+tests remain selected. Concurrent suite runs verify isolation on macOS; native
+Windows execution is not claimed.
+
 Evidence: `test/test_ipc.py:271-300`; `test/test_reccy.py:78-103`.
 
 RPC tests share fixed `/tmp/reccy-rpc-*.sock` paths, and lifecycle tests write to
