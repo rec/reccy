@@ -329,6 +329,10 @@ quoting approach before assuming it is correct there.
 
 ### R17 [P2] Service identity validation does not protect generated paths/text
 
+Resolved: launchd labels must be filename-safe identifiers, not paths or dot
+directory names. Display names and descriptions reject control characters.
+Tests cover both path separators, traversal and injected lines.
+
 Evidence: `reccy/services/models.py:17-23`; `reccy/services/paths.py:23`;
 `reccy/services/renderers.py:56,86-87`.
 

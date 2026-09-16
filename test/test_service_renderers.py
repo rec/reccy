@@ -40,6 +40,26 @@ def test_service_identity_is_validated() -> None:
             daemon_env_var='LYTE_DAEMON',
             windows_pipe=r'\\.\pipe\lyte',
         )
+
+
+@pytest.mark.parametrize('label', ['/tmp/escape', '../escape', r'..\escape', '.', '..'])
+def test_service_label_cannot_escape_definition_directory(label: str) -> None:
+    values = lyte_service().model_dump()
+    values['launchd_label'] = label
+    with pytest.raises(ValidationError, match='filename-safe'):
+        ServiceSpec.model_validate(values)
+
+
+@pytest.mark.parametrize('field', ['description', 'display_name'])
+@pytest.mark.parametrize('value', ['name\nExec=bad', 'name\rnew', 'name\x00'])
+def test_service_text_rejects_control_characters(field: str, value: str) -> None:
+    values = lyte_service().model_dump()
+    values[field] = value
+    with pytest.raises(ValidationError, match='control characters'):
+        ServiceSpec.model_validate(values)
+
+
+def test_service_environment_variable_is_validated() -> None:
     with pytest.raises(ValidationError):
         ServiceSpec(
             name='lyte',
