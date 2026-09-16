@@ -1,7 +1,7 @@
 import re
 from enum import auto
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import AfterValidator, BaseModel, Field, field_validator
 from strenum import StrEnum
@@ -67,7 +67,7 @@ class ServiceSpec(BaseModel, frozen=True):
 
 
 class DaemonMetadata(BaseModel, frozen=True):
-    version: int = 1
+    version: Literal[1] = 1
     argv: list[str] = Field(default_factory=list)
     module: str
     platform: Platform
@@ -85,6 +85,7 @@ class DaemonStatus(BaseModel):
 
 
 class ServicePaths(BaseModel, frozen=True):
+    home: Path = Field(default_factory=Path.home)
     metadata: Path
     service: Path
     status: Path

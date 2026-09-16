@@ -73,6 +73,19 @@ def test_linux_controller_installs_user_service(tmp_path: Path) -> None:
     ]
 
 
+def test_frozen_install_rejected_before_writing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(sys, 'frozen', True, raising=False)
+    runner = FakeRunner()
+    controller = ServiceController(lyte_service(), Platform.linux, tmp_path, runner)
+    metadata = service_metadata(Platform.linux, 'lyte', ['run'], controller.paths)
+    with pytest.raises(ValueError, match='frozen'):
+        controller.install(metadata)
+    assert not list(tmp_path.iterdir())
+    assert runner.commands == []
+
+
 def test_macos_controller_installs_launch_agent(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

@@ -16,9 +16,11 @@ def current_platform() -> Platform:
 def service_paths(
     service: ServiceSpec, platform: Platform, home: Path | None = None
 ) -> ServicePaths:
+    explicit_home = home is not None
     home = home or Path.home()
     if platform == Platform.macos:
         return ServicePaths(
+            home=home,
             metadata=home / '.config' / service.metadata_file,
             service=home / 'Library/LaunchAgents' / f'{service.launchd_label}.plist',
             status=home / '.local/state' / service.status_file,
@@ -27,9 +29,13 @@ def service_paths(
             event_endpoint=home / '.local/state' / service.name / 'events.sock',
         )
     if platform == Platform.windows:
-        appdata = Path(os.environ.get('APPDATA', home / 'AppData/Roaming'))
-        local = Path(os.environ.get('LOCALAPPDATA', home / 'AppData/Local'))
+        appdata = home / 'AppData/Roaming'
+        local = home / 'AppData/Local'
+        if not explicit_home:
+            appdata = Path(os.environ.get('APPDATA', appdata))
+            local = Path(os.environ.get('LOCALAPPDATA', local))
         return ServicePaths(
+            home=home,
             metadata=appdata / service.metadata_file,
             service=appdata / service.scheduled_task_file,
             status=local / service.status_file,
@@ -38,6 +44,7 @@ def service_paths(
             event_endpoint=f'{service.windows_pipe}-events',
         )
     return ServicePaths(
+        home=home,
         metadata=home / '.config' / service.metadata_file,
         service=home / '.config/systemd/user' / service.systemd_unit,
         status=home / '.local/state' / service.status_file,

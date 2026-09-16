@@ -33,6 +33,10 @@ class ServiceController:
         self.status_error_label = status_error_label
 
     def install(self, metadata: models.DaemonMetadata) -> models.StatusResult:
+        if getattr(sys, 'frozen', False):
+            raise ValueError(
+                'Service installation does not support frozen applications'
+            )
         self._write_metadata(metadata)
         self._ensure_log()
         if self.platform == models.Platform.macos:
