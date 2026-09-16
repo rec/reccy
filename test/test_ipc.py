@@ -3,6 +3,7 @@ import threading
 import time
 import typing
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import pytest
 from pydantic import BaseModel, TypeAdapter, ValidationError
@@ -34,6 +35,67 @@ def test_backend_selects_windows_pipe_for_string() -> None:
     backend = ipc.server_backend(WINDOWS_PIPE)
 
     assert isinstance(backend, ipc.WindowsPipeServerBackend)
+
+
+@pytest.fixture
+def unix_socket_path() -> typing.Iterator[Path]:
+    with TemporaryDirectory(dir='/tmp') as directory:
+        yield Path(directory) / 'control.sock'
+
+
+@pytest.mark.parametrize('symlink', [False, True])
+def test_stale_socket_cleanup_preserves_non_socket_files(
+    tmp_path: Path, symlink: bool
+) -> None:
+    original = tmp_path / 'data'
+    original.write_text('keep me')
+    endpoint = tmp_path / 'control.sock' if symlink else original
+    if symlink:
+        endpoint.symlink_to(original)
+
+    with pytest.raises(FileExistsError, match='non-socket'):
+        ipc.remove_stale_socket(endpoint)
+
+    assert endpoint.read_text() == 'keep me'
+
+
+def test_stale_socket_cleanup_removes_refused_socket(unix_socket_path: Path) -> None:
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as endpoint:
+        endpoint.bind(str(unix_socket_path))
+
+    ipc.remove_stale_socket(unix_socket_path)
+
+    assert not unix_socket_path.exists()
+
+
+def test_stale_socket_cleanup_preserves_listening_socket(
+    unix_socket_path: Path,
+) -> None:
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as endpoint:
+        endpoint.bind(str(unix_socket_path))
+        endpoint.listen()
+
+        ipc.remove_stale_socket(unix_socket_path)
+
+        assert unix_socket_path.is_socket()
+
+
+@pytest.mark.parametrize('error', [PermissionError, TimeoutError])
+def test_stale_socket_cleanup_preserves_socket_on_other_errors(
+    unix_socket_path: Path, monkeypatch: pytest.MonkeyPatch, error: type[OSError]
+) -> None:
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as endpoint:
+        endpoint.bind(str(unix_socket_path))
+
+    def connect(self: socket.socket, address: str) -> None:
+        raise error('not evidence of a stale socket')
+
+    monkeypatch.setattr(socket.socket, 'connect', connect)
+
+    with pytest.raises(error):
+        ipc.remove_stale_socket(unix_socket_path)
+
+    assert unix_socket_path.is_socket()
 
 
 def test_unix_connection_close_wakes_reader_and_releases_socket() -> None:

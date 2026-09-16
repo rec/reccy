@@ -36,6 +36,10 @@ reader, masking the real transport problem.
 
 ### R02 [P1] Stale-socket cleanup can delete an ordinary file or a live endpoint
 
+Resolved: cleanup refuses non-socket paths (including symlinks), and only unlinks
+after connection refusal. Tests cover ordinary files, symlinks, stale/listening
+sockets, permission failures, and timeouts.
+
 Evidence: `reccy/protocol/ipc.py:345-353`.
 
 Every failed connection attempt is treated as proof that the path is stale, and
