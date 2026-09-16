@@ -7,11 +7,22 @@ from pydantic import (
     Field,
     PlainSerializer,
     RootModel,
+    TypeAdapter,
     field_serializer,
     model_serializer,
 )
 
 from reccy.configuration import units
+
+
+def test_provenance_paths_distinguish_keys_and_nested_values() -> None:
+    second = TypeAdapter(units.Seconds).validate_python('1s')
+    result = units.collect_unit_provenance(
+        {'a.b': second, 'a': {'b': second}, '~/': second, '': second}
+    )
+    assert set(result) == {'/a.b', '/a/b', '/~0~1', '/'}
+    with pytest.raises(TypeError, match='string dictionary keys'):
+        units.collect_unit_provenance({1: second, '1': second})
 
 
 def test_unit_dumps_use_field_names_despite_serialization_aliases() -> None:

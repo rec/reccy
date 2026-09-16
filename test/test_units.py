@@ -123,13 +123,13 @@ class Config(BaseModel, frozen=True):
 def test_unit_provenance_is_collected_by_field_path() -> None:
     value = Config(interval='250ms', nested=Nested(delay='1 min'), history=['1s', 2.0])
     assert units.collect_unit_provenance(value) == {
-        'interval': units.UnitProvenance(
+        '/interval': units.UnitProvenance(
             authored='250ms', normalized=250.0, canonical_unit='millisecond'
         ),
-        'nested.delay': units.UnitProvenance(
+        '/nested/delay': units.UnitProvenance(
             authored='1 min', normalized=60.0, canonical_unit='second'
         ),
-        'history.0': units.UnitProvenance(
+        '/history/0': units.UnitProvenance(
             authored='1s', normalized=1.0, canonical_unit='second'
         ),
     }
