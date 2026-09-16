@@ -26,6 +26,10 @@ the grouped module paths.
 Application-specific recording, show control, audio, MIDI, lighting, web UI, and
 IPC payloads stay in the consuming projects.
 
+See [shared infrastructure features](doc/shared-features.md) for atomic output,
+validated configuration edits, event connection completion, local resource claims
+and retry scheduling, including migration notes for consumer projects.
+
 ## IPC endpoints and lifecycle
 
 IPC accepts filesystem socket paths as either `Path` or `str`. Local Windows

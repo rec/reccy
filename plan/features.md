@@ -1,5 +1,12 @@
 # Candidate shared Reccy features
 
+## Implementation status
+
+F01–F05 are implemented and tested in Reccy. Per the agreed scope, no consumer
+repositories were changed. Consumer adoption and native Windows validation remain
+follow-up work, not completed acceptance claims. Contracts and migration notes
+are in [shared-features.md](../doc/shared-features.md).
+
 ## Scope and selection
 
 Source review: 2026-09-16. Reviewed Reccy alongside Recs, Tuney, Lyte,
@@ -176,6 +183,12 @@ processes, crash recovery, invalid ownership records, permission failures and
 release after ownership replacement; validate on Windows and POSIX.
 
 ## F05. Deadline-aware, cancellable retry scheduling
+
+Implemented in Reccy: `RetryPolicy`, `RetrySchedule` and `RetryStopReason` in
+`reccy.runtime.retry`. Scheduling is nonblocking and caller-owned; fixed/capped
+backoff, attempt limits, cancellation, absolute deadlines and reset are tested
+with a fake clock. Consumer adoption remains deferred. Lyte must explicitly
+select the new delay cap; migration notes are in `doc/shared-features.md`.
 
 Consumers and evidence:
 
