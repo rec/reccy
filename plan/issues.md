@@ -143,6 +143,11 @@ subscribe writes, and failed startup cleanup.
 
 ### R07 [P2] Transport selection depends on Python type, not endpoint meaning
 
+Resolved: local named-pipe addresses select Windows pipes and all other endpoints
+select filesystem sockets, consistently for `Path` and `str`. Tests cover both
+representations and an RPC call using a JSON-round-tripped metadata endpoint.
+README documents the selection and client lifecycle contracts.
+
 Evidence: `reccy/protocol/ipc.py:58-67`;
 `reccy/services/models.py:54-60`; `reccy/services/renderers.py:17-22`.
 

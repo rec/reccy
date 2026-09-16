@@ -60,15 +60,15 @@ class Error(BaseModel):
 
 
 def server_backend(endpoint: str | Path) -> ServerBackend:
-    if isinstance(endpoint, Path):
-        return UnixSocketServerBackend(endpoint)
-    return WindowsPipeServerBackend(endpoint)
+    if str(endpoint).casefold().startswith('\\\\.\\pipe\\'):
+        return WindowsPipeServerBackend(str(endpoint))
+    return UnixSocketServerBackend(Path(endpoint))
 
 
 def client_connection(endpoint: str | Path) -> Connection:
-    if isinstance(endpoint, Path):
-        return UnixSocketConnection.connect(endpoint)
-    return WindowsPipeConnection.connect(endpoint)
+    if str(endpoint).casefold().startswith('\\\\.\\pipe\\'):
+        return WindowsPipeConnection.connect(str(endpoint))
+    return UnixSocketConnection.connect(Path(endpoint))
 
 
 def message_json(
