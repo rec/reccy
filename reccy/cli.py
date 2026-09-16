@@ -29,7 +29,7 @@ def run_main(action: Callable[[], int]) -> int:
         return action()
     except KeyboardInterrupt:
         print('Interrupted', file=sys.stderr)
-        return 0
+        return 130
     except ValidationError as e:
         print('ERROR:', e, file=sys.stderr)
     except ReccyError as e:

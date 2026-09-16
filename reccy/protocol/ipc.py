@@ -42,14 +42,6 @@ class Hello(BaseModel):
     version: int
 
 
-class Reply(BaseModel):
-    type: typing.Literal['reply']
-    id: str
-    ok: bool
-    result: dict[str, object] | None = None
-    message: str | None = None
-
-
 class Shutdown(BaseModel):
     type: typing.Literal['shutdown']
 

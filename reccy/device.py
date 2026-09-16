@@ -5,6 +5,8 @@ STABLE_DEVICE_ID_FIELDS = ('uid', 'unique_id', 'persistent_id', 'guid', 'identif
 
 
 class AudioMidiDeviceSpec(BaseModel, frozen=True):
+    """Candidate device names; consumers define selection and matching policy."""
+
     name: str
     audio_device_names: list[str] = Field(default_factory=list)
     midi_input_names: list[str] = Field(default_factory=list)
@@ -25,6 +27,7 @@ class AudioMidiDeviceSpec(BaseModel, frozen=True):
 
 
 def device_key(info: DeviceDict) -> str:
+    """Prefer a supplied persistent ID; the display-name fallback is not unique."""
     for field in STABLE_DEVICE_ID_FIELDS:
         if value := str(info.get(field, '')).strip():
             return f'{field}:{value}'
