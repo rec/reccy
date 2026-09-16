@@ -570,6 +570,12 @@ semantics, and test normal return, both successful SystemExit forms, and failure
 
 ### R31 [P2, coverage gap] The regression fixture is tested only with a recording fake
 
+Resolved: an optional real-plugin test covers baseline naming, creation, matching
+and mismatch detection. Verified using Tuney's existing Python environment,
+without changing its files or Reccy's dependencies. The guide documents one check
+per test and a concrete nested-command adapter. R29/R30 add the missing exit,
+normalization and environment cases.
+
 Evidence: `test/test_cli_help.py:14-23,26-73`; `pyproject.toml:20-26`;
 `doc/testing-cli-help.md:71-76`.
 
