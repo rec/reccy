@@ -13,6 +13,7 @@ from . import ipc
 VERSION = 1
 HANDSHAKE_TIMEOUT = 1.0
 MAX_CONCURRENT_REQUESTS = 16
+MAX_EVENT_CONNECTIONS = 16
 MAX_REQUEST_BYTES = 64 * 1024
 LOGGER = logging.getLogger(__name__)
 
@@ -139,6 +140,7 @@ class Server:
         self.event_connections: list[ipc.Connection] = []
         self.lock = threading.Lock()
         self.request_slots = threading.BoundedSemaphore(MAX_CONCURRENT_REQUESTS)
+        self.event_slots = threading.BoundedSemaphore(MAX_EVENT_CONNECTIONS)
         self.running = False
 
     def start(self) -> None:
@@ -185,6 +187,9 @@ class Server:
     def _accept_events(self) -> None:
         while self.running:
             if (connection := self.event_backend.accept()) is not None:
+                if not self.event_slots.acquire(blocking=False):
+                    connection.close()
+                    continue
                 threading.Thread(
                     target=self._serve_events,
                     args=(connection,),
@@ -196,13 +201,12 @@ class Server:
         timer = threading.Timer(HANDSHAKE_TIMEOUT, connection.close)
         timer.start()
         try:
-            lines = connection.read_lines()
+            lines = connection.read_lines(max_bytes=MAX_REQUEST_BYTES)
             try:
                 _receive_hello(connection, self.role, lines)
             except (ConnectionError, ValidationError) as error:
                 _write_error(connection, str(error))
                 return
-            timer.cancel()
             for line in lines:
                 if len(line.encode()) > MAX_REQUEST_BYTES:
                     _write_error(connection, 'RPC request exceeds the size limit')
@@ -213,6 +217,7 @@ class Server:
                     _write_error(connection, str(error))
                     return
                 if isinstance(message, Request):
+                    timer.cancel()
                     try:
                         result = self.handle(message)
                     except (AttributeError, KeyError, TypeError, ValueError) as error:
@@ -222,6 +227,8 @@ class Server:
                     return
                 _write_error(connection, 'RPC request required')
                 return
+        except ValueError as error:
+            _write_error(connection, str(error))
         finally:
             timer.cancel()
             connection.close()
@@ -231,13 +238,12 @@ class Server:
         timer = threading.Timer(HANDSHAKE_TIMEOUT, connection.close)
         timer.start()
         try:
-            lines = connection.read_lines()
+            lines = connection.read_lines(max_bytes=MAX_REQUEST_BYTES)
             try:
                 _receive_hello(connection, self.role, lines)
             except (ConnectionError, ValidationError) as error:
                 _write_error(connection, str(error))
                 return
-            timer.cancel()
             for line in lines:
                 if len(line.encode()) > MAX_REQUEST_BYTES:
                     _write_error(connection, 'RPC request exceeds the size limit')
@@ -248,15 +254,21 @@ class Server:
                     _write_error(connection, str(error))
                     return
                 if isinstance(message, Subscribe):
+                    timer.cancel()
                     with self.lock:
                         self.event_connections.append(connection)
                     for _ in lines:
                         pass
                     return
+                _write_error(connection, 'RPC subscription required')
+                return
+        except ValueError as error:
+            _write_error(connection, str(error))
         finally:
             timer.cancel()
             self._remove_event_connection(connection)
             connection.close()
+            self.event_slots.release()
 
     def _remove_event_connection(self, connection: ipc.Connection) -> None:
         with self.lock:

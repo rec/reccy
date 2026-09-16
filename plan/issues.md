@@ -53,6 +53,16 @@ socket case is removed.
 
 ### R03 [P1] Request bounds stop at the handshake or apply too late
 
+Resolved: RPC asks transports for bounded reads, including hello. The existing
+one-second deadline now covers hello plus the first request/subscription, and
+event connections (including handshakes) are capped at 16. Unix limits count
+UTF-8 bytes including the newline; Windows limits count the serialized frame
+before unpickling, preserving the existing wire format. Tests cover oversized
+unterminated hello/request messages on both endpoints, post-hello idleness,
+subscription capacity, and bounded pipe frame reads. Native Windows pipe behavior
+still needs platform validation; pipe framing tests ran through the portable
+`multiprocessing.Connection` API.
+
 Evidence: `reccy/protocol/rpc.py:172-259`; `reccy/protocol/ipc.py:278-279`.
 
 The handshake timer is cancelled immediately after hello. A client can then hold
