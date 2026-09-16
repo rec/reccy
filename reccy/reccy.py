@@ -121,30 +121,49 @@ class Reccy(BaseModel, frozen=True):
         return self.service_controller().status()
 
     def start(self) -> None:
+        if self._started:
+            raise RuntimeError('Application is already started')
         logging.configure()
-        if self.rpc_enabled:
-            self._rpc_server = rpc.Server(
-                self.control_endpoint,
-                self.event_endpoint,
-                self.rpc_response,
-                role=self.rpc_role or self.name,
-            )
-            self._rpc_server.start()
-        self._started = True
-        self.publish_status()
-        self.on_started()
+        started = False
+        try:
+            if self.rpc_enabled:
+                self._rpc_server = rpc.Server(
+                    self.control_endpoint,
+                    self.event_endpoint,
+                    self.rpc_response,
+                    role=self.rpc_role or self.name,
+                )
+                self._rpc_server.start()
+            self._started = True
+            self.publish_status()
+            self.on_started()
+            started = True
+        finally:
+            if not started:
+                self._started = False
+                try:
+                    if self._rpc_server is not None:
+                        self._rpc_server.close()
+                finally:
+                    self._rpc_server = None
+                    self.on_closed()
 
     def close(self) -> None:
         if not self._started:
             return
-        self.on_stopping()
-        self._started = False
-        self.publish_status()
-        self.publish_event('stopped')
-        if self._rpc_server is not None:
-            self._rpc_server.close()
-            self._rpc_server = None
-        self.on_closed()
+        try:
+            self.on_stopping()
+            self._started = False
+            self.publish_status()
+            self.publish_event('stopped')
+        finally:
+            self._started = False
+            try:
+                if self._rpc_server is not None:
+                    self._rpc_server.close()
+            finally:
+                self._rpc_server = None
+                self.on_closed()
 
     def rpc_response(self, request: rpc.Request) -> rpc.Result:
         if request.command == 'status':
