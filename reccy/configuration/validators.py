@@ -37,13 +37,15 @@ def environment_variable(value: str) -> str:
 
 
 def positive_number(value: float) -> float:
-    if value <= 0:
+    """Require a positive value; positive infinity is permitted, NaN is not."""
+    if not value > 0:
         raise ValueError('value must be positive')
     return value
 
 
 def non_negative_number(value: float) -> float:
-    if value < 0:
+    """Require a nonnegative value; positive infinity is permitted, NaN is not."""
+    if not value >= 0:
         raise ValueError('value must not be negative')
     return value
 

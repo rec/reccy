@@ -470,6 +470,9 @@ map to one value, and test formatting followed by parsing.
 
 ### R25 [P2] Numeric validators accept NaN
 
+Resolved: sign validators reject NaN. Positive infinity remains permitted;
+finiteness is a separate constraint. Tests cover both infinities and NaN.
+
 Evidence: `reccy/configuration/validators.py:39-48`.
 
 Both numeric validators use only comparisons with zero. NaN passes both checks

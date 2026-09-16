@@ -8,6 +8,18 @@ from reccy.errors import ReccyError
 from reccy.runtime import subprocess
 
 
+@pytest.mark.parametrize('value', [float('nan'), float('-inf'), -1.0])
+def test_numeric_sign_validators_reject_nan_and_negative_values(value: float) -> None:
+    for f in [validators.positive_number, validators.non_negative_number]:
+        with pytest.raises(ValueError):
+            f(value)
+
+
+def test_numeric_sign_validators_allow_positive_infinity() -> None:
+    for f in [validators.positive_number, validators.non_negative_number]:
+        assert f(float('inf')) == float('inf')
+
+
 def test_route_command_dispatches_to_selected_command() -> None:
     calls: list[list[str]] = []
 
