@@ -347,6 +347,11 @@ separators, absolute labels, and embedded newlines.
 
 ### R18 [P2] File logging can silently be skipped and the replacement stream is fragile
 
+Resolved: explicit file configuration replaces root handlers, redirects streams,
+and reuses the same destination stream on repeat calls. Rotating streams implement
+the text-stream interface and lock write/flush/rotation/close. Tests cover existing
+handlers, repeat configuration and concurrent rotation.
+
 Evidence: `reccy/runtime/logging.py:10-37,40-66`;
 `reccy/services/runner.py:8-12`.
 

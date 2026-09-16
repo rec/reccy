@@ -68,3 +68,7 @@ Installation requests startup on every platform. Uninstall errors propagate and
 retain local metadata; an already-unloaded service may require manager-specific
 attention before uninstall can complete. Linux reloads its manager after removing
 the unit file and before deleting metadata.
+
+`logging.configure(path=..., service_name=...)` replaces root handlers and redirects
+stdout/stderr to the rotating file. Repeating the same path reuses the stream.
+Without a path, existing handlers are preserved and only the log level changes.
