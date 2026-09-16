@@ -24,7 +24,8 @@ def test_help(cli_help) -> None:
 ```
 
 The fixture sets `sys.argv` for each command before it calls the entry point. The
-entry point returns zero for successful help; `SystemExit(0)` is also accepted.
+entry point returns zero or `None` for successful help; `SystemExit(0)` and
+`SystemExit()` are also accepted.
 This lets a typical CLI, including Tuney's, pass `main` directly. An entry point
 that requires an argv list can read the supplied `sys.argv` in a small wrapper:
 
@@ -59,12 +60,16 @@ $ my-app config --help
 This makes additions, removals, and changes to any public command help reviewable
 in one fixture.
 
-The helper treats a normal zero return and `SystemExit(0)` as successful help
-paths, and fails the test for any other outcome. It sets `COLUMNS=120` and
+The helper accepts zero or `None`, whether returned or carried by `SystemExit`,
+and fails the test for any other outcome. It sets `COLUMNS=120` and
 `NO_COLOR=1`, then removes trailing line padding and normalizes the two bullet
 renderings currently handled by Tuney. It captures standard output only: help
 written to standard error or an unsuccessful exit is a CLI failure, not fixture
 content.
+
+Capture is drained before and after every invocation, including failures. Earlier
+test output is excluded. Changes to argv and environment are restored by Pytest
+at test teardown.
 
 ## Consumer test shape
 

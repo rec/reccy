@@ -540,6 +540,9 @@ to the mode actually intended for consumers.
 
 ### R29 [P2] The help fixture includes earlier captured output
 
+Resolved: capture is drained before each invocation and in finally afterward,
+including failed help. Tests cover earlier stdout/stderr and failed invocations.
+
 Evidence: `reccy/pytest_plugin.py:39-79`.
 
 The first capture drain occurs after invoking help. Output already buffered in
@@ -550,6 +553,9 @@ Follow-up: define an invocation-local capture boundary. Verify prior stdout and
 stderr independently from actual help output, including failures.
 
 ### R30 [P2, user trap] Normal successful entry-point exits are rejected
+
+Resolved: return None and SystemExit(None) are successful, alongside zero. Tests
+cover both forms and unsuccessful integer/string exits; the guide is updated.
 
 Evidence: `reccy/pytest_plugin.py:12,29,65-71`;
 `doc/testing-cli-help.md:26-29,62-67`.
