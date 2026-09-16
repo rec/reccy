@@ -14,6 +14,11 @@ work, not implemented fixes. Design concerns are explicitly labeled.
 
 ### R01 [P1] Closing Unix connections does not close their file readers
 
+Resolved: Unix connections now shut down both directions before closing the
+reader and socket. Local socket-pair tests cover waking a reader, peer EOF,
+descriptor release, repeated close, resuming an iterator after close, and an RPC
+response deadline against a silent peer.
+
 Evidence: `reccy/protocol/ipc.py:265-292`; timeout callers in
 `reccy/protocol/rpc.py:50-88,195-205,230-240`.
 

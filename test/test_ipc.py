@@ -1,3 +1,4 @@
+import socket
 import threading
 import time
 import typing
@@ -33,6 +34,63 @@ def test_backend_selects_windows_pipe_for_string() -> None:
     backend = ipc.server_backend(WINDOWS_PIPE)
 
     assert isinstance(backend, ipc.WindowsPipeServerBackend)
+
+
+def test_unix_connection_close_wakes_reader_and_releases_socket() -> None:
+    local, peer = socket.socketpair()
+    connection = ipc.UnixSocketConnection(local)
+    finished = threading.Event()
+
+    def read() -> None:
+        assert list(connection.read_lines()) == []
+        finished.set()
+
+    reader = threading.Thread(target=read)
+    reader.start()
+    try:
+        connection.close()
+        assert finished.wait(0.5)
+        assert peer.recv(1) == b''
+        assert local.fileno() == -1
+        connection.close()
+    finally:
+        peer.close()
+        reader.join(timeout=1)
+        connection.file.close()
+        local.close()
+
+
+def test_unix_connection_reader_can_resume_after_close() -> None:
+    local, peer = socket.socketpair()
+    connection = ipc.UnixSocketConnection(local)
+    with peer:
+        peer.settimeout(0.5)
+        peer.sendall(b'hello\n')
+        lines = connection.read_lines()
+        assert next(lines) == 'hello\n'
+        connection.close()
+        assert peer.recv(1) == b''
+        assert list(lines) == []
+
+
+def test_rpc_timeout_wakes_real_socket_reader(monkeypatch: pytest.MonkeyPatch) -> None:
+    local, peer = socket.socketpair()
+    connection = ipc.UnixSocketConnection(local)
+    monkeypatch.setattr(ipc, 'client_connection', lambda endpoint: connection)
+    with peer:
+        peer.sendall(b'{"type":"hello","role":"test","version":1}\n')
+        watchdog = threading.Timer(1, peer.shutdown, args=(socket.SHUT_RDWR,))
+        watchdog.start()
+        try:
+            started = time.monotonic()
+            with pytest.raises(TimeoutError, match='RPC request timed out'):
+                rpc.Client(Path('/unused.sock'), timeout=0.02).call('status')
+            assert time.monotonic() - started < 0.5
+        finally:
+            watchdog.cancel()
+            watchdog.join()
+            connection.file.close()
+            local.close()
 
 
 def test_windows_pipe_server_accepts_connections(
