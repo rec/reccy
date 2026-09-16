@@ -485,6 +485,11 @@ Verify NaN separately from negative numbers and zero.
 
 ### R26 [P2, contract gap] JSONL compression loses the distinction between absent and null
 
+Resolved by preserving the existing format: absent and null non-key fields are
+equivalent in full records. Module and README documentation distinguish this from
+omitted delta fields (unchanged). Tests cover initial nulls, clearing values and
+codec state across calls, including a fresh decoder on a continuing stream.
+
 Evidence: `reccy/protocol/jsonl.py:9-32`; `test/test_jsonl.py:4-24`.
 
 A previously unseen field with value `None` is omitted because `prev.get(k)` also

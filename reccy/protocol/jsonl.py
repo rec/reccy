@@ -1,3 +1,16 @@
+"""Stateful dictionary deltas, not JSON encoding or line framing.
+
+For non-key fields, absent and None are equivalent in full input records.
+Compression omits an initially null field and emits None when a previously
+non-null field disappears. Decompression retains that None, rather than deleting
+the key, so reconstruction preserves this equivalence, not exact dictionaries.
+An absent field in an encoded delta means unchanged, not cleared.
+
+Each instance retains independent state per string key across calls. Use fresh
+compressor and decompressor instances for each independent stream, and consume
+successive batches in order.
+"""
+
 from collections.abc import Iterable, Iterator
 
 

@@ -111,3 +111,15 @@ strings. The empty path identifies a quantity passed directly to the collector.
 `named_choice_spec()` (formerly `prefix_spec`) parses exact choice names, not
 prefixes. Formatting selects the first matching name in mapping order, so aliases
 for the same value are deterministic and formatted values parse back successfully.
+
+## Dictionary delta streams
+
+`reccy.protocol.jsonl.Compress` and `Decompress` operate on dictionaries, not JSON
+text or line framing. Non-key fields that are absent or `None` are equivalent in
+full records: an initially null field is omitted; clearing a previously non-null
+field emits `None`, which decompression retains. Exact dictionary reconstruction
+is not promised. In an encoded delta, an absent field means unchanged.
+
+Each codec keeps state per string key across calls. Consume batches in order and
+create fresh codec instances for every independent stream. A fresh decoder cannot
+reconstruct values omitted by a compressor continuing an earlier stream.
