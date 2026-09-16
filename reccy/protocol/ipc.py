@@ -14,6 +14,7 @@ from pydantic import BaseModel, TypeAdapter, ValidationError
 
 PIPE_CONNECT_TIMEOUT = 0.2
 SOCKET_TIMEOUT = 0.2
+WRITE_TIMEOUT = 0.2
 CONNECTING_PIPES: set[str] = set()
 CONNECTING_PIPES_LOCK = threading.Lock()
 
@@ -268,6 +269,7 @@ class UnixSocketConnection:
     def __init__(self, conn: socket.socket) -> None:
         self.conn = conn
         self.file = conn.makefile('rb')
+        self.write_lock = threading.Lock()
 
     @classmethod
     def connect(cls, endpoint: Path) -> 'UnixSocketConnection':
@@ -290,11 +292,9 @@ class UnixSocketConnection:
                 raise
 
     def write(self, message: str) -> bool:
-        try:
-            self.conn.sendall(message.encode())
-        except OSError:
-            return False
-        return True
+        return _write_with_timeout(
+            lambda: self.conn.sendall(message.encode()), self.close, self.write_lock
+        )
 
     def close(self) -> None:
         try:
@@ -331,6 +331,7 @@ class WindowsPipeServerBackend:
 class WindowsPipeConnection:
     def __init__(self, conn: connection.Connection) -> None:
         self.conn = conn
+        self.write_lock = threading.Lock()
 
     @classmethod
     def connect(cls, endpoint: str) -> 'WindowsPipeConnection':
@@ -345,11 +346,9 @@ class WindowsPipeConnection:
             yield str(pickle.loads(frame))
 
     def write(self, message: str) -> bool:
-        try:
-            self.conn.send(message)
-        except (BrokenPipeError, EOFError, OSError):
-            return False
-        return True
+        return _write_with_timeout(
+            lambda: self.conn.send(message), self.close, self.write_lock
+        )
 
     def close(self) -> None:
         try:
@@ -398,3 +397,31 @@ def connect_windows_pipe(endpoint: str) -> connection.Connection:
     if isinstance(result, OSError | ValueError):
         raise result
     return result
+
+
+def _write_with_timeout(
+    send: typing.Callable[[], None],
+    close: typing.Callable[[], None],
+    lock: threading.Lock,
+) -> bool:
+    if not lock.acquire(timeout=WRITE_TIMEOUT):
+        close()
+        return False
+    expired = threading.Event()
+
+    def expire() -> None:
+        expired.set()
+        close()
+
+    timer = threading.Timer(WRITE_TIMEOUT, expire)
+    try:
+        timer.start()
+        try:
+            send()
+        except (EOFError, OSError):
+            return False
+        return not expired.is_set()
+    finally:
+        timer.cancel()
+        timer.join()
+        lock.release()
