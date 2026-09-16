@@ -9,7 +9,7 @@ class CliHelp(Protocol):
     def __call__(
         self,
         program: str,
-        invoke: Callable[[], int],
+        invoke: Callable[[], int | None],
         subcommands: Iterable[str] = (),
     ) -> None: ...
 
@@ -26,7 +26,7 @@ def cli_help(
 ) -> CliHelp:
     def check(
         program: str,
-        invoke: Callable[[], int],
+        invoke: Callable[[], int | None],
         subcommands: Iterable[str] = (),
     ) -> None:
         file_regression.check(
@@ -38,7 +38,7 @@ def cli_help(
 
 def _help_text(
     program: str,
-    invoke: Callable[[], int],
+    invoke: Callable[[], int | None],
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
     subcommands: Iterable[str],
@@ -57,20 +57,23 @@ def _help_text(
 def _help_section(
     program: str,
     command: list[str],
-    invoke: Callable[[], int],
+    invoke: Callable[[], int | None],
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> str:
     monkeypatch.setattr(sys, 'argv', [program, *command])
+    capsys.readouterr()
     try:
-        result = invoke()
-    except SystemExit as e:
-        result = e.code
+        try:
+            result = invoke()
+        except SystemExit as e:
+            result = e.code
+    finally:
+        captured = capsys.readouterr()
 
-    if result != 0:
+    if result not in (0, None):
         raise AssertionError(f'{" ".join([program, *command])} exited with {result!r}')
 
-    captured = capsys.readouterr()
     if captured.err:
         raise AssertionError(
             f'{" ".join([program, *command])} wrote help to standard error:\n'
