@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import threading
 from collections.abc import Callable, Iterator
+from enum import StrEnum, auto
 from pathlib import Path
 from typing import Literal
 
@@ -85,6 +86,15 @@ class Client:
             connection.close()
 
 
+class EventCloseReason(StrEnum):
+    local_close = auto()
+    peer_eof = auto()
+    protocol_error = auto()
+    callback_error = auto()
+    transport_error = auto()
+    timeout = auto()
+
+
 class EventClient:
     def __init__(
         self,
@@ -99,18 +109,25 @@ class EventClient:
         self.connection: ipc.Connection | None = None
         self.lines: Iterator[str] | None = None
         self.closed = True
+        self.terminal_reason: EventCloseReason | None = None
+        self._completion = threading.Event()
+        self._close_lock = threading.Lock()
 
     def start(self) -> None:
-        if self.connection is not None:
+        if self.connection is not None or self.terminal_reason is not None:
             raise RuntimeError('RPC event client has already been started')
-        self.connection = ipc.client_connection(self.endpoint)
+        try:
+            self.connection = ipc.client_connection(self.endpoint)
+        except OSError:
+            self._finish(EventCloseReason.transport_error)
+            raise
         self.closed = False
         self.lines = self.connection.read_lines()
         expired = threading.Event()
 
         def expire() -> None:
             expired.set()
-            self.close()
+            self._finish(EventCloseReason.timeout)
 
         timer = threading.Timer(HANDSHAKE_TIMEOUT, expire)
         started = False
@@ -125,33 +142,70 @@ class EventClient:
                 raise TimeoutError('RPC event subscription timed out')
             threading.Thread(target=self._read, daemon=True, name='RpcEvents').start()
             started = True
-        except OSError:
+        except OSError as error:
             if expired.is_set():
                 raise TimeoutError('RPC event subscription timed out') from None
+            # _hello uses plain ConnectionError for a rejected/missing hello;
+            # socket failures use its OSError subclasses.
+            self._finish(
+                EventCloseReason.protocol_error
+                if type(error) is ConnectionError
+                else EventCloseReason.transport_error
+            )
             raise
         finally:
             timer.cancel()
             timer.join()
             if not started:
-                self.close()
+                self._finish(EventCloseReason.protocol_error)
 
     def close(self) -> None:
-        self.closed = True
-        if self.connection is not None:
-            self.connection.close()
+        self._finish(EventCloseReason.local_close)
+
+    def wait_closed(self, timeout: float | None = None) -> bool:
+        """Wait for transport closure; an already-running callback may finish later."""
+        return self._completion.wait(timeout)
+
+    def _finish(self, reason: EventCloseReason) -> None:
+        with self._close_lock:
+            if self.terminal_reason is not None:
+                return
+            self.terminal_reason = reason
+            self.closed = True
+        try:
+            if self.connection is not None:
+                self.connection.close()
+        finally:
+            self._completion.set()
 
     def _read(self) -> None:
         assert self.connection is not None
         assert self.lines is not None
+        reason = EventCloseReason.peer_eof
         try:
             for line in self.lines:
                 message = MESSAGE.validate_json(line)
-                if isinstance(message, Event):
-                    self.on_event(message)
+                if not isinstance(message, Event):
+                    reason = EventCloseReason.protocol_error
+                    LOGGER.error(
+                        'Unexpected RPC event-stream message: %s',
+                        type(message).__name__,
+                    )
+                    return
+                reason = EventCloseReason.callback_error
+                self.on_event(message)
+                reason = EventCloseReason.peer_eof
         except (OSError, ValidationError) as error:
+            if reason == EventCloseReason.callback_error:
+                raise
+            reason = (
+                EventCloseReason.protocol_error
+                if isinstance(error, ValidationError)
+                else EventCloseReason.transport_error
+            )
             LOGGER.error('RPC event stream failed: %s', error)
         finally:
-            self.close()
+            self._finish(reason)
 
 
 class Server:

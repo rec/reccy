@@ -62,6 +62,11 @@ and Windows reopening. Verify existing Reccy text/JSON durability behavior.
 
 ## F02. Validated edits to Pydantic configuration
 
+Implemented in Reccy: `reccy.configuration.update.validated_update`.
+Tests cover nested and direct edits, aliases, cross-field rejection, unchanged
+originals and authored units. Consumer adoption remains deferred; integration
+instructions are in `doc/shared-features.md`.
+
 Consumers and evidence:
 
 - Recs's [Cfg.set_attr](</Users/tom/code/recs/recs/cfg/cfg.py>) checks a mutable-field
@@ -91,6 +96,13 @@ models and authored-unit preservation. Verify alias handling against the chosen
 model contract, rather than bypassing validation with `model_copy(update=...)`.
 
 ## F03. Observable RPC event-connection lifecycle
+
+Implemented in Reccy: `EventClient.wait_closed()` and `EventCloseReason` exposed
+through `terminal_reason`. First terminal cause wins; startup failures notify
+owners; callback errors remain thread exceptions. Completion means transport
+cleanup, not joining an in-flight callback after local close. Tests cover EOF,
+local close, malformed input, callback errors, connection failure and timeout.
+Consumer adoption remains deferred; see `doc/shared-features.md`.
 
 Consumers and evidence:
 
