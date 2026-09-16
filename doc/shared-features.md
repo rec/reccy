@@ -3,6 +3,21 @@
 Consumer migrations are deferred. Implementations and tests here change only
 Reccy; no claim is made that sibling projects have adopted these APIs.
 
+## Consumer migration checklist
+
+These five projects should read the relevant sections and adopt the listed APIs:
+
+| Project | Features to adopt |
+|---|---|
+| Tuney | Atomic output, validated configuration edits, local resource claims |
+| Streamo | Atomic output, retry scheduling |
+| Recs | Validated configuration edits, event connection completion, local resource claims |
+| Showco | Event connection completion |
+| Lyte | Retry scheduling |
+
+Ufor has no migration planned. Showco may also adopt retry scheduling later, but
+that is optional and outside the initial migration scope.
+
 ## Atomic output
 
 Import `atomic_output` from `reccy.runtime.files`. It creates parent directories
