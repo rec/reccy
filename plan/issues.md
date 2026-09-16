@@ -278,6 +278,10 @@ needed after correcting the source-level mismatch.
 
 ### R14 [P2] Windows installation reports a running task without starting it
 
+Resolved: Windows install requests startup. Lifecycle operations no longer claim
+observed running state; use `status()` for that. Failed uninstall commands raise
+before deleting local records. Test runners now enforce `check=True`.
+
 Evidence: `reccy/services/controller.py:44-61,288-301`.
 
 Installation registers an at-logon scheduled task and immediately returns
@@ -291,6 +295,9 @@ semantics consistent. Verify the Windows install command sequence and failed
 uninstall behavior. Existing controller fakes do not enforce `check=True` errors.
 
 ### R15 [P2] Linux uninstall reloads systemd before deleting the unit
+
+Resolved: remove the unit before reload; retain metadata if reload fails. Tests
+inspect file existence at reload time and verify failure preserves records.
 
 Evidence: `reccy/services/controller.py:79-92`.
 

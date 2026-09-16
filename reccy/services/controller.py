@@ -52,6 +52,7 @@ class ServiceController:
                     _register_windows_task_command(self.paths.service),
                 ]
             )
+            self.start()
         else:
             self._write_definition(
                 renderers.linux_systemd_unit(metadata, self.paths, self.service)
@@ -59,13 +60,12 @@ class ServiceController:
             self._run(['systemctl', '--user', 'daemon-reload'])
             self._run(['systemctl', '--user', 'enable', self.service.systemd_unit])
             self._run(['systemctl', '--user', 'start', self.service.systemd_unit])
-        return models.StatusResult(installed=True, running=True)
+        return models.StatusResult(installed=True)
 
     def uninstall(self) -> models.StatusResult:
         if self.platform == models.Platform.macos:
             self._run(
                 ['launchctl', 'bootout', f'gui/{_uid()}', str(self.paths.service)],
-                check=False,
             )
         elif self.platform == models.Platform.windows:
             self._run(
@@ -75,22 +75,21 @@ class ServiceController:
                     '-Command',
                     _unregister_windows_task_command(self.service.name),
                 ],
-                check=False,
             )
         else:
             self._run(
                 ['systemctl', '--user', 'stop', self.service.systemd_unit],
-                check=False,
             )
             self._run(
                 ['systemctl', '--user', 'disable', self.service.systemd_unit],
-                check=False,
             )
-            self._run(['systemctl', '--user', 'daemon-reload'], check=False)
 
-        for path in [self.paths.service, self.paths.metadata, self.paths.status]:
+        self.paths.service.unlink(missing_ok=True)
+        if self.platform == models.Platform.linux:
+            self._run(['systemctl', '--user', 'daemon-reload'])
+        for path in [self.paths.metadata, self.paths.status]:
             path.unlink(missing_ok=True)
-        return models.StatusResult(installed=False, running=False)
+        return models.StatusResult(installed=False)
 
     def start(self) -> models.StatusResult:
         self._ensure_log()
@@ -119,7 +118,7 @@ class ServiceController:
             )
         else:
             self._run(['systemctl', '--user', 'start', self.service.systemd_unit])
-        return models.StatusResult(installed=True, running=True)
+        return models.StatusResult(installed=True)
 
     def stop(self) -> models.StatusResult:
         if self.platform == models.Platform.macos:
@@ -137,7 +136,7 @@ class ServiceController:
             )
         else:
             self._run(['systemctl', '--user', 'stop', self.service.systemd_unit])
-        return models.StatusResult(installed=True, running=False)
+        return models.StatusResult(installed=True)
 
     def restart(self) -> models.StatusResult:
         self.stop()
