@@ -5,7 +5,7 @@ import pytest
 from pydantic import BaseModel
 
 from reccy.configuration import settings
-from reccy.protocol import rpc
+from reccy.protocol import ipc, rpc
 from reccy.reccy import MutableAttribute, Reccy, ReccyStatus
 from reccy.services import models
 
@@ -60,6 +60,19 @@ class Application(Reccy):
         if address != 'enabled' or not isinstance(value, bool):
             raise ValueError('enabled must be a boolean')
         return MutableAttribute(address=address, value=value)
+
+
+@pytest.mark.parametrize('has_service', [True, False])
+def test_windows_application_uses_paired_named_pipes(has_service: bool) -> None:
+    class WindowsApplication(Reccy):
+        name = 'application'
+        service_spec = Application.service_spec if has_service else None
+
+    application = WindowsApplication(platform=models.Platform.windows)
+    assert application.control_endpoint == r'\\.\pipe\application'
+    assert application.event_endpoint == r'\\.\pipe\application-events'
+    for e in [application.control_endpoint, application.event_endpoint]:
+        assert isinstance(ipc.server_backend(e), ipc.WindowsPipeServerBackend)
 
 
 def test_service_status_reads_configured_model_with_errors(

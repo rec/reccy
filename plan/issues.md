@@ -258,6 +258,11 @@ history in logs if required. Verify repeated errors against that retention polic
 
 ### R13 [P1] Windows RPC event endpoints fall back to Unix paths
 
+Resolved: Windows service event pipes append `-events` to the control pipe;
+applications without a service spec use `\\.\pipe\<name>` and its event companion.
+Both endpoint/backend selections are tested. Native Windows validation remains
+outside this macOS run.
+
 Evidence: `reccy/services/paths.py:29-39`; `reccy/reccy.py:72-81,125-132`;
 `reccy/protocol/ipc.py:58-61`.
 
