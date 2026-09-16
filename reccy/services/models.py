@@ -1,8 +1,9 @@
+import re
 from enum import auto
 from pathlib import Path
 from typing import Annotated
 
-from pydantic import AfterValidator, BaseModel, Field
+from pydantic import AfterValidator, BaseModel, Field, field_validator
 from strenum import StrEnum
 
 from ..configuration import validators
@@ -21,6 +22,20 @@ class ServiceSpec(BaseModel, frozen=True):
     launchd_label: Annotated[str, AfterValidator(validators.non_empty_string)]
     daemon_env_var: Annotated[str, AfterValidator(validators.environment_variable)]
     windows_pipe: Annotated[str, AfterValidator(validators.non_empty_string)]
+
+    @field_validator('launchd_label')
+    @classmethod
+    def validate_launchd_label(cls, value: str) -> str:
+        if value in {'.', '..'} or not re.fullmatch(r'[A-Za-z0-9_.-]+', value):
+            raise ValueError('launchd_label must be a filename-safe service identifier')
+        return value
+
+    @field_validator('display_name', 'description')
+    @classmethod
+    def validate_single_line(cls, value: str) -> str:
+        if any(ord(c) < 32 or ord(c) == 127 for c in value):
+            raise ValueError('service text must not contain control characters')
+        return value
 
     @property
     def systemd_unit(self) -> str:
