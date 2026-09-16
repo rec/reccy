@@ -1,8 +1,42 @@
 import subprocess
+import threading
+from io import BytesIO
+from types import SimpleNamespace
 
 import pytest
 
 from reccy.runtime import process
+
+
+def test_callback_failure_still_drains_stderr(monkeypatch: pytest.MonkeyPatch) -> None:
+    errors: list[BaseException] = []
+    calls: list[str] = []
+
+    def failed(line: str) -> None:
+        calls.append(line)
+        raise ValueError('callback failed')
+
+    monkeypatch.setattr(threading, 'excepthook', lambda e: errors.append(e.exc_value))
+    stderr = BytesIO(b'first\nsecond\nlast\n')
+    tail = process.capture_stderr(SimpleNamespace(stderr=stderr), failed)
+    assert tail.wait(2)
+    assert calls == ['first\n']
+    assert tail.text().splitlines() == ['first', 'second', 'last']
+    assert stderr.read() == b''
+    assert len(errors) == 1
+    assert str(errors[0]) == 'callback failed'
+
+
+def test_stderr_without_newlines_has_bounded_capture() -> None:
+    sizes: list[int] = []
+    stderr = BytesIO(b'x' * 1_000_000)
+    tail = process.capture_stderr(
+        SimpleNamespace(stderr=stderr), lambda s: sizes.append(len(s))
+    )
+    assert tail.wait(2)
+    assert max(sizes) <= process.OUTPUT_CHUNK_SIZE
+    assert len(tail.text()) <= 80 * process.OUTPUT_CHUNK_SIZE
+    assert sum(sizes) == 1_000_000
 
 
 class FakeProcess:

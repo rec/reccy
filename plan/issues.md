@@ -505,6 +505,11 @@ values that a fresh decompressor needs.
 
 ### R27 [P2] Output-tail capture can stop draining a child pipe
 
+Resolved: reads and retained chunks are bounded; callback failure drains remaining
+stderr before propagating to the thread exception handler. `OutputTail.wait()`
+allows callers to await capture completion. Tests cover callback failure and a
+million-byte line. README defines chunk and callback semantics.
+
 Evidence: `reccy/runtime/process.py:48-63,114-124`.
 
 An exception from `on_line` terminates the only reader thread. A continuing child
