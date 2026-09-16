@@ -67,3 +67,40 @@ subscription activation, stop handling and retry policy. Recs watch migration:
 stop waiting when the connection ends even without a final status event. Neither
 migration is implemented. Initial snapshot/event ordering remains unchanged and
 is not an atomic handoff guarantee.
+
+## Local resource claims
+
+Import `ResourceClaim` and `ResourceClaimConflict` from `reccy.runtime.claims`.
+
+```python
+with ResourceClaim(lock_path):
+    save_settings()
+```
+
+Construction does not acquire. `acquire()` is nonblocking and returns the claim;
+`release()` is idempotent. Entering a context acquires and exiting releases, even
+after an exception. Acquiring the same held object again raises RuntimeError.
+Contention raises ResourceClaimConflict; file-open permission and other I/O errors
+propagate separately. Parent directories are created; new lock files use mode
+0600, subject to platform permissions. Existing contents are neither interpreted
+nor changed, so there are no invalid/stale PID records to recover.
+
+POSIX uses flock; Windows locks byte zero with msvcrt's nonblocking lock. Closing
+the descriptor releases it; process exit also releases it. Keep the object alive
+and explicitly release it. Do not fork while holding claims: inherited descriptors
+may retain locks. Methods on one claim object require caller serialization.
+
+The lock file is deliberately never deleted. Every cooperating writer must use
+the same stable path on a local filesystem. Never unlink/replace it or use
+`atomic_output()` on it: replacing it creates a different lock object on POSIX.
+Release cannot remove or unlock a replacement file, but cannot stop another
+process replacing the path either. Use an application-owned directory; this is
+cooperative ownership, not protection against hostile filesystem changes or a
+distributed lock. It does not lock the separate settings/output file itself.
+
+Tuney migration: replace its PID-marker instance claim, retaining GUI messages.
+Recs migration: use a dedicated stable lock path for settings ownership, retaining
+instance discovery separately. Stop old consumers before migration: PID-file
+claims and OS locks do not coordinate. Migrations are deferred. Tests exercise
+separate-process contention, exit/crash release, contents preservation and errors
+on macOS; native Windows validation remains outstanding.

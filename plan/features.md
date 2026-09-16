@@ -138,6 +138,13 @@ does not leave a reader or retry loop running.
 
 ## F04. Owned local resource claims
 
+Implemented in Reccy using the approved OS-backed approach:
+`reccy.runtime.claims.ResourceClaim`, with ResourceClaimConflict for contention.
+Lock files remain in place; no PID records or stale-file reclamation. Tests cover
+separate processes and crash recovery on macOS. Native Windows validation and
+consumer adoption remain deferred. Stable-path and migration requirements are
+documented in `doc/shared-features.md`.
+
 Consumers and evidence:
 
 - Tuney's [acquire_single_instance/release_single_instance](</Users/tom/code/tuney/tuney/app/platform_info.py>)
