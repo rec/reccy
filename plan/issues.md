@@ -162,6 +162,10 @@ round trip into a client.
 
 ### R08 [P2] RPC success dictionaries can be mistaken for protocol errors
 
+Resolved by contract: top-level `type="error"` is reserved for protocol errors,
+which require a string `message`. Successful results must avoid this discriminator.
+README documents this restriction; the existing raw wire format is unchanged.
+
 Evidence: `reccy/protocol/rpc.py:26,72-76`;
 `reccy/protocol/ipc.py:53-55`.
 
