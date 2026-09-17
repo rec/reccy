@@ -30,6 +30,12 @@ See [shared infrastructure features](doc/shared-features.md) for atomic output,
 validated configuration edits, event connection completion, local resource claims
 and retry scheduling, including migration notes for consumer projects.
 
+## Tests
+
+`uv run pytest` runs the unit-test suite with three work-stealing workers. Use
+`uv run pytest -n 0` for single-process debugging, including interactive output
+with `uv run pytest -n 0 -s`. Use `-n N` to choose a different worker count.
+
 ## IPC endpoints and lifecycle
 
 IPC accepts filesystem socket paths as either `Path` or `str`. Local Windows
