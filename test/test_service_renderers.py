@@ -125,7 +125,7 @@ def test_linux_systemd_unit() -> None:
     assert 'StandardOutput=journal' not in definition.content
     assert 'StandardError=journal' not in definition.content
     assert 'WantedBy=default.target' in definition.content
-    assert 'WorkingDirectory="/home/tom"' in definition.content
+    assert 'WorkingDirectory=/home/tom' in definition.content
 
 
 def test_linux_xdg_autostart() -> None:

@@ -63,8 +63,7 @@ def linux_systemd_unit(
             f'Environment={service.daemon_env_var}=1',
             'Restart=always',
             'RestartSec=5',
-            'WorkingDirectory='
-            + json.dumps(str(paths.home).replace('%', '%%'), ensure_ascii=False),
+            'WorkingDirectory=' + str(paths.home).replace('%', '%%'),
             '',
             '[Install]',
             'WantedBy=default.target',
