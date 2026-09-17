@@ -20,6 +20,7 @@ classifiers = [
 [dependency-groups]
 dev = [
     "pytest",
+    "pytest-xdist",
     "pyupgrade>=3.21.2",
     "ruff",
     "ty>=0.0.14",
@@ -27,6 +28,9 @@ dev = [
 
 [tool.uv]
 exclude-newer = "1 week"
+
+[tool.pytest.ini_options]
+addopts = "-n 3 --dist=worksteal"
 
 [tool.ruff]
 line-length = 88
