@@ -45,9 +45,11 @@ These five projects should read the relevant sections and adopt the listed APIs:
 | Recs | Validated configuration edits, event connection completion, local resource claims |
 | Showco | Event connection completion |
 | Lyte | Retry scheduling |
+| Ufor hosts | Verified finite asset store |
 
-Ufor has no migration planned. Showco may also adopt retry scheduling later, but
-that is optional and outside the initial migration scope.
+The Ufor format library remains free of cache I/O. A host resolving Ufor asset
+locations can adopt the verified finite asset store. Showco may also adopt retry
+scheduling later, but that is optional and outside the initial migration scope.
 
 ## Atomic output
 
