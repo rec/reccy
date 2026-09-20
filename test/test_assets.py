@@ -154,3 +154,15 @@ def test_protection_and_a_successful_lease_are_collection_roots(tmp_path: Path) 
     with store.open_entry(entry.id) as file:
         assert file.read() == b'bytes'
     assert (tmp_path / 'cache' / 'state' / 'access' / f'{entry.id}.json').exists()
+
+
+def test_retention_rules_reject_ambiguous_or_empty_selectors() -> None:
+    with pytest.raises(ValueError, match='at least one field'):
+        assets.RetentionMatch()
+    with pytest.raises(ValueError, match='exactly one'):
+        assets.RetentionRule(
+            name='ambiguous',
+            all=True,
+            protect='forever',
+            retain='forever',
+        )
