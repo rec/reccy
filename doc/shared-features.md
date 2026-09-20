@@ -3,6 +3,37 @@
 Consumer migrations are deferred. Implementations and tests here change only
 Reccy; no claim is made that sibling projects have adopted these APIs.
 
+## Verified finite asset store
+
+`reccy.runtime.assets.AssetStore` is a private, host-owned filesystem store for
+finite opaque bytes. Construct it with a per-user directory, then use
+`import_bytes()` to verify SHA-256 and length, publish one immutable object, and
+create an immutable acquisition/materialization entry. The entry records a
+versioned source key and one of the eight source kinds without treating that key
+as proof that two source requests have equal bytes.
+
+```python
+store = AssetStore(cache_directory)
+entry = store.import_bytes(
+    contents,
+    source_key='v1:host-request',
+    category=AssetCategory.acquired,
+    source_kind=SourceKind.local_file,
+)
+with store.open_entry(entry.id) as file:
+    use(file.read())
+```
+
+Existing objects are rehashed before reuse. A wrong declared identity raises
+`AssetIdentityMismatch`; a missing or changed object raises
+`AssetCorruptionError`. `open_entry()` creates a durable lease before returning
+a handle and removes it when the context exits. Named references and immutable
+pins are explicit retention roots: moving a reference does not retarget an
+existing pin. This initial layer deliberately does not acquire URLs/Git sources,
+execute providers, capture streams, or collect entries. Those host-specific
+adapters and retention-policy evaluation remain later stages of Ufor's asset
+cache plan.
+
 ## Consumer migration checklist
 
 These five projects should read the relevant sections and adopt the listed APIs:
