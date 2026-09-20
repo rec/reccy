@@ -29,10 +29,17 @@ Existing objects are rehashed before reuse. A wrong declared identity raises
 `AssetCorruptionError`. `open_entry()` creates a durable lease before returning
 a handle and removes it when the context exits. Named references and immutable
 pins are explicit retention roots: moving a reference does not retarget an
-existing pin. This initial layer deliberately does not acquire URLs/Git sources,
-execute providers, capture streams, or collect entries. Those host-specific
-adapters and retention-policy evaluation remain later stages of Ufor's asset
-cache plan.
+existing pin.
+
+`RetentionRule` and `RetentionMatch` provide pure, additive rule evaluation for
+finite entries. A rule either `protect`s an entry from every collection mode or
+`retain`s it until its deadline, which pressure collection may override.
+`explain_retention()` reports applicable rules and roots, `plan_collection()` is
+read-only, and `collect()` rechecks roots under the store-wide metadata claim
+before deleting manifests and then unreachable objects. Rules may select an
+asset category, source/media kind, source key, or tags. A missing rule leaves an
+unrooted entry eligible. URL/Git acquisition, HTTP freshness, providers and
+capture streams remain host-specific later stages of Ufor's asset-cache plan.
 
 ## Consumer migration checklist
 

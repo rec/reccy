@@ -11,14 +11,14 @@ import os
 import re
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from enum import auto
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import BinaryIO
 from uuid import uuid4
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from strenum import StrEnum
 
 from .claims import ResourceClaim
@@ -117,6 +117,120 @@ class AssetLease(BaseModel, frozen=True):
     entry_id: str = Field(pattern=r'^[0-9a-f]{32}$')
 
 
+class RetentionSince(StrEnum):
+    created = auto()
+    access = auto()
+
+
+class RetentionDuration(BaseModel, frozen=True):
+    """One positive whole-unit retention duration."""
+
+    seconds: int | None = Field(default=None, gt=0)
+    minutes: int | None = Field(default=None, gt=0)
+    hours: int | None = Field(default=None, gt=0)
+    days: int | None = Field(default=None, gt=0)
+    since: RetentionSince = RetentionSince.access
+
+    @model_validator(mode='after')
+    def validate_one_unit(self) -> RetentionDuration:
+        if (
+            sum(
+                value is not None
+                for value in (self.seconds, self.minutes, self.hours, self.days)
+            )
+            != 1
+        ):
+            raise ValueError('retention duration requires exactly one unit')
+        return self
+
+    def total_seconds(self) -> int:
+        values = {
+            'seconds': self.seconds,
+            'minutes': self.minutes,
+            'hours': self.hours,
+            'days': self.days,
+        }
+        unit, value = next((key, value) for key, value in values.items() if value)
+        assert value is not None
+        return value * {'seconds': 1, 'minutes': 60, 'hours': 3600, 'days': 86400}[unit]
+
+
+class RetentionMatch(BaseModel, frozen=True):
+    """An AND selector over immutable entry facts."""
+
+    category: list[AssetCategory] | None = None
+    source_kind: list[SourceKind] | None = None
+    media_kind: list[MediaKind] | None = None
+    source_key: list[str] | None = None
+    tags: list[str] | None = None
+
+    def matches(self, entry: AssetEntry) -> bool:
+        return (
+            (self.category is None or entry.category in self.category)
+            and (self.source_kind is None or entry.source_kind in self.source_kind)
+            and (self.media_kind is None or entry.media_kind in self.media_kind)
+            and (self.source_key is None or entry.source_key in self.source_key)
+            and (self.tags is None or bool(set(entry.tags) & set(self.tags)))
+        )
+
+
+class RetentionRule(BaseModel, frozen=True):
+    """One additive protection or retention rule for finite entries."""
+
+    name: str = Field(min_length=1)
+    match: RetentionMatch | None = None
+    all: bool = False
+    protect: RetentionDuration | str | None = None
+    retain: RetentionDuration | str | None = None
+
+    @model_validator(mode='after')
+    def validate_rule(self) -> RetentionRule:
+        if self.match is None and not self.all:
+            raise ValueError('retention rule requires match or all=true')
+        if self.match is not None and self.all:
+            raise ValueError('retention rule cannot combine match and all=true')
+        if (self.protect is None) == (self.retain is None):
+            raise ValueError('retention rule requires exactly one of protect or retain')
+        action = self.protect if self.protect is not None else self.retain
+        if isinstance(action, str) and action != 'forever':
+            raise ValueError('retention action must be forever or a duration')
+        return self
+
+    def matches(self, entry: AssetEntry) -> bool:
+        return self.all or (self.match is not None and self.match.matches(entry))
+
+
+class RetentionDecision(BaseModel, frozen=True):
+    """Why an entry is or is not eligible for one collection mode."""
+
+    entry_id: str
+    rooted: bool
+    protected: bool
+    retained: bool
+    matching_rules: list[str]
+
+    @property
+    def eligible_for_ordinary_collection(self) -> bool:
+        return not self.rooted and not self.protected and not self.retained
+
+    @property
+    def eligible_for_pressure_collection(self) -> bool:
+        return not self.rooted and not self.protected
+
+
+class AssetAccess(BaseModel, frozen=True):
+    """Mutable evidence that a caller successfully consumed an entry."""
+
+    consumed_at: datetime
+
+    @field_validator('consumed_at')
+    @classmethod
+    def validate_consumed_at(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() != UTC.utcoffset(value):
+            raise ValueError('consumed_at must be UTC')
+        return value
+
+
 class AssetStore:
     """A cooperating-process store of verified finite bytes and entry manifests.
 
@@ -198,12 +312,19 @@ class AssetStore:
         lease_path = self.root / 'state' / 'leases' / f'{lease_id}.json'
         with ResourceClaim(self._metadata_lock()):
             self._write_new_model(lease_path, AssetLease(entry_id=entry.id))
+        consumed = False
         try:
             with self.object_path(entry.object).open('rb') as file:
                 yield file
+            consumed = True
         finally:
             with ResourceClaim(self._metadata_lock()):
                 lease_path.unlink(missing_ok=True)
+                if consumed:
+                    self._write_model(
+                        self.root / 'state' / 'access' / f'{entry.id}.json',
+                        AssetAccess(consumed_at=datetime.now(UTC)),
+                    )
 
     def set_reference(self, name: str, entry_id: str) -> None:
         """Create or atomically move a named root to an existing entry."""
@@ -241,6 +362,78 @@ class AssetStore:
         with ResourceClaim(self._metadata_lock()):
             (self.root / 'state' / 'pins' / f'{pin_id}.json').unlink(missing_ok=True)
 
+    def explain_retention(
+        self,
+        entry_id: str,
+        rules: list[RetentionRule],
+        *,
+        now: datetime | None = None,
+    ) -> RetentionDecision:
+        """Explain roots and additive retention at one immutable time snapshot."""
+        current = self._utc_now(now)
+        entry = self.entry(entry_id)
+        with ResourceClaim(self._metadata_lock()):
+            roots = self._root_entry_ids(current)
+            access = self._access_time(entry.id)
+        return self._retention_decision(entry, rules, current, roots, access)
+
+    def plan_collection(
+        self,
+        rules: list[RetentionRule],
+        *,
+        pressure: bool = False,
+        now: datetime | None = None,
+    ) -> list[RetentionDecision]:
+        """List deletion candidates without changing metadata or payloads."""
+        current = self._utc_now(now)
+        self._validate_rule_names(rules)
+        candidates: list[RetentionDecision] = []
+        for entry_path in (self.root / 'entries').glob('*.json'):
+            decision = self.explain_retention(entry_path.stem, rules, now=current)
+            if (
+                decision.eligible_for_pressure_collection
+                if pressure
+                else decision.eligible_for_ordinary_collection
+            ):
+                candidates.append(decision)
+        return candidates
+
+    def collect(
+        self,
+        rules: list[RetentionRule],
+        *,
+        pressure: bool = False,
+        now: datetime | None = None,
+    ) -> list[str]:
+        """Delete eligible manifests and then their newly unreachable objects."""
+        current = self._utc_now(now)
+        planned = self.plan_collection(rules, pressure=pressure, now=current)
+        deleted: list[str] = []
+        with ResourceClaim(self._metadata_lock()):
+            for decision in planned:
+                entry = self.entry(decision.entry_id)
+                renewed = self._retention_decision(
+                    entry,
+                    rules,
+                    current,
+                    self._root_entry_ids(current),
+                    self._access_time(entry.id),
+                )
+                eligible = (
+                    renewed.eligible_for_pressure_collection
+                    if pressure
+                    else renewed.eligible_for_ordinary_collection
+                )
+                if not eligible:
+                    continue
+                self._entry_path(entry.id).unlink()
+                if not any(
+                    candidate.object == entry.object for candidate in self._entries()
+                ):
+                    self.object_path(entry.object).unlink(missing_ok=True)
+                deleted.append(entry.id)
+        return deleted
+
     def object_path(self, identity: ObjectIdentity) -> Path:
         return self.root / 'objects' / 'sha256' / identity.sha256[:2] / identity.sha256
 
@@ -249,6 +442,7 @@ class AssetStore:
             self.root / 'staging',
             self.root / 'entries',
             self.root / 'state' / 'leases',
+            self.root / 'state' / 'access',
             self.root / 'state' / 'pins',
             self.root / 'state' / 'references',
         ):
@@ -273,6 +467,95 @@ class AssetStore:
         if not re.fullmatch(r'[0-9a-f]{32}', entry_id):
             raise ValueError('entry_id must be an opaque asset ID')
         return self.root / 'entries' / f'{entry_id}.json'
+
+    def _entries(self) -> list[AssetEntry]:
+        return [
+            self._read_model(path, AssetEntry)
+            for path in (self.root / 'entries').glob('*.json')
+        ]
+
+    def _root_entry_ids(self, now: datetime) -> set[str]:
+        references = [
+            self._read_model(path, AssetReference)
+            for path in (self.root / 'state' / 'references').glob('*.json')
+        ]
+        pins = [
+            self._read_model(path, AssetPin)
+            for path in (self.root / 'state' / 'pins').glob('*.json')
+        ]
+        leases = [
+            self._read_model(path, AssetLease)
+            for path in (self.root / 'state' / 'leases').glob('*.json')
+        ]
+        return {
+            *(reference.entry_id for reference in references),
+            *(
+                pin.entry_id
+                for pin in pins
+                if pin.expires_at is None or pin.expires_at > now
+            ),
+            *(lease.entry_id for lease in leases),
+        }
+
+    def _access_time(self, entry_id: str) -> datetime | None:
+        path = self.root / 'state' / 'access' / f'{entry_id}.json'
+        if not path.exists():
+            return None
+        return self._read_model(path, AssetAccess).consumed_at
+
+    def _retention_decision(
+        self,
+        entry: AssetEntry,
+        rules: list[RetentionRule],
+        now: datetime,
+        roots: set[str],
+        access: datetime | None,
+    ) -> RetentionDecision:
+        matching = [rule for rule in rules if rule.matches(entry)]
+        protected = any(
+            rule.protect == 'forever'
+            or (
+                isinstance(rule.protect, RetentionDuration)
+                and now < self._deadline(rule.protect, entry.created_at, access)
+            )
+            for rule in matching
+        )
+        retained = any(
+            rule.retain == 'forever'
+            or (
+                isinstance(rule.retain, RetentionDuration)
+                and now < self._deadline(rule.retain, entry.created_at, access)
+            )
+            for rule in matching
+        )
+        return RetentionDecision(
+            entry_id=entry.id,
+            rooted=entry.id in roots,
+            protected=protected,
+            retained=retained,
+            matching_rules=[rule.name for rule in matching],
+        )
+
+    def _deadline(
+        self,
+        duration: RetentionDuration,
+        created_at: datetime,
+        access_at: datetime | None,
+    ) -> datetime:
+        origin = created_at if duration.since is RetentionSince.created else access_at
+        if origin is None:
+            return created_at
+        return origin + timedelta(seconds=duration.total_seconds())
+
+    def _utc_now(self, value: datetime | None) -> datetime:
+        current = datetime.now(UTC) if value is None else value
+        if current.tzinfo is None or current.utcoffset() != UTC.utcoffset(current):
+            raise ValueError('now must be UTC')
+        return current
+
+    def _validate_rule_names(self, rules: list[RetentionRule]) -> None:
+        if len({rule.name for rule in rules}) != len(rules):
+            raise ValueError('retention rule names must be unique')
 
     def _read_model[Model: BaseModel](self, path: Path, model: type[Model]) -> Model:
         try:

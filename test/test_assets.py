@@ -98,3 +98,59 @@ def test_references_move_and_pins_are_immutable_roots(tmp_path: Path) -> None:
     )
     assert reference.entry_id == second.id
     assert pin.entry_id == first.id
+
+
+def test_collection_preserves_a_shared_object_still_referenced(tmp_path: Path) -> None:
+    store = assets.AssetStore(tmp_path / 'cache')
+    first = store.import_bytes(
+        b'shared',
+        source_key='v1:first',
+        category=assets.AssetCategory.acquired,
+        source_kind=assets.SourceKind.local_file,
+    )
+    second = store.import_bytes(
+        b'shared',
+        source_key='v1:second',
+        category=assets.AssetCategory.acquired,
+        source_kind=assets.SourceKind.local_file,
+    )
+    store.set_reference('saved', second.id)
+    assert store.collect([]) == [first.id]
+    assert store.object_path(second.object).read_bytes() == b'shared'
+    assert store.entry(second.id) == second
+
+
+def test_retention_rules_explain_normal_and_pressure_collection(tmp_path: Path) -> None:
+    store = assets.AssetStore(tmp_path / 'cache')
+    entry = store.import_bytes(
+        b'bytes',
+        source_key='v1:source',
+        category=assets.AssetCategory.derived,
+        source_kind=assets.SourceKind.complete_array,
+    )
+    rule = assets.RetentionRule(
+        name='recent derivative',
+        match=assets.RetentionMatch(category=[assets.AssetCategory.derived]),
+        retain=assets.RetentionDuration(days=1, since=assets.RetentionSince.created),
+    )
+    decision = store.explain_retention(entry.id, [rule], now=entry.created_at)
+    assert decision.matching_rules == ['recent derivative']
+    assert not decision.eligible_for_ordinary_collection
+    assert decision.eligible_for_pressure_collection
+    assert store.plan_collection([rule]) == []
+    assert store.plan_collection([rule], pressure=True)[0].entry_id == entry.id
+
+
+def test_protection_and_a_successful_lease_are_collection_roots(tmp_path: Path) -> None:
+    store = assets.AssetStore(tmp_path / 'cache')
+    entry = store.import_bytes(
+        b'bytes',
+        source_key='v1:source',
+        category=assets.AssetCategory.acquired,
+        source_kind=assets.SourceKind.local_file,
+    )
+    rule = assets.RetentionRule(name='protect', all=True, protect='forever')
+    assert store.collect([rule], pressure=True) == []
+    with store.open_entry(entry.id) as file:
+        assert file.read() == b'bytes'
+    assert (tmp_path / 'cache' / 'state' / 'access' / f'{entry.id}.json').exists()
