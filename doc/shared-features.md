@@ -41,6 +41,33 @@ asset category, source/media kind, source key, or tags. A missing rule leaves an
 unrooted entry eligible. URL/Git acquisition, HTTP freshness, providers and
 capture streams remain host-specific later stages of Ufor's asset-cache plan.
 
+## Bounded asset capture
+
+`reccy.runtime.capture.CaptureStore` builds immutable finite capture versions on
+an `AssetStore`. Every `CaptureSpec` has a maximum byte budget and exactly one
+frame limit, duration limit, or manual-stop mode. It also records resolved media
+facts and adapter/encoder versions. Callers select captures by immutable ID or a
+named reference; pinning a reference snapshots its current capture ID, so moving
+the reference cannot retarget the pin.
+
+For callback and client-buffer sources, `CaptureSession.queue_fragment()` copies
+borrowed storage into one preallocated bounded byte queue and does no filesystem
+I/O. `drain()` performs object publication outside the producer call. Queue
+overflow either raises `CaptureQueueOverflow` or records an explicit native-frame
+gap according to `CaptureOverflowPolicy`; it never silently drops data. Stop the
+provider using its own protocol, then finalize with EOF, reached-bound, or clean
+stop. Finalization closes the queue first, including against an in-flight
+producer call.
+
+Abort writes incomplete recovery evidence without publishing a capture.
+`salvage()` is deliberately separate: it publishes only verified fragments,
+retains the failure reason in recovery evidence, and marks the manifest
+`salvaged_failure` rather than claiming the requested extent completed. Fragment
+entries are pinned as they are drained so a writer interruption cannot leave a
+published manifest pointing to collected bytes. Hosts remain responsible for
+encoding media and for exporting these generic native spans as Ufor recording
+fragments and gaps.
+
 ## Consumer migration checklist
 
 These five projects should read the relevant sections and adopt the listed APIs:
