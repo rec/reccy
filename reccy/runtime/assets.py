@@ -164,6 +164,21 @@ class RetentionMatch(BaseModel, frozen=True):
     source_key: list[str] | None = None
     tags: list[str] | None = None
 
+    @model_validator(mode='after')
+    def validate_nonempty(self) -> RetentionMatch:
+        if all(
+            value is None
+            for value in (
+                self.category,
+                self.source_kind,
+                self.media_kind,
+                self.source_key,
+                self.tags,
+            )
+        ):
+            raise ValueError('retention match must select at least one field')
+        return self
+
     def matches(self, entry: AssetEntry) -> bool:
         return (
             (self.category is None or entry.category in self.category)
@@ -411,6 +426,8 @@ class AssetStore:
         deleted: list[str] = []
         with ResourceClaim(self._metadata_lock()):
             for decision in planned:
+                if not self._entry_path(decision.entry_id).exists():
+                    continue
                 entry = self.entry(decision.entry_id)
                 renewed = self._retention_decision(
                     entry,
