@@ -122,7 +122,7 @@ def _service_runner_arguments(
     if getattr(sys, 'frozen', False):
         raise ValueError('Service installation does not support frozen applications')
     return [
-        sys.executable,
+        str(value.executable) if value.executable is not None else sys.executable,
         '-m',
         'reccy.services.runner',
         str(paths.log),

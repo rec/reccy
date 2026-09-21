@@ -100,6 +100,19 @@ def test_macos_launch_agent() -> None:
     assert plist['WorkingDirectory'] == '/Users/tom'
 
 
+def test_macos_launch_agent_uses_configured_executable() -> None:
+    service = lyte_service()
+    service_paths = paths.service_paths(service, Platform.macos, Path('/Users/tom'))
+    metadata = renderers.service_metadata(
+        Platform.macos, 'lyte', ['run-daemon'], service_paths
+    ).model_copy(update={'executable': Path('/opt/lyte/release/bin/python')})
+
+    definition = renderers.macos_launch_agent(metadata, service_paths, service)
+    plist = plistlib.loads(definition.content.encode())
+
+    assert plist['ProgramArguments'][0] == '/opt/lyte/release/bin/python'
+
+
 def test_linux_systemd_unit() -> None:
     service = lyte_service()
     service_paths = paths.service_paths(service, Platform.linux, Path('/home/tom'))
