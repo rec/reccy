@@ -73,6 +73,7 @@ class DaemonMetadata(BaseModel, frozen=True):
     platform: Platform
     control_endpoint: str
     event_endpoint: str | None = None
+    executable: Path | None = None
 
 
 class DaemonStatus(BaseModel):
