@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from reccy.paths import legal_filename, legal_path
+from reccy.paths import legal_filename, legal_path, legal_url_path
 
 
 def test_legal_filename_can_be_created(tmp_path: Path) -> None:
@@ -16,4 +16,16 @@ def test_legal_filename_replaces_problematic_characters() -> None:
 def test_legal_path_replaces_each_filename_segment() -> None:
     assert legal_path(Path('/tmp/device:name/track?')) == Path(
         '/tmp/device-name/track-'
+    )
+
+
+def test_legal_url_path_replaces_url_illegal_characters_and_spaces() -> None:
+    path = Path(
+        '/tmp/device:name/track? /mix ^`{} name/one + two/one - two/'
+        'one _ two/one / two/other space'
+    )
+
+    assert legal_url_path(path) == Path(
+        '/tmp/device-name/track-/mix------name/one+two/one-two/one_two/'
+        'one/two/other-space'
     )
