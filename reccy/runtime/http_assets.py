@@ -5,9 +5,9 @@ from __future__ import annotations
 import gzip
 import hashlib
 import json
-import re
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import ExitStack, contextmanager
+from datetime import UTC, datetime
 from http.client import HTTPMessage
 from io import BytesIO
 from math import isfinite
@@ -27,6 +27,7 @@ from .assets import (
     SourceKind,
     source_fingerprint,
 )
+from .http_freshness import response_freshness
 
 
 class AssetAcquisitionDenied(AssetCacheError):
@@ -91,6 +92,7 @@ def open_https_asset(
     current = url
     for _ in range(6):
         try:
+            request_time = datetime.now(UTC)
             response = opener.open(
                 Request(current, headers=request_headers), timeout=timeout
             )
@@ -124,6 +126,7 @@ def open_https_asset(
             raise AssetCacheError(
                 f'HTTPS acquisition failed: {type(error).__name__}'
             ) from error
+        response_time = datetime.now(UTC)
         with response:
             if response.status != 200:
                 raise AssetCacheError(
@@ -138,16 +141,14 @@ def open_https_asset(
                 if encoding == 'gzip'
                 else encoded
             )
-            no_store = _has_directive(
-                response.headers.get('Cache-Control', ''), 'no-store'
-            ) or any(
-                key.casefold() == 'cache-control' and _has_directive(value, 'no-store')
-                for key, value in request_headers.items()
+            freshness = response_freshness(
+                response.headers,
+                request_headers,
+                request_time,
+                response_time,
+                response_time,
             )
-            vary_star = '*' in (
-                v.strip() for v in response.headers.get('Vary', '').split(',')
-            )
-            if no_store or vary_star:
+            if not freshness.storable or '*' in freshness.vary:
                 contents = _read_transient(decoded, maximum_decoded_bytes, expected)
                 with BytesIO(contents) as file:
                     yield file
@@ -184,10 +185,6 @@ def _authorize(url: str, allow_url: Callable[[str], bool]) -> None:
         raise AssetAcquisitionDenied('HTTPS asset URL is invalid')
     if not allow_url(url):
         raise AssetAcquisitionDenied('Host policy denied the asset URL')
-
-
-def _has_directive(header: str, directive: str) -> bool:
-    return bool(re.search(rf'(?:^|,)\s*{directive}(?:\s|,|$)', header, re.IGNORECASE))
 
 
 def _read_transient(
