@@ -1,4 +1,5 @@
 import sys
+from subprocess import CalledProcessError, TimeoutExpired
 
 import pytest
 
@@ -60,6 +61,24 @@ def test_run_main_prints_user_facing_errors(capsys: pytest.CaptureFixture[str]) 
 
     assert cli.run_main(fail) == 1
     assert capsys.readouterr().err == 'ERROR: bad config\n'
+
+
+@pytest.mark.parametrize(
+    'error',
+    [
+        PermissionError('permission denied'),
+        CalledProcessError(1, ['systemctl']),
+        TimeoutExpired(['systemctl'], 1),
+    ],
+)
+def test_run_main_reports_operational_failures(
+    capsys: pytest.CaptureFixture[str], error: Exception
+) -> None:
+    def fail() -> int:
+        raise error
+
+    assert cli.run_main(fail) == 1
+    assert capsys.readouterr().err.startswith('ERROR: ')
 
 
 def test_named_choice_spec_round_trips_values() -> None:

@@ -1,3 +1,4 @@
+import subprocess
 import sys
 from collections.abc import Callable, Mapping
 
@@ -34,6 +35,8 @@ def run_main(action: Callable[[], int]) -> int:
         print('ERROR:', e, file=sys.stderr)
     except ReccyError as e:
         print('ERROR:', *e.args, file=sys.stderr)
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+        print('ERROR:', e, file=sys.stderr)
     return 1
 
 
