@@ -1,9 +1,9 @@
 # Open project issues
 
-Updated 2026-09-29 after the fixes through commit `059185b`. The numbers retain
-their original audit identities; gaps are issues already resolved and removed
-from this list. These are static-review findings, not all reproduced failures.
-Platform-specific behavior still needs native verification.
+Updated 2026-09-29. The numbers retain their original audit identities; gaps
+are issues already resolved and removed from this list. These are static-review
+findings, not all reproduced failures. Platform-specific behavior still needs
+native verification.
 
 ## Decisions needed
 
@@ -63,16 +63,20 @@ Platform-specific behavior still needs native verification.
    for clarity? Backward compatibility is not required, but consumers would
    need coordinated updates.
 
-## Engineering and verification still open
+## Verification requiring another platform
 
-- **Remaining test gaps (31).** Add persistent blocked-handler shutdown cases
-  and native Windows pipe and scheduled-task coverage. Existing tests cannot
-  establish native Windows behavior, including named-pipe access controls and
-  delivery of oversize-frame errors, from this macOS checkout.
+- **Native Windows verification (31).** Named-pipe access controls,
+  oversize-frame error delivery, and scheduled-task behavior need native
+  Windows coverage. The simulated pipe and mocked manager tests in this macOS
+  checkout cannot establish those platform behaviors.
+
+## Optional structural follow-ups
+
 - **Structure and test maintenance (29, 30, 32).** `assets.py`, `ipc.py`, and
   `controller.py` remain large; `errors.py` and `services/spec.py` are small;
-  some service fixtures and atomic-write tests overlap. Split, inline, or
-  consolidate only alongside a related change that benefits from it. The
+  some service fixtures and atomic-write tests overlap in shape but exercise
+  distinct behavior. No standalone refactor is warranted by size alone. Split,
+  inline, or consolidate only when a related change benefits from it. The
   executable `services/runner.py` should remain separate.
 
 ## Additional work beyond the prompt

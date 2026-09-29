@@ -74,7 +74,7 @@ def test_server_close_disconnects_request_while_handler_finishes() -> None:
 
     def handle(request: rpc.Request) -> str:
         started.set()
-        release.wait(1)
+        release.wait()
         finished.set()
         return 'ok'
 
@@ -84,6 +84,8 @@ def test_server_close_disconnects_request_while_handler_finishes() -> None:
             control, Path(directory) / 'events.sock', handle, role='test'
         )
         server.start()
+        watchdog = threading.Timer(2, release.set)
+        watchdog.start()
         try:
             with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as peer:
                 peer.settimeout(1)
@@ -96,7 +98,9 @@ def test_server_close_disconnects_request_while_handler_finishes() -> None:
                 server.close()
 
                 assert peer.recv(1) == b''
+                assert not finished.is_set()
         finally:
             release.set()
+            watchdog.cancel()
             server.close()
             assert finished.wait(1)
