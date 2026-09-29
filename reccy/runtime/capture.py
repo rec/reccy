@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import re
 from collections import deque
-from collections.abc import Buffer, Callable
-from datetime import UTC, datetime
+from collections.abc import Buffer, Callable, Iterator
+from contextlib import contextmanager
+from datetime import UTC, datetime, timedelta
 from enum import auto
 from pathlib import Path
 from threading import Lock, RLock
@@ -18,9 +19,13 @@ from strenum import StrEnum
 from .assets import (
     AssetCategory,
     AssetEntry,
+    AssetPin,
     AssetStore,
     MediaKind,
     ObjectIdentity,
+    RetentionDuration,
+    RetentionNewest,
+    RetentionSince,
     SourceKind,
 )
 from .claims import ResourceClaim
@@ -148,7 +153,7 @@ class CaptureRecovery(BaseModel, frozen=True):
     """Evidence for a session that did not publish a successful capture."""
 
     version: int = 1
-    id: str
+    id: str = Field(pattern=r'^[0-9a-f]{32}$')
     source_key: str = Field(pattern=r'^v1:[0-9a-f]{64}$')
     observed_frames: int
     stored_bytes: int
@@ -163,6 +168,78 @@ class CaptureReference(BaseModel, frozen=True):
 
 class CapturePin(BaseModel, frozen=True):
     capture_id: str = Field(pattern=r'^[0-9a-f]{32}$')
+
+
+class CaptureRecordKind(StrEnum):
+    capture = auto()
+    recovery = auto()
+
+
+class CaptureLease(BaseModel, frozen=True):
+    kind: CaptureRecordKind
+    capture_id: str = Field(pattern=r'^[0-9a-f]{32}$')
+
+
+class CaptureRetentionRule(BaseModel, frozen=True):
+    """An additive rule for completed captures and recovery evidence."""
+
+    name: str = Field(min_length=1)
+    kinds: list[CaptureRecordKind] | None = None
+    source_keys: list[str] | None = None
+    protect: RetentionDuration | str | None = None
+    retain: RetentionDuration | str | None = None
+    newest: RetentionNewest | None = None
+
+    @model_validator(mode='after')
+    def validate_rule(self) -> CaptureRetentionRule:
+        if self.protect is not None and (self.retain is not None or self.newest):
+            raise ValueError('capture retention rule requires one action family')
+        if self.protect is None and self.retain is None and self.newest is None:
+            raise ValueError('capture retention rule requires an action')
+        for action in (self.protect, self.retain):
+            if isinstance(action, str) and action != 'forever':
+                raise ValueError(
+                    'capture retention action must be forever or a duration'
+                )
+            if (
+                isinstance(action, RetentionDuration)
+                and action.since is not RetentionSince.created
+            ):
+                raise ValueError('capture retention duration must start at creation')
+        if self.retain == 'forever' and self.newest is not None:
+            raise ValueError('newest cannot be combined with retain=forever')
+        return self
+
+    def matches(self, record: _StoredRecord) -> bool:
+        return (self.kinds is None or record.kind in self.kinds) and (
+            self.source_keys is None or record.source_key in self.source_keys
+        )
+
+
+class CaptureRetentionDecision(BaseModel, frozen=True):
+    kind: CaptureRecordKind
+    capture_id: str
+    rooted: bool
+    protected: bool
+    retained: bool
+    matching_rules: list[str]
+    newest_ranks: dict[str, int] = Field(default_factory=dict)
+
+    @property
+    def eligible_for_ordinary_collection(self) -> bool:
+        return not self.rooted and not self.protected and not self.retained
+
+    @property
+    def eligible_for_pressure_collection(self) -> bool:
+        return not self.rooted and not self.protected
+
+
+class _StoredRecord(BaseModel, frozen=True):
+    kind: CaptureRecordKind
+    capture_id: str
+    source_key: str
+    ended_at: datetime
+    fragments: list[CaptureFragment]
 
 
 class CaptureStore:
@@ -188,6 +265,117 @@ class CaptureStore:
 
     def recovery(self, capture_id: str) -> CaptureRecovery:
         return self._read_model(self._recovery_path(capture_id), CaptureRecovery)
+
+    @contextmanager
+    def open_record(
+        self, kind: CaptureRecordKind, capture_id: str
+    ) -> Iterator[CaptureManifest | CaptureRecovery]:
+        """Keep a selected record and its fragment pins while consuming it."""
+        self._prepare_directories()
+        lease_path = self.root / 'state' / 'capture-leases' / f'{uuid4().hex}.json'
+        with ResourceClaim(self._metadata_lock(), timeout=5):
+            record = (
+                self.capture(capture_id)
+                if kind is CaptureRecordKind.capture
+                else self.recovery(capture_id)
+            )
+            self._write_new_model(
+                lease_path, CaptureLease(kind=kind, capture_id=capture_id)
+            )
+        try:
+            yield record
+        finally:
+            with ResourceClaim(self._metadata_lock(), timeout=5):
+                lease_path.unlink(missing_ok=True)
+
+    def plan_collection(
+        self,
+        rules: list[CaptureRetentionRule],
+        *,
+        pressure: bool = False,
+        now: datetime | None = None,
+    ) -> list[CaptureRetentionDecision]:
+        """Explain record deletion candidates without changing the store."""
+        current = self._collection_time(now)
+        self._validate_rule_names(rules)
+        with ResourceClaim(self._metadata_lock(), timeout=5):
+            records = self._records()
+            roots = self._record_roots()
+            ranks = self._newest_ranks(records, rules)
+            candidates: list[CaptureRetentionDecision] = []
+            for record in records:
+                decision = self._retention_decision(
+                    record, rules, current, roots, ranks
+                )
+                eligible = (
+                    decision.eligible_for_pressure_collection
+                    if pressure
+                    else decision.eligible_for_ordinary_collection
+                )
+                if eligible:
+                    candidates.append(decision)
+            return candidates
+
+    def collect(
+        self,
+        rules: list[CaptureRetentionRule],
+        *,
+        pressure: bool = False,
+        now: datetime | None = None,
+    ) -> list[CaptureRetentionDecision]:
+        """Remove eligible records and release pins unused by surviving records.
+
+        Fragment bytes are subsequently reclaimed by ``AssetStore.collect``.
+        """
+        current = self._collection_time(now)
+        planned = self.plan_collection(rules, pressure=pressure, now=current)
+        deleted: list[CaptureRetentionDecision] = []
+        with ResourceClaim(self._metadata_lock(), timeout=5):
+            records = self._records()
+            roots = self._record_roots()
+            ranks = self._newest_ranks(records, rules)
+            by_key = {(r.kind, r.capture_id): r for r in records}
+            for decision in planned:
+                record = by_key.get((decision.kind, decision.capture_id))
+                if record is None:
+                    continue
+                renewed = self._retention_decision(record, rules, current, roots, ranks)
+                eligible = (
+                    renewed.eligible_for_pressure_collection
+                    if pressure
+                    else renewed.eligible_for_ordinary_collection
+                )
+                if not eligible:
+                    continue
+                deleted.append(renewed)
+            if deleted:
+                deleted_keys = {(d.kind, d.capture_id) for d in deleted}
+                surviving_pins = {
+                    f.pin_id
+                    for r in records
+                    if (r.kind, r.capture_id) not in deleted_keys
+                    for f in r.fragments
+                }
+                released = {
+                    f.pin_id
+                    for decision in deleted
+                    for f in by_key[(decision.kind, decision.capture_id)].fragments
+                } - surviving_pins
+                for pin_id in released:
+                    pin_path = self.root / 'state' / 'pins' / f'{pin_id}.json'
+                    if pin_path.exists():
+                        pin = self._read_model(pin_path, AssetPin)
+                        if pin.entry_id != pin_id:
+                            raise CaptureError(
+                                'Capture fragment pin points to another entry'
+                            )
+                for decision in deleted:
+                    self._record_path(decision.kind, decision.capture_id).unlink()
+                for pin_id in released:
+                    (self.root / 'state' / 'pins' / f'{pin_id}.json').unlink(
+                        missing_ok=True
+                    )
+        return deleted
 
     def set_reference(self, name: str, capture_id: str) -> None:
         self._validate_name(name)
@@ -248,14 +436,151 @@ class CaptureStore:
         with ResourceClaim(self._metadata_lock(), timeout=5):
             self._write_model(self._recovery_path(recovery.id), recovery)
 
+    def _salvage_publish(
+        self, recovery: CaptureRecovery, manifest: CaptureManifest
+    ) -> None:
+        self._prepare_directories()
+        with ResourceClaim(self._metadata_lock(), timeout=5):
+            self._write_model(self._recovery_path(recovery.id), recovery)
+            self._write_new_model(self._capture_path(manifest.id), manifest)
+
     def _prepare_directories(self) -> None:
         for path in (
             self.root / 'captures',
             self.root / 'staging',
             self.root / 'state' / 'capture-references',
             self.root / 'state' / 'capture-pins',
+            self.root / 'state' / 'capture-leases',
         ):
             path.mkdir(parents=True, exist_ok=True)
+
+    def _records(self) -> list[_StoredRecord]:
+        records: list[_StoredRecord] = []
+        for path in (self.root / 'captures').glob('*.json'):
+            manifest = self._read_model(path, CaptureManifest)
+            records.append(
+                _StoredRecord(
+                    kind=CaptureRecordKind.capture,
+                    capture_id=manifest.id,
+                    source_key=manifest.source_key,
+                    ended_at=manifest.ended_at,
+                    fragments=manifest.fragments,
+                )
+            )
+        for path in (self.root / 'staging').glob('capture-*.json'):
+            recovery = self._read_model(path, CaptureRecovery)
+            records.append(
+                _StoredRecord(
+                    kind=CaptureRecordKind.recovery,
+                    capture_id=recovery.id,
+                    source_key=recovery.source_key,
+                    ended_at=datetime.fromtimestamp(path.stat().st_mtime, UTC),
+                    fragments=recovery.fragments,
+                )
+            )
+        return records
+
+    def _record_roots(self) -> set[tuple[CaptureRecordKind, str]]:
+        state = self.root / 'state'
+        references = [
+            self._read_model(p, CaptureReference)
+            for p in (state / 'capture-references').rglob('*.json')
+        ]
+        pins = [
+            self._read_model(p, CapturePin)
+            for p in (state / 'capture-pins').glob('*.json')
+        ]
+        leases = [
+            self._read_model(p, CaptureLease)
+            for p in (state / 'capture-leases').glob('*.json')
+        ]
+        return {
+            *((CaptureRecordKind.capture, r.capture_id) for r in references),
+            *((CaptureRecordKind.capture, p.capture_id) for p in pins),
+            *((lease.kind, lease.capture_id) for lease in leases),
+        }
+
+    def _newest_ranks(
+        self, records: list[_StoredRecord], rules: list[CaptureRetentionRule]
+    ) -> dict[str, dict[tuple[CaptureRecordKind, str], int]]:
+        result: dict[str, dict[tuple[CaptureRecordKind, str], int]] = {}
+        for rule in rules:
+            if rule.newest is None:
+                continue
+            groups: dict[str, list[_StoredRecord]] = {}
+            for record in records:
+                if rule.matches(record):
+                    key = record.source_key if rule.newest.group_by == 'source' else ''
+                    groups.setdefault(key, []).append(record)
+            result[rule.name] = {
+                (record.kind, record.capture_id): rank
+                for group in groups.values()
+                for rank, record in enumerate(
+                    sorted(
+                        group,
+                        key=lambda r: (r.ended_at, r.capture_id),
+                        reverse=True,
+                    ),
+                    start=1,
+                )
+            }
+        return result
+
+    def _retention_decision(
+        self,
+        record: _StoredRecord,
+        rules: list[CaptureRetentionRule],
+        now: datetime,
+        roots: set[tuple[CaptureRecordKind, str]],
+        ranks: dict[str, dict[tuple[CaptureRecordKind, str], int]],
+    ) -> CaptureRetentionDecision:
+        matching = [r for r in rules if r.matches(record)]
+        key = (record.kind, record.capture_id)
+
+        def active(action: RetentionDuration | str | None) -> bool:
+            return action == 'forever' or (
+                isinstance(action, RetentionDuration)
+                and now < record.ended_at + timedelta(seconds=action.total_seconds())
+            )
+
+        return CaptureRetentionDecision(
+            kind=record.kind,
+            capture_id=record.capture_id,
+            rooted=key in roots,
+            protected=any(active(r.protect) for r in matching),
+            retained=any(
+                active(r.retain)
+                or (
+                    r.newest is not None
+                    and (rank := ranks.get(r.name, {}).get(key)) is not None
+                    and rank <= r.newest.count
+                )
+                for r in matching
+            ),
+            matching_rules=[r.name for r in matching],
+            newest_ranks={
+                r.name: rank
+                for r in matching
+                if (rank := ranks.get(r.name, {}).get(key)) is not None
+            },
+        )
+
+    def _record_path(self, kind: CaptureRecordKind, capture_id: str) -> Path:
+        return (
+            self._capture_path(capture_id)
+            if kind is CaptureRecordKind.capture
+            else self._recovery_path(capture_id)
+        )
+
+    def _collection_time(self, value: datetime | None) -> datetime:
+        current = datetime.now(UTC) if value is None else value
+        if current.tzinfo is None or current.utcoffset() != UTC.utcoffset(current):
+            raise ValueError('now must be UTC')
+        return current
+
+    def _validate_rule_names(self, rules: list[CaptureRetentionRule]) -> None:
+        if len({r.name for r in rules}) != len(rules):
+            raise ValueError('capture retention rule names must be unique')
 
     def _metadata_lock(self) -> Path:
         return self.root / 'state' / 'metadata.lock'
@@ -459,9 +784,9 @@ class CaptureSession:
             self._require_open()
             self._stop_accepting()
             self.drain()
-            self.store._record_recovery(self._recovery(reason))
+            recovery = self._recovery(reason)
             manifest = self._manifest(CaptureTermination.salvaged_failure)
-            self.store._publish(manifest)
+            self.store._salvage_publish(recovery, manifest)
             self._closed = True
             return manifest
 
