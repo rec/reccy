@@ -231,6 +231,13 @@ class CaptureStore:
         )
         return self.capture(pin.capture_id)
 
+    def remove_pin(self, pin_id: str) -> None:
+        self._validate_id(pin_id)
+        with ResourceClaim(self._metadata_lock(), timeout=5):
+            (self.root / 'state' / 'capture-pins' / f'{pin_id}.json').unlink(
+                missing_ok=True
+            )
+
     def _publish(self, manifest: CaptureManifest) -> None:
         self._prepare_directories()
         with ResourceClaim(self._metadata_lock(), timeout=5):
