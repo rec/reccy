@@ -6,17 +6,24 @@ Reccy; no claim is made that sibling projects have adopted these APIs.
 ## Verified finite asset store
 
 `reccy.runtime.assets.AssetStore` is a private, host-owned filesystem store for
-finite opaque bytes. Construct it with a per-user directory, then use
+finite opaque bytes. Construct it with a per-user directory and a host-issued
+credential scope ID; each scope has separate objects and metadata. Then use
 `import_bytes()` to verify SHA-256 and length, publish one immutable object, and
 create an immutable acquisition/materialization entry. The entry records a
 versioned source key and one of the eight source kinds without treating that key
 as proof that two source requests have equal bytes.
 
 ```python
-store = AssetStore(cache_directory)
+store = AssetStore(cache_directory, credential_scope='public')
+key = source_fingerprint(
+    {'kind': 'relative_file', 'path': 'audio/take.wav'},
+    {'package': 'session-42'},
+    expected_identity,
+    {},
+)
 entry = store.import_bytes(
     contents,
-    source_key='v1:host-request',
+    source_key=key,
     category=AssetCategory.acquired,
     source_kind=SourceKind.local_file,
 )
@@ -30,6 +37,19 @@ Existing objects are rehashed before reuse. A wrong declared identity raises
 a handle and removes it when the context exits. Named references and immutable
 pins are explicit retention roots: moving a reference does not retarget an
 existing pin.
+
+`source_fingerprint(location, context, expected, representation)` computes a
+versioned key from resolved JSON request facts. It preserves integer/float,
+Boolean/null, Unicode, ordering within arrays, and original URL spelling while
+ignoring object-key order. Package identity, volume ID, effective provider
+arguments, and media representation settings belong in the caller-supplied
+facts when relevant. If a secret affects lookup, supply it as `lookup_secret`
+with a stable host-private `fingerprint_key` of at least 32 bytes; only a keyed
+digest enters the request key. Never place raw credentials, cookies, signed URL
+parameters, or secret arguments in the public facts or persisted metadata.
+The host resolves credentials and the scope independently; a matching key does
+not authorize access to another scope. Stored source keys must be `v1:` followed
+by a lowercase SHA-256 digest; raw source descriptions are rejected.
 
 `RetentionRule` and `RetentionMatch` provide pure, additive rule evaluation for
 finite entries. A rule either `protect`s an entry from every collection mode or

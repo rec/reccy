@@ -7,12 +7,15 @@ and real-time capture stay with their host-specific adapters.
 from __future__ import annotations
 
 import hashlib
+import hmac
+import json
 import os
 import re
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from enum import auto
+from math import isfinite
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import BinaryIO
@@ -68,13 +71,57 @@ class ObjectIdentity(BaseModel, frozen=True):
     length: int = Field(ge=0)
 
 
+def source_fingerprint(
+    location: dict[str, object],
+    context: dict[str, object],
+    expected: ObjectIdentity | None,
+    representation: dict[str, object],
+    *,
+    lookup_secret: bytes | None = None,
+    fingerprint_key: bytes | None = None,
+) -> str:
+    """Identify a resolved request without storing its credential material.
+
+    Callers provide effective, public request facts. A secret that changes the
+    lookup must be supplied separately with a stable host-private HMAC key.
+    The resulting key is only an index, never acquisition authorization.
+    """
+    for value in (location, context, representation):
+        if type(value) is not dict:
+            raise ValueError('source fingerprint fields must be JSON objects')
+        _validate_fingerprint_json(value)
+    if (lookup_secret is None) != (fingerprint_key is None):
+        raise ValueError('lookup_secret and fingerprint_key must be supplied together')
+    if fingerprint_key is not None and len(fingerprint_key) < 32:
+        raise ValueError('fingerprint_key must contain at least 32 bytes')
+    request = {
+        'location': location,
+        'context': context,
+        'expected': None if expected is None else expected.model_dump(mode='json'),
+        'representation': representation,
+        'secret': (
+            None
+            if lookup_secret is None or fingerprint_key is None
+            else hmac.digest(fingerprint_key, lookup_secret, 'sha256').hex()
+        ),
+    }
+    encoded = json.dumps(
+        request,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(',', ':'),
+        allow_nan=False,
+    ).encode('utf-8')
+    return f'v1:{hashlib.sha256(encoded).hexdigest()}'
+
+
 class AssetEntry(BaseModel, frozen=True):
     """Immutable facts for one acquisition or materialization."""
 
     version: int = 1
     id: str = Field(default_factory=lambda: uuid4().hex, pattern=r'^[0-9a-f]{32}$')
     object: ObjectIdentity
-    source_key: str = Field(min_length=1)
+    source_key: str = Field(pattern=r'^v1:[0-9a-f]{64}$')
     category: AssetCategory
     source_kind: SourceKind
     media_kind: MediaKind = MediaKind.other
@@ -249,13 +296,20 @@ class AssetAccess(BaseModel, frozen=True):
 class AssetStore:
     """A cooperating-process store of verified finite bytes and entry manifests.
 
-    ``root`` is a host-owned private directory. Every host process using one
-    store must use this class so publication and retention-root updates share
-    the metadata claim.
+    ``root`` is a host-owned private directory. Each credential scope gets a
+    separate store beneath it; callers must derive the scope from host authority,
+    never from an untrusted source key. Every host process using one scope must
+    use this class so publication and retention-root updates share the claim.
     """
 
-    def __init__(self, root: Path) -> None:
-        self.root = root
+    def __init__(self, root: Path, *, credential_scope: str) -> None:
+        if not credential_scope:
+            raise ValueError('credential_scope must be a nonempty host-owned ID')
+        self.root = (
+            root
+            / 'scopes'
+            / hashlib.sha256(credential_scope.encode('utf-8')).hexdigest()
+        )
 
     def import_bytes(
         self,
@@ -619,3 +673,28 @@ class AssetStore:
     def _validate_name(self, name: str) -> None:
         if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]*', name):
             raise ValueError('reference names must be filename-safe')
+
+
+def _validate_fingerprint_json(value: object) -> None:
+    pending = [(value, 0)]
+    count = 0
+    while pending:
+        item, depth = pending.pop()
+        count += 1
+        if count > 10000 or depth > 64:
+            raise ValueError('source request exceeds 10000 values or 64 levels')
+        if item is None or type(item) in {bool, int, str}:
+            continue
+        if type(item) is float:
+            if not isfinite(item):
+                raise ValueError('source request numbers must be finite')
+            continue
+        if type(item) is list:
+            pending.extend((child, depth + 1) for child in item)
+            continue
+        if type(item) is dict:
+            if any(type(key) is not str for key in item):
+                raise ValueError('source request object keys must be strings')
+            pending.extend((child, depth + 1) for child in item.values())
+            continue
+        raise ValueError('source request must contain only JSON values')

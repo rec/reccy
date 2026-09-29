@@ -62,7 +62,7 @@ class CaptureGapReason(StrEnum):
 class CaptureSpec(BaseModel, frozen=True):
     """Resolved bounds and media facts for one finite capture request."""
 
-    source_key: str = Field(min_length=1)
+    source_key: str = Field(pattern=r'^v1:[0-9a-f]{64}$')
     source_kind: SourceKind
     media_kind: MediaKind = MediaKind.other
     maximum_bytes: int = Field(gt=0)
@@ -125,7 +125,7 @@ class CaptureManifest(BaseModel, frozen=True):
 
     version: int = 1
     id: str = Field(pattern=r'^[0-9a-f]{32}$')
-    source_key: str
+    source_key: str = Field(pattern=r'^v1:[0-9a-f]{64}$')
     source_kind: SourceKind
     media_kind: MediaKind
     maximum_bytes: int
@@ -149,7 +149,7 @@ class CaptureRecovery(BaseModel, frozen=True):
 
     version: int = 1
     id: str
-    source_key: str
+    source_key: str = Field(pattern=r'^v1:[0-9a-f]{64}$')
     observed_frames: int
     stored_bytes: int
     reason: str

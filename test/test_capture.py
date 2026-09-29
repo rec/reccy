@@ -8,12 +8,14 @@ from reccy.runtime import assets, capture
 
 
 def capture_store(tmp_path: Path) -> capture.CaptureStore:
-    return capture.CaptureStore(assets.AssetStore(tmp_path / 'cache'))
+    return capture.CaptureStore(
+        assets.AssetStore(tmp_path / 'cache', credential_scope='public')
+    )
 
 
 def capture_spec(**changes: object) -> capture.CaptureSpec:
     values: dict[str, object] = {
-        'source_key': 'v1:microphone',
+        'source_key': assets.source_fingerprint({'test': 'microphone'}, {}, None, {}),
         'source_kind': assets.SourceKind.callback,
         'maximum_bytes': 32,
         'maximum_queue_bytes': 8,
@@ -98,12 +100,12 @@ def test_abort_and_explicit_salvage_have_distinct_results(tmp_path: Path) -> Non
 
 def test_aborted_capture_fragments_survive_store_reopen(tmp_path: Path) -> None:
     root = tmp_path / 'cache'
-    store = capture.CaptureStore(assets.AssetStore(root))
+    store = capture.CaptureStore(assets.AssetStore(root, credential_scope='public'))
     session = store.start(capture_spec())
     session.queue_fragment(b'abcd', frame_count=4)
     recovery = session.abort('provider failed')
 
-    reopened = capture.CaptureStore(assets.AssetStore(root))
+    reopened = capture.CaptureStore(assets.AssetStore(root, credential_scope='public'))
     assert reopened.assets.collect([], pressure=True) == []
     assert reopened.recovery(session.id) == recovery
     with reopened.assets.open_entry(recovery.fragments[0].entry_id) as file:
