@@ -410,6 +410,23 @@ def test_references_move_and_pins_are_immutable_roots(tmp_path: Path) -> None:
     assert pin.entry_id == first.id
 
 
+def test_expired_pin_metadata_is_removed_during_collection(tmp_path: Path) -> None:
+    store = assets.AssetStore(tmp_path / 'cache', credential_scope='public')
+    entry = store.import_bytes(
+        b'bytes',
+        source_key=_source_key('expiring'),
+        category=assets.AssetCategory.acquired,
+        source_kind=assets.SourceKind.local_file,
+    )
+    expiry = datetime.now(UTC) + timedelta(days=1)
+    pin_id = store.add_pin(entry.id, expires_at=expiry)
+    pin_path = store.root / 'state' / 'pins' / f'{pin_id}.json'
+    assert store.collect([], now=expiry - timedelta(seconds=1)) == []
+    assert pin_path.exists()
+    assert store.collect([], now=expiry) == [entry.id]
+    assert not pin_path.exists()
+
+
 def test_collection_preserves_a_shared_object_still_referenced(tmp_path: Path) -> None:
     store = assets.AssetStore(tmp_path / 'cache', credential_scope='public')
     first = store.import_bytes(

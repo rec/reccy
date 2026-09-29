@@ -624,7 +624,7 @@ class AssetStore:
         pressure: bool = False,
         now: datetime | None = None,
     ) -> list[str]:
-        """Delete eligible entries, retaining orphan objects for crash analysis."""
+        """Delete eligible entries and expired pins under the metadata lock."""
         current = self._utc_now(now)
         planned = self.plan_collection(rules, pressure=pressure, now=current)
         deleted: list[str] = []
@@ -666,6 +666,10 @@ class AssetStore:
                 if object_counts[key] == 0:
                     self.object_path(entry.object).unlink(missing_ok=True)
                 deleted.append(entry.id)
+            for path in (self.root / 'state' / 'pins').glob('*.json'):
+                pin = self._read_model(path, AssetPin)
+                if pin.expires_at is not None and pin.expires_at <= current:
+                    path.unlink()
         return deleted
 
     def object_path(self, identity: ObjectIdentity) -> Path:
