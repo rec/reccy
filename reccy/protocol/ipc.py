@@ -100,9 +100,26 @@ class ProtocolListener:
         self.logger = logger or logging.getLogger(__name__)
         self.handshake_complete = False
         self.lock = threading.Lock()
+        self._thread: threading.Thread | None = None
 
     def start(self, *, name: str = 'IpcListener') -> None:
-        threading.Thread(target=self.read, daemon=True, name=name).start()
+        if self._thread is not None:
+            raise RuntimeError('IPC listener has already been started')
+        self._thread = threading.Thread(target=self.read, daemon=True, name=name)
+        try:
+            self._thread.start()
+        except RuntimeError:
+            self._thread = None
+            self.close()
+            raise
+
+    def wait_closed(self, timeout: float | None = None) -> bool:
+        if self._thread is None:
+            raise RuntimeError('IPC listener has not been started')
+        if self._thread is threading.current_thread():
+            raise RuntimeError('IPC listener cannot wait for itself')
+        self._thread.join(timeout)
+        return not self._thread.is_alive()
 
     def write(self, message: str) -> bool:
         with self.lock:
@@ -225,8 +242,12 @@ class ProtocolClient:
         if self.connection is not None:
             self.connection.close()
 
-    def shutdown(self) -> None:
-        self.write_model(Shutdown(type='shutdown'))
+    def request_shutdown(self) -> None:
+        """Send a shutdown request after hello; delivery is not an acknowledgement."""
+        if self.closed or not self.handshake_complete:
+            raise RuntimeError('IPC handshake must complete before shutdown request')
+        if not self.write_model(Shutdown(type='shutdown')):
+            raise BrokenPipeError('Could not send IPC shutdown request')
 
     def write_model(self, message: BaseModel, *, exclude_none: bool = False) -> bool:
         return self.write(message_json(message, exclude_none=exclude_none))

@@ -1,3 +1,4 @@
+import threading
 from pathlib import Path
 
 import pytest
@@ -80,7 +81,9 @@ def test_rpc_rejects_commands_while_stopping(
         rpc_enabled = True
 
         def on_stopping(self) -> None:
-            responses.append(self.rpc_response(rpc.Request(command='status')))
+            responses.append(
+                self.rpc_response(rpc.Request(command='status'), threading.Event())
+            )
 
     monkeypatch.setattr(rpc.Server, 'start', lambda server: None)
     monkeypatch.setattr(rpc.Server, 'close', lambda server: None)
@@ -88,3 +91,36 @@ def test_rpc_rejects_commands_while_stopping(
     application.start()
     application.close()
     assert responses == [ipc.Error(type='error', message='application is not running')]
+
+
+def test_resources_remain_open_until_rpc_workers_finish(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    closed = 0
+    attempts = 0
+
+    class Application(Reccy):
+        name = 'lifecycle'
+        rpc_enabled = True
+
+        def on_closed(self) -> None:
+            nonlocal closed
+            closed += 1
+
+    def close_server(self: rpc.Server) -> None:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise TimeoutError('RPC workers did not stop')
+
+    monkeypatch.setattr(rpc.Server, 'start', lambda server: None)
+    monkeypatch.setattr(rpc.Server, 'close', close_server)
+    application = Application(home=tmp_path)
+    application.start()
+
+    with pytest.raises(TimeoutError, match='workers did not stop'):
+        application.close()
+    assert closed == 0
+
+    application.close()
+    assert closed == 1

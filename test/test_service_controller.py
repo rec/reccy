@@ -61,10 +61,7 @@ def test_linux_controller_installs_user_service(tmp_path: Path) -> None:
         Platform.linux, 'lyte', ['run-daemon'], controller.paths
     )
 
-    result = controller.install(metadata)
-
-    assert result.installed
-    assert result.running is None
+    assert controller.install(metadata) is None
     assert controller.paths.metadata.exists()
     assert controller.paths.service.exists()
     assert controller.paths.log.exists()
@@ -177,8 +174,7 @@ def test_windows_install_registers_then_starts(
     runner = FakeRunner()
     controller = ServiceController(lyte_service(), Platform.windows, tmp_path, runner)
     metadata = service_metadata(Platform.windows, 'lyte', ['run'], controller.paths)
-    result = controller.install(metadata)
-    assert result.running is None
+    assert controller.install(metadata) is None
     assert len(runner.commands) == 2
     assert 'Register-ScheduledTask' in runner.commands[0][-1]
     assert 'Start-ScheduledTask' in runner.commands[1][-1]
@@ -368,8 +364,7 @@ def test_linux_uninstall_removes_unit_before_reload(tmp_path: Path) -> None:
     for p in [controller.paths.service, controller.paths.metadata]:
         p.parent.mkdir(parents=True, exist_ok=True)
         p.touch()
-    result = controller.uninstall()
-    assert not result.installed
+    assert controller.uninstall() is None
     assert not controller.paths.metadata.exists()
     assert [c[2] for c in commands] == [
         'is-enabled',

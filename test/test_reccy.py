@@ -1,5 +1,6 @@
 import subprocess
 import sys
+import threading
 from collections.abc import Iterator
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -59,7 +60,9 @@ class Application(Reccy):
     status_model = Status
     rpc_enabled = True
 
-    def rpc_command(self, request: rpc.Request) -> rpc.Result:
+    def rpc_command(
+        self, request: rpc.Request, cancelled: threading.Event
+    ) -> rpc.Result:
         return {'type': 'application_status', 'command': request.command}
 
     def status_snapshot(self) -> Status:

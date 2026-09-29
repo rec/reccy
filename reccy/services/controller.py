@@ -35,7 +35,7 @@ class ServiceController:
         self.status_error_attribute = status_error_attribute
         self.status_error_label = status_error_label
 
-    def install(self, metadata: models.DaemonMetadata) -> models.StatusResult:
+    def install(self, metadata: models.DaemonMetadata) -> None:
         if getattr(sys, 'frozen', False):
             raise ValueError(
                 'Service installation does not support frozen applications'
@@ -104,9 +104,8 @@ class ServiceController:
         ) as error:
             self._rollback_install(original, log_existed, attempted, completed, error)
             raise
-        return models.StatusResult(installed=True)
 
-    def uninstall(self) -> models.StatusResult:
+    def uninstall(self) -> None:
         original = {
             path: path.read_bytes() if path.exists() else None
             for path in (self.paths.service, self.paths.metadata, self.paths.status)
@@ -172,9 +171,8 @@ class ServiceController:
             if attempted and original[self.paths.service] is not None:
                 self._rollback_uninstall(was_enabled, was_running, error)
             raise
-        return models.StatusResult(installed=False)
 
-    def start(self) -> models.StatusResult:
+    def start(self) -> None:
         self._ensure_log()
         if self.platform == models.Platform.macos:
             domain = f'gui/{_uid()}'
@@ -201,9 +199,8 @@ class ServiceController:
             )
         else:
             self._run(['systemctl', '--user', 'start', self.service.systemd_unit])
-        return models.StatusResult(installed=True)
 
-    def stop(self) -> models.StatusResult:
+    def stop(self) -> None:
         if self.platform == models.Platform.macos:
             self._run(
                 ['launchctl', 'bootout', f'gui/{_uid()}', str(self.paths.service)]
@@ -219,11 +216,10 @@ class ServiceController:
             )
         else:
             self._run(['systemctl', '--user', 'stop', self.service.systemd_unit])
-        return models.StatusResult(installed=True)
 
-    def restart(self) -> models.StatusResult:
+    def restart(self) -> None:
         self.stop()
-        return self.start()
+        self.start()
 
     def status(self) -> models.StatusResult:
         installed = self.paths.metadata.exists() or self.paths.service.exists()

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
+import queue
 import threading
+import time
 from collections.abc import Callable, Iterator
 from enum import StrEnum, auto
 from pathlib import Path
@@ -16,6 +18,9 @@ HANDSHAKE_TIMEOUT = 1.0
 MAX_CONCURRENT_REQUESTS = 16
 MAX_EVENT_CONNECTIONS = 16
 MAX_REQUEST_BYTES = 64 * 1024
+MAX_PENDING_EVENTS = 4
+REQUEST_TIMEOUT = 30.0
+SHUTDOWN_TIMEOUT = 5.0
 LOGGER = logging.getLogger(__name__)
 
 
@@ -213,20 +218,30 @@ class EventClient:
 
 
 class Server:
+    """RPC server whose handlers receive a cooperative cancellation event."""
+
     def __init__(
         self,
         control_endpoint: Path | str,
         event_endpoint: Path | str,
-        handle: Callable[[Request], Result],
+        handle: Callable[[Request, threading.Event], Result],
         *,
         role: str,
+        request_timeout: float = REQUEST_TIMEOUT,
     ) -> None:
+        if request_timeout <= 0:
+            raise ValueError('request_timeout must be positive')
         self.control_backend = ipc.server_backend(control_endpoint)
         self.event_backend = ipc.server_backend(event_endpoint)
         self.handle = handle
         self.role = role
+        self.request_timeout = request_timeout
         self.event_connections: list[ipc.Connection] = []
+        self.event_queues: dict[ipc.Connection, queue.Queue[str | None]] = {}
         self.connections: list[ipc.Connection] = []
+        self.threads: set[threading.Thread] = set()
+        self.accept_threads: list[threading.Thread] = []
+        self.cancellations: dict[ipc.Connection, threading.Event] = {}
         self.lock = threading.Lock()
         self.publish_lock = threading.Lock()
         self.request_slots = threading.BoundedSemaphore(MAX_CONCURRENT_REQUESTS)
@@ -243,35 +258,72 @@ class Server:
             self.control_backend.start()
             self.event_backend.start()
             self.running = True
-            threading.Thread(
+            control_thread = threading.Thread(
                 target=self._accept_control, daemon=True, name='RpcControl'
-            ).start()
-            threading.Thread(
+            )
+            event_thread = threading.Thread(
                 target=self._accept_events, daemon=True, name='RpcEvents'
-            ).start()
+            )
+            control_thread.start()
+            self.accept_threads.append(control_thread)
+            event_thread.start()
+            self.accept_threads.append(event_thread)
             started = True
         finally:
             if not started:
                 self.close()
 
-    def close(self) -> None:
+    def close(self, timeout: float = SHUTDOWN_TIMEOUT) -> None:
+        """Cancel workers and wait up to timeout; raise if any remain active."""
+        if timeout < 0:
+            raise ValueError('timeout must not be negative')
+        deadline = time.monotonic() + timeout
         with self.lock:
             self.running = False
             connections, self.connections = self.connections, []
             self.event_connections = []
+            cancellations = list(self.cancellations.values())
+            queues, self.event_queues = self.event_queues, {}
+        for cancellation in cancellations:
+            cancellation.set()
+        for pending in queues.values():
+            _stop_event_queue(pending)
         self.control_backend.close()
         self.event_backend.close()
         for connection in connections:
             connection.close()
+        for thread in self.accept_threads:
+            if thread is threading.current_thread():
+                raise RuntimeError('Cannot close RPC server from its own worker')
+            thread.join(max(0, deadline - time.monotonic()))
+        while True:
+            with self.lock:
+                workers = list(self.threads)
+            if not workers:
+                break
+            for thread in workers:
+                if thread is threading.current_thread():
+                    raise RuntimeError('Cannot close RPC server from its own worker')
+                thread.join(max(0, deadline - time.monotonic()))
+            if time.monotonic() >= deadline:
+                break
+        with self.lock:
+            unfinished = bool(self.threads)
+        if unfinished or any(thread.is_alive() for thread in self.accept_threads):
+            raise TimeoutError('RPC workers did not stop before shutdown deadline')
 
     def publish(self, name: str, **data: object) -> None:
+        """Queue an event without waiting for subscribers; disconnect laggards."""
         message = ipc.message_json(Event(name=name, data=data))
         with self.publish_lock:
             with self.lock:
-                connections = list(self.event_connections)
-            for connection in connections:
-                if not connection.write(message):
-                    self._close_connection(connection)
+                for connection, pending in list(self.event_queues.items()):
+                    try:
+                        pending.put_nowait(message)
+                    except queue.Full:
+                        self.event_connections.remove(connection)
+                        del self.event_queues[connection]
+                        _stop_event_queue(pending)
 
     def _accept_control(self) -> None:
         while self.running:
@@ -283,12 +335,21 @@ class Server:
                         connection.close()
                         continue
                     self.connections.append(connection)
-                threading.Thread(
-                    target=self._serve_control,
-                    args=(connection,),
-                    daemon=True,
-                    name='RpcRequest',
-                ).start()
+                    thread = threading.Thread(
+                        target=self._serve_control,
+                        args=(connection,),
+                        daemon=True,
+                        name='RpcRequest',
+                    )
+                    self.threads.add(thread)
+                    try:
+                        thread.start()
+                    except RuntimeError:
+                        self.threads.remove(thread)
+                        self.connections.remove(connection)
+                        self.request_slots.release()
+                        connection.close()
+                        LOGGER.error('Could not start RPC request worker')
 
     def _accept_events(self) -> None:
         while self.running:
@@ -298,17 +359,26 @@ class Server:
                         connection.close()
                         continue
                     self.connections.append(connection)
-                threading.Thread(
-                    target=self._serve_events,
-                    args=(connection,),
-                    daemon=True,
-                    name='RpcSubscription',
-                ).start()
+                    thread = threading.Thread(
+                        target=self._serve_events,
+                        args=(connection,),
+                        daemon=True,
+                        name='RpcSubscription',
+                    )
+                    self.threads.add(thread)
+                    try:
+                        thread.start()
+                    except RuntimeError:
+                        self.threads.remove(thread)
+                        self.connections.remove(connection)
+                        self.event_slots.release()
+                        connection.close()
+                        LOGGER.error('Could not start RPC subscription worker')
 
     def _serve_control(self, connection: ipc.Connection) -> None:
         timer = threading.Timer(HANDSHAKE_TIMEOUT, connection.close)
-        timer.start()
         try:
+            timer.start()
             lines = connection.read_lines(max_bytes=MAX_REQUEST_BYTES)
             try:
                 _receive_hello(connection, self.role, lines)
@@ -328,12 +398,30 @@ class Server:
                     timer.cancel()
                     if not self.running:
                         return
+                    cancelled = threading.Event()
+                    with self.lock:
+                        if not self.running:
+                            return
+                        self.cancellations[connection] = cancelled
+
+                    request_timer = threading.Timer(
+                        self.request_timeout,
+                        _expire_request,
+                        args=(cancelled, connection),
+                    )
                     try:
-                        result = self.handle(message)
+                        request_timer.start()
+                        result = self.handle(message, cancelled)
                     except (AttributeError, KeyError, TypeError, ValueError) as error:
-                        _write_error(connection, f'RPC handler failed: {error}')
+                        if not cancelled.is_set():
+                            _write_error(connection, f'RPC handler failed: {error}')
                         return
-                    connection.write(ipc.message_json(result))
+                    finally:
+                        request_timer.cancel()
+                        with self.lock:
+                            self.cancellations.pop(connection, None)
+                    if not cancelled.is_set():
+                        connection.write(ipc.message_json(result))
                     return
                 _write_error(connection, 'RPC request required')
                 return
@@ -343,11 +431,13 @@ class Server:
             timer.cancel()
             self._close_connection(connection)
             self.request_slots.release()
+            with self.lock:
+                self.threads.discard(threading.current_thread())
 
     def _serve_events(self, connection: ipc.Connection) -> None:
         timer = threading.Timer(HANDSHAKE_TIMEOUT, connection.close)
-        timer.start()
         try:
+            timer.start()
             lines = connection.read_lines(max_bytes=MAX_REQUEST_BYTES)
             try:
                 _receive_hello(connection, self.role, lines)
@@ -369,6 +459,23 @@ class Server:
                         if not self.running:
                             return
                         self.event_connections.append(connection)
+                        pending: queue.Queue[str | None] = queue.Queue(
+                            maxsize=MAX_PENDING_EVENTS
+                        )
+                        self.event_queues[connection] = pending
+                        writer = threading.Thread(
+                            target=self._write_events,
+                            args=(connection, pending),
+                            daemon=True,
+                            name='RpcEventWriter',
+                        )
+                        self.threads.add(writer)
+                        try:
+                            writer.start()
+                        except RuntimeError:
+                            self.threads.remove(writer)
+                            LOGGER.error('Could not start RPC event writer')
+                            return
                     for _ in lines:
                         pass
                     return
@@ -380,14 +487,50 @@ class Server:
             timer.cancel()
             self._close_connection(connection)
             self.event_slots.release()
+            with self.lock:
+                self.threads.discard(threading.current_thread())
+
+    def _write_events(
+        self, connection: ipc.Connection, pending: queue.Queue[str | None]
+    ) -> None:
+        try:
+            while (message := pending.get()) is not None:
+                with self.lock:
+                    if connection not in self.event_queues:
+                        return
+                if not connection.write(message):
+                    return
+        finally:
+            self._close_connection(connection)
+            with self.lock:
+                self.threads.discard(threading.current_thread())
 
     def _close_connection(self, connection: ipc.Connection) -> None:
         with self.lock:
             if connection in self.event_connections:
                 self.event_connections.remove(connection)
+            if (pending := self.event_queues.pop(connection, None)) is not None:
+                _stop_event_queue(pending)
             if connection in self.connections:
                 self.connections.remove(connection)
         connection.close()
+
+
+def _stop_event_queue(pending: queue.Queue[str | None]) -> None:
+    while True:
+        try:
+            pending.put_nowait(None)
+            return
+        except queue.Full:
+            try:
+                pending.get_nowait()
+            except queue.Empty:
+                pass
+
+
+def _expire_request(cancelled: threading.Event, connection: ipc.Connection) -> None:
+    cancelled.set()
+    connection.close()
 
 
 def _hello(connection: ipc.Connection, role: str, lines: Iterator[str]) -> None:

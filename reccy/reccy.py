@@ -39,6 +39,7 @@ class Reccy(BaseModel, frozen=True):
     status_model: ClassVar[type[ReccyStatus] | None] = None
     rpc_enabled: ClassVar[bool] = False
     rpc_role: ClassVar[str | None] = None
+    rpc_request_timeout: ClassVar[float] = rpc.REQUEST_TIMEOUT
     logger_name: ClassVar[str | None] = None
     daemon_module: ClassVar[str | None] = None
 
@@ -114,20 +115,20 @@ class Reccy(BaseModel, frozen=True):
             self.platform, self.daemon_module or self.name, daemon_argv, self.paths
         )
 
-    def install_service(self, daemon_argv: list[str]) -> models.StatusResult:
-        return self.service_controller().install(self.service_metadata(daemon_argv))
+    def install_service(self, daemon_argv: list[str]) -> None:
+        self.service_controller().install(self.service_metadata(daemon_argv))
 
-    def uninstall_service(self) -> models.StatusResult:
-        return self.service_controller().uninstall()
+    def uninstall_service(self) -> None:
+        self.service_controller().uninstall()
 
-    def start_service(self) -> models.StatusResult:
-        return self.service_controller().start()
+    def start_service(self) -> None:
+        self.service_controller().start()
 
-    def stop_service(self) -> models.StatusResult:
-        return self.service_controller().stop()
+    def stop_service(self) -> None:
+        self.service_controller().stop()
 
-    def restart_service(self) -> models.StatusResult:
-        return self.service_controller().restart()
+    def restart_service(self) -> None:
+        self.service_controller().restart()
 
     def service_status(self) -> models.StatusResult:
         return self.service_controller().status()
@@ -148,6 +149,7 @@ class Reccy(BaseModel, frozen=True):
                     self.event_endpoint,
                     self.rpc_response,
                     role=self.rpc_role or self.name,
+                    request_timeout=self.rpc_request_timeout,
                 )
                 self._rpc_server.start()
             started = True
@@ -162,25 +164,26 @@ class Reccy(BaseModel, frozen=True):
                     self.on_closed()
 
     def close(self) -> None:
-        if not self._started:
+        if not self._started and self._rpc_server is None:
             return
         self._stopping = True
         try:
-            self.on_stopping()
-            self._started = False
-            self.publish_status()
-            self.publish_event('stopped')
+            if self._started:
+                self.on_stopping()
+                self._started = False
+                self.publish_status()
+                self.publish_event('stopped')
         finally:
             self._started = False
-            try:
-                if self._rpc_server is not None:
-                    self._rpc_server.close()
-            finally:
+            if self._rpc_server is not None:
+                self._rpc_server.close()
                 self._rpc_server = None
-                self.on_closed()
+            self.on_closed()
 
-    def rpc_response(self, request: rpc.Request) -> rpc.Result:
-        if not self._started or self._stopping:
+    def rpc_response(
+        self, request: rpc.Request, cancelled: threading.Event
+    ) -> rpc.Result:
+        if cancelled.is_set() or not self._started or self._stopping:
             return ipc.Error(type='error', message='application is not running')
         if request.command == 'status':
             return self.status_snapshot().model_dump(mode='json')
@@ -205,9 +208,11 @@ class Reccy(BaseModel, frozen=True):
             except ValueError as error:
                 return ipc.Error(type='error', message=str(error))
             return attribute.model_dump(mode='json')
-        return self.rpc_command(request)
+        return self.rpc_command(request, cancelled)
 
-    def rpc_command(self, request: rpc.Request) -> rpc.Result:
+    def rpc_command(
+        self, request: rpc.Request, cancelled: threading.Event
+    ) -> rpc.Result:
         return ipc.Error(type='error', message=f'unknown command {request.command}')
 
     def status_snapshot(self) -> ReccyStatus:

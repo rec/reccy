@@ -20,7 +20,9 @@ def endpoints(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[Path, Path]]:
     with TemporaryDirectory(dir='/tmp') as directory:
         control = Path(directory) / 'control.sock'
         events = Path(directory) / 'events.sock'
-        server = rpc.Server(control, events, lambda request: 'ok', role='test')
+        server = rpc.Server(
+            control, events, lambda request, cancelled: 'ok', role='test'
+        )
         server.start()
         try:
             yield control, events
@@ -116,7 +118,7 @@ def test_pipe_server_attempts_error_reply_after_oversized_frame(
     server = rpc.Server(
         r'\\.\pipe\reccy-test-control',
         r'\\.\pipe\reccy-test-events',
-        lambda request: 'ok',
+        lambda request, cancelled: 'ok',
         role='test',
     )
     with receiver, sender:

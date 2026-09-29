@@ -385,6 +385,21 @@ def test_protocol_listener_closes_stalled_handshake(
     listener.start()
 
     assert _eventually(lambda: connection.closed)
+    assert listener.wait_closed(1)
+
+
+def test_protocol_listener_wait_requires_start() -> None:
+    listener = ipc.ProtocolListener(
+        FakeConnection(),
+        parse=parse_message,
+        version=1,
+        peer_role='GUI',
+        local_role='daemon',
+        on_message=lambda listener, message: None,
+    )
+
+    with pytest.raises(RuntimeError, match='not been started'):
+        listener.wait_closed()
 
 
 def test_protocol_listener_requires_hello() -> None:
@@ -600,6 +615,33 @@ def test_protocol_client_closes_when_hello_write_fails() -> None:
     assert client.closed
 
 
+def test_protocol_client_shutdown_requires_handshake_and_reports_failed_write() -> None:
+    connection = BlockingConnection()
+    client = ipc.ProtocolClient(
+        Path('/unused.sock'),
+        parse=parse_message,
+        version=1,
+        local_role='client',
+        peer_role='server',
+        on_message=lambda message: True,
+        connect=lambda endpoint: connection,
+    )
+
+    with pytest.raises(RuntimeError, match='handshake'):
+        client.request_shutdown()
+    client.start()
+    try:
+        assert _eventually(lambda: client.handshake_complete)
+        connection.broken = True
+        with pytest.raises(BrokenPipeError, match='shutdown request'):
+            client.request_shutdown()
+        connection.broken = False
+        client.request_shutdown()
+        assert connection.sent[-1] == '{"type":"shutdown"}\n'
+    finally:
+        client.close()
+
+
 def test_parse_message_uses_supplied_adapter() -> None:
     parsed = ipc.parse_message('{"type":"app","value":"x"}', MESSAGE)
 
@@ -616,7 +658,7 @@ def test_rpc_server_handles_requests_and_publishes_events(
     server = rpc.Server(
         unix_socket_path,
         events,
-        lambda request: {'command': request.command},
+        lambda request, cancelled: {'command': request.command},
         role='test',
     )
     server.start()
@@ -639,7 +681,7 @@ def test_rpc_server_rejects_invalid_control_messages() -> None:
     server = rpc.Server(
         Path('/tmp/reccy-rpc-control.sock'),
         Path('/tmp/reccy-rpc-events.sock'),
-        lambda request: {'command': request.command},
+        lambda request, cancelled: {'command': request.command},
         role='test',
     )
     connection = FakeConnection(
@@ -660,7 +702,7 @@ def test_rpc_server_rejects_oversized_control_messages() -> None:
     server = rpc.Server(
         Path('/tmp/reccy-rpc-control.sock'),
         Path('/tmp/reccy-rpc-events.sock'),
-        lambda request: {'command': request.command},
+        lambda request, cancelled: {'command': request.command},
         role='test',
     )
     connection = FakeConnection(
