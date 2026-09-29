@@ -121,6 +121,9 @@ capture streams remain host-specific later stages of Ufor's asset-cache plan.
 including byte counts, without deleting them. It labels capture recovery
 records separately from raw staging files. A staged file might still have a
 live writer, so the report does not classify it as abandoned.
+`export_entry()` leases and verifies a finite object before atomically copying
+it to a host-approved destination. Package layout and destination authorization
+remain with the consuming host.
 
 ## Bounded asset capture
 
