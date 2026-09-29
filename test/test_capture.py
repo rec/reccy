@@ -1,3 +1,5 @@
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -118,3 +120,95 @@ def test_capture_requires_a_bound_and_budget(tmp_path: Path) -> None:
     )
     with pytest.raises(capture.CaptureCapacityError):
         session.queue_fragment(b'abcd', frame_count=4)
+
+
+def test_failed_drain_keeps_fragments_retryable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = capture_store(tmp_path)
+    session = store.start(
+        capture_spec(
+            frame_limit=None,
+            manual_stop=True,
+            maximum_bytes=6,
+            maximum_queue_bytes=4,
+        )
+    )
+    session.queue_fragment(b'abcd', frame_count=4)
+    import_bytes = store.assets.import_bytes
+    failed = False
+
+    def fail_once(contents: bytes, **kwargs: object) -> assets.AssetEntry:
+        nonlocal failed
+        if not failed:
+            failed = True
+            raise OSError('disk unavailable')
+        return import_bytes(contents, **kwargs)
+
+    monkeypatch.setattr(store.assets, 'import_bytes', fail_once)
+    with pytest.raises(OSError, match='disk unavailable'):
+        session.drain()
+    with pytest.raises(capture.CaptureCapacityError):
+        session.queue_fragment(b'efg', frame_count=3)
+    assert session.queue_fragment(b'ef', frame_count=2)
+    manifest = session.finish(capture.CaptureTermination.clean_stop)
+    assert manifest.observed_frames == 6
+    assert manifest.stored_bytes == 6
+    for fragment, expected in zip(manifest.fragments, [b'abcd', b'ef'], strict=True):
+        with store.assets.open_entry(fragment.entry_id) as file:
+            assert file.read() == expected
+
+
+def test_concurrent_finalization_publishes_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = capture_store(tmp_path)
+    session = store.start(capture_spec())
+    session.queue_fragment(b'abcd', frame_count=4)
+    publishing = threading.Event()
+    release = threading.Event()
+    publish = store._publish
+
+    def hold_publish(manifest: capture.CaptureManifest) -> None:
+        publishing.set()
+        assert release.wait(2)
+        publish(manifest)
+
+    monkeypatch.setattr(store, '_publish', hold_publish)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        completed = pool.submit(session.finish, capture.CaptureTermination.bound)
+        assert publishing.wait(2)
+        competing = pool.submit(session.abort, 'interrupted')
+        release.set()
+        manifest = completed.result(timeout=2)
+        with pytest.raises(capture.CaptureStateError, match='already closed'):
+            competing.result(timeout=2)
+    assert store.capture(session.id) == manifest
+    with pytest.raises(capture.CaptureError):
+        store.recovery(session.id)
+
+
+def test_duration_bound_can_finish_without_another_fragment(tmp_path: Path) -> None:
+    now = 0.0
+    store = capture_store(tmp_path)
+    session = store.start(
+        capture_spec(frame_limit=None, duration_limit=1), clock=lambda: now
+    )
+    session.queue_fragment(b'abcd', frame_count=4)
+    now = 1.0
+    assert session.finish(capture.CaptureTermination.bound).observed_frames == 4
+
+
+def test_rejected_fragments_do_not_advance_capture_timeline(tmp_path: Path) -> None:
+    store = capture_store(tmp_path)
+    session = store.start(
+        capture_spec(frame_limit=None, manual_stop=True, maximum_queue_bytes=4)
+    )
+    with pytest.raises(ValueError, match='contain bytes'):
+        session.queue_fragment(b'', frame_count=1)
+    session.queue_fragment(b'abcd', frame_count=4)
+    with pytest.raises(capture.CaptureQueueOverflow):
+        session.queue_fragment(b'ef', frame_count=2)
+    recovery = session.abort('queue full')
+    assert recovery.observed_frames == 4
+    assert recovery.gaps == []

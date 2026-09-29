@@ -8,7 +8,7 @@ from collections.abc import Buffer, Callable
 from datetime import UTC, datetime
 from enum import auto
 from pathlib import Path
-from threading import Lock
+from threading import Lock, RLock
 from time import monotonic
 from uuid import uuid4
 
@@ -304,6 +304,8 @@ class CaptureSession:
         self._write_offset = 0
         self._queued_bytes = 0
         self._queued: deque[_QueuedFragment] = deque()
+        self._pending: deque[tuple[bytes, _QueuedFragment]] = deque()
+        self._pending_bytes = 0
         self._fragments: list[CaptureFragment] = []
         self._gaps: list[CaptureGap] = []
         self._observed_frames = 0
@@ -312,12 +314,15 @@ class CaptureSession:
         self._accepting = True
         self._closed = False
         self._lock = Lock()
+        self._drain_lock = RLock()
 
     def queue_fragment(self, borrowed: Buffer, *, frame_count: int) -> bool:
         """Copy borrowed storage into the bounded queue without filesystem I/O."""
         if frame_count <= 0:
             raise ValueError('frame_count must be positive')
         view = memoryview(borrowed).cast('B')
+        if not view:
+            raise ValueError('fragment must contain bytes')
         with self._lock:
             if not self._accepting:
                 raise CaptureStateError('capture is no longer accepting fragments')
@@ -329,14 +334,19 @@ class CaptureSession:
                 and self._observed_frames + frame_count > self.spec.frame_limit
             ):
                 raise CaptureStateError('fragment crosses the requested frame limit')
-            incoming_bytes = self._stored_bytes + self._queued_bytes + len(view)
+            incoming_bytes = (
+                self._stored_bytes
+                + self._pending_bytes
+                + self._queued_bytes
+                + len(view)
+            )
             if incoming_bytes > self.spec.maximum_bytes:
                 raise CaptureCapacityError('capture exceeded its maximum byte budget')
             start = self._observed_frames
-            self._observed_frames += frame_count
             if len(view) > len(self._buffer) - self._queued_bytes:
                 if self.spec.overflow is CaptureOverflowPolicy.fail:
                     raise CaptureQueueOverflow('capture queue is full')
+                self._observed_frames += frame_count
                 self._gaps.append(
                     CaptureGap(
                         native_start=start,
@@ -344,7 +354,10 @@ class CaptureSession:
                         reason=CaptureGapReason.queue_overflow,
                     )
                 )
+                if self._observed_frames == self.spec.frame_limit:
+                    self._bound_reached = True
                 return False
+            self._observed_frames += frame_count
             offset = self._write_offset
             first = min(len(view), len(self._buffer) - offset)
             self._buffer[offset : offset + first] = view[:first]
@@ -367,83 +380,93 @@ class CaptureSession:
 
     def drain(self) -> list[AssetEntry]:
         """Persist queued copies outside the producer callback."""
-        queued = self._take_queue()
-        entries: list[AssetEntry] = []
-        for payload, item in queued:
-            entry = self.store.assets.import_bytes(
-                payload,
-                source_key=self.spec.source_key,
-                category=AssetCategory.acquired,
-                source_kind=self.spec.source_kind,
-                media_kind=self.spec.media_kind,
-            )
-            pin_id = self.store.assets.add_pin(entry.id)
-            self._fragments.append(
-                CaptureFragment(
-                    entry_id=entry.id,
-                    pin_id=pin_id,
-                    object=entry.object,
-                    native_start=item.native_start,
-                    frame_count=item.frame_count,
+        with self._drain_lock:
+            self._take_queue()
+            entries: list[AssetEntry] = []
+            while self._pending:
+                payload, item = self._pending[0]
+                entry = self.store.assets.import_bytes(
+                    payload,
+                    source_key=self.spec.source_key,
+                    category=AssetCategory.acquired,
+                    source_kind=self.spec.source_kind,
+                    media_kind=self.spec.media_kind,
                 )
-            )
-            self._stored_bytes += entry.object.length
-            entries.append(entry)
-        return entries
+                pin_id = self.store.assets.add_pin(entry.id)
+                self._fragments.append(
+                    CaptureFragment(
+                        entry_id=entry.id,
+                        pin_id=pin_id,
+                        object=entry.object,
+                        native_start=item.native_start,
+                        frame_count=item.frame_count,
+                    )
+                )
+                with self._lock:
+                    self._stored_bytes += entry.object.length
+                    self._pending_bytes -= len(payload)
+                self._pending.popleft()
+                entries.append(entry)
+            return entries
 
     def finish(self, termination: CaptureTermination) -> CaptureManifest:
         """Finalize EOF, reached-bound, clean-stop, or explicit salvage."""
-        if termination is CaptureTermination.salvaged_failure:
-            return self.salvage('explicit salvage')
-        if termination is CaptureTermination.bound and not self._bound_reached:
-            raise CaptureStateError('capture has not reached its requested bound')
-        if termination not in {
-            CaptureTermination.eof,
-            CaptureTermination.bound,
-            CaptureTermination.clean_stop,
-        }:
-            raise CaptureStateError('unsupported successful termination')
-        self._require_open()
-        self._stop_accepting()
-        self.drain()
-        manifest = self._manifest(termination)
-        self.store._publish(manifest)
-        self._closed = True
-        return manifest
+        with self._drain_lock:
+            if termination is CaptureTermination.salvaged_failure:
+                return self.salvage('explicit salvage')
+            if termination is CaptureTermination.bound and not (
+                self._bound_reached or self._duration_reached()
+            ):
+                raise CaptureStateError('capture has not reached its requested bound')
+            if termination not in {
+                CaptureTermination.eof,
+                CaptureTermination.bound,
+                CaptureTermination.clean_stop,
+            }:
+                raise CaptureStateError('unsupported successful termination')
+            self._require_open()
+            self._stop_accepting()
+            self.drain()
+            manifest = self._manifest(termination)
+            self.store._publish(manifest)
+            self._closed = True
+            return manifest
 
     def abort(self, reason: str) -> CaptureRecovery:
         """Preserve diagnostics without publishing a successful capture."""
-        self._require_open()
-        self._stop_accepting()
-        self.drain()
-        recovery = self._recovery(reason)
-        self.store._record_recovery(recovery)
-        self._closed = True
-        return recovery
+        with self._drain_lock:
+            self._require_open()
+            self._stop_accepting()
+            self.drain()
+            recovery = self._recovery(reason)
+            self.store._record_recovery(recovery)
+            self._closed = True
+            return recovery
 
     def salvage(self, reason: str) -> CaptureManifest:
         """Explicitly publish verified fragments with failure termination."""
-        self._require_open()
-        self._stop_accepting()
-        self.drain()
-        self.store._record_recovery(self._recovery(reason))
-        manifest = self._manifest(CaptureTermination.salvaged_failure)
-        self.store._publish(manifest)
-        self._closed = True
-        return manifest
+        with self._drain_lock:
+            self._require_open()
+            self._stop_accepting()
+            self.drain()
+            self.store._record_recovery(self._recovery(reason))
+            manifest = self._manifest(CaptureTermination.salvaged_failure)
+            self.store._publish(manifest)
+            self._closed = True
+            return manifest
 
-    def _take_queue(self) -> list[tuple[bytes, _QueuedFragment]]:
+    def _take_queue(self) -> None:
         with self._lock:
-            queued: list[tuple[bytes, _QueuedFragment]] = []
             while self._queued:
-                item = self._queued.popleft()
+                item = self._queued[0]
                 first = min(item.length, len(self._buffer) - item.offset)
                 payload = bytes(self._buffer[item.offset : item.offset + first])
                 if item.length > first:
                     payload += bytes(self._buffer[: item.length - first])
-                queued.append((payload, item))
+                self._pending.append((payload, item))
+                self._pending_bytes += len(payload)
+                self._queued.popleft()
             self._queued_bytes = 0
-            return queued
 
     def _duration_reached(self) -> bool:
         return self.spec.duration_limit is not None and (
