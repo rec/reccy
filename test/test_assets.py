@@ -1,7 +1,9 @@
 import hashlib
+import multiprocessing
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
+from multiprocessing.connection import Connection
 from pathlib import Path
 from threading import Event
 from types import SimpleNamespace
@@ -14,6 +16,13 @@ from reccy.runtime import assets
 
 def _source_key(label: str) -> str:
     return assets.source_fingerprint({'test': label}, {}, None, {})
+
+
+def hold_asset_reader(root: Path, entry_id: str, ready: Connection) -> None:
+    store = assets.AssetStore(root, credential_scope='public')
+    with store.open_entry(entry_id):
+        ready.send('opened')
+        ready.recv()
 
 
 @pytest.mark.parametrize('source_kind', list(assets.SourceKind))
@@ -600,6 +609,144 @@ def test_recovery_inspection_reports_unreferenced_bytes_without_deleting_them(
     assert orphan.read_bytes() == b'orphan'
     assert recovery.read_bytes() == b'{}'
     assert staging.read_bytes() == b'partial'
+
+
+def test_recovery_discards_abandoned_files_but_preserves_published_records(
+    tmp_path: Path,
+) -> None:
+    store = assets.AssetStore(tmp_path / 'cache', credential_scope='public')
+    kept = store.import_bytes(
+        b'kept',
+        source_key=_source_key('kept'),
+        category=assets.AssetCategory.acquired,
+        source_kind=assets.SourceKind.local_file,
+    )
+    staging = store.root / 'staging' / 'interrupted'
+    staging.write_bytes(b'partial')
+    published = store.root / 'staging' / f'capture-{"a" * 32}.json'
+    published.write_bytes(b'{}')
+    orphan = store.root / 'objects' / 'sha256' / 'ab' / ('ab' * 32)
+    orphan.parent.mkdir(parents=True)
+    orphan.write_bytes(b'orphan')
+    asset_lease = store.root / 'state' / 'leases' / 'dead.json'
+    asset_lease.write_bytes(b'{}')
+    capture_lease = store.root / 'state' / 'capture-leases' / 'dead.json'
+    capture_lease.parent.mkdir(parents=True)
+    capture_lease.write_bytes(b'{}')
+
+    planned = store.plan_recovery()
+    assert {(item.kind, item.path) for item in planned} == {
+        (assets.RecoveryKind.staging, str(staging.relative_to(store.root))),
+        (assets.RecoveryKind.orphan_object, str(orphan.relative_to(store.root))),
+        (assets.RecoveryKind.asset_lease, str(asset_lease.relative_to(store.root))),
+        (assets.RecoveryKind.capture_lease, str(capture_lease.relative_to(store.root))),
+    }
+    assert store.recover() == planned
+    assert store.plan_recovery() == []
+    assert published.read_bytes() == b'{}'
+    assert store.object_path(kept.object).read_bytes() == b'kept'
+
+
+def test_recovery_rechecks_objects_after_a_new_entry_is_published(
+    tmp_path: Path,
+) -> None:
+    store = assets.AssetStore(tmp_path / 'cache', credential_scope='public')
+    identity = assets.ObjectIdentity(
+        sha256=hashlib.sha256(b'bytes').hexdigest(), length=5
+    )
+    orphan = store.object_path(identity)
+    orphan.parent.mkdir(parents=True, exist_ok=True)
+    orphan.write_bytes(b'bytes')
+    assert [item.kind for item in store.plan_recovery()] == [
+        assets.RecoveryKind.orphan_object
+    ]
+    retained = store.import_bytes(
+        b'bytes',
+        source_key=_source_key('second'),
+        category=assets.AssetCategory.acquired,
+        source_kind=assets.SourceKind.local_file,
+    )
+    assert store.recover() == []
+    assert retained.object == identity
+    assert orphan.read_bytes() == b'bytes'
+
+
+def test_recovery_is_busy_while_an_asset_reader_is_open(tmp_path: Path) -> None:
+    store = assets.AssetStore(tmp_path / 'cache', credential_scope='public')
+    entry = store.import_bytes(
+        b'bytes',
+        source_key=_source_key('reader'),
+        category=assets.AssetCategory.acquired,
+        source_kind=assets.SourceKind.local_file,
+    )
+    with store.open_entry(entry.id) as file:
+        with pytest.raises(assets.AssetRecoveryBusy, match='active asset'):
+            store.plan_recovery()
+        assert file.read() == b'bytes'
+    assert store.plan_recovery() == []
+
+
+def test_crashed_reader_lease_becomes_recoverable(tmp_path: Path) -> None:
+    root = tmp_path / 'cache'
+    store = assets.AssetStore(root, credential_scope='public')
+    entry = store.import_bytes(
+        b'bytes',
+        source_key=_source_key('crashed reader'),
+        category=assets.AssetCategory.acquired,
+        source_kind=assets.SourceKind.local_file,
+    )
+    context = multiprocessing.get_context('spawn')
+    parent, child = context.Pipe()
+    process = context.Process(target=hold_asset_reader, args=(root, entry.id, child))
+    process.start()
+    child.close()
+    try:
+        assert parent.poll(5)
+        assert parent.recv() == 'opened'
+        with pytest.raises(assets.AssetRecoveryBusy):
+            store.plan_recovery()
+        process.terminate()
+        process.join(5)
+        assert not process.is_alive()
+        planned = store.plan_recovery()
+        assert [item.kind for item in planned] == [assets.RecoveryKind.asset_lease]
+        assert store.recover() == planned
+        assert store.collect([]) == [entry.id]
+    finally:
+        if process.is_alive():
+            process.terminate()
+            process.join(5)
+        parent.close()
+
+
+def test_recovery_is_busy_while_a_stage_is_being_written(tmp_path: Path) -> None:
+    store = assets.AssetStore(tmp_path / 'cache', credential_scope='public')
+    reading = Event()
+    release = Event()
+
+    class BlockingReader:
+        def read(self, size: int) -> bytes:
+            reading.set()
+            assert release.wait(2)
+            return b''
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        imported = pool.submit(
+            store.import_stream,
+            BlockingReader(),
+            maximum_bytes=8,
+            source_key=_source_key('writer'),
+            category=assets.AssetCategory.acquired,
+            source_kind=assets.SourceKind.local_file,
+        )
+        try:
+            assert reading.wait(2)
+            with pytest.raises(assets.AssetRecoveryBusy, match='active asset'):
+                store.recover()
+        finally:
+            release.set()
+        imported.result(timeout=2)
+    assert store.plan_recovery() == []
 
 
 def test_export_entry_is_atomic_and_rejects_corrupt_stored_bytes(

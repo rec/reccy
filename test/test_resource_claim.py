@@ -74,6 +74,17 @@ def test_claim_can_wait_for_short_contention(tmp_path: Path) -> None:
         owner.release()
 
 
+def test_shared_claims_coexist_and_exclude_an_exclusive_claim(tmp_path: Path) -> None:
+    path = tmp_path / 'readers.lock'
+    with claims.ResourceClaim(path, shared=True):
+        with claims.ResourceClaim(path, shared=True):
+            with pytest.raises(claims.ResourceClaimConflict):
+                claims.ResourceClaim(path).acquire()
+    with claims.ResourceClaim(path):
+        with pytest.raises(claims.ResourceClaimConflict):
+            claims.ResourceClaim(path, shared=True).acquire()
+
+
 def test_permission_failure_is_not_a_claim_conflict(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

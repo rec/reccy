@@ -15,7 +15,7 @@ import re
 import shutil
 import stat
 from collections.abc import Iterator
-from contextlib import contextmanager, nullcontext
+from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from enum import auto
 from math import isfinite
@@ -27,7 +27,7 @@ from uuid import uuid4
 from pydantic import BaseModel, Field, field_validator, model_validator
 from strenum import StrEnum
 
-from .claims import ResourceClaim
+from .claims import ResourceClaim, ResourceClaimConflict
 from .files import atomic_output
 from .http_freshness import HTTPRecord, response_freshness
 
@@ -50,6 +50,10 @@ class AssetCacheMiss(AssetCacheError):
 
 class AssetInsufficientSpace(AssetCacheError):
     """An admission would exceed a configured storage or free-space budget."""
+
+
+class AssetRecoveryBusy(AssetCacheError):
+    """Recovery cannot run while a writer or reader owns the store."""
 
 
 class AssetCategory(StrEnum):
@@ -357,6 +361,8 @@ class RecoveryKind(StrEnum):
     staging = auto()
     capture_recovery = auto()
     orphan_object = auto()
+    asset_lease = auto()
+    capture_lease = auto()
 
 
 class RecoveryItem(BaseModel, frozen=True):
@@ -722,6 +728,75 @@ class AssetStore:
                         )
             return sorted(found, key=lambda item: item.path)
 
+    def plan_recovery(self) -> list[RecoveryItem]:
+        """List abandoned private files safe to discard, without deleting them.
+
+        A live admission or reader makes recovery busy instead of making its
+        files appear abandoned. Published capture recovery records are excluded;
+        their lifetime belongs to ``CaptureStore.collect``.
+        """
+        with self._recovery_claims():
+            return self._recovery_candidates()
+
+    def recover(self) -> list[RecoveryItem]:
+        """Discard abandoned files after rechecking ownership and references."""
+        with self._recovery_claims():
+            candidates = self._recovery_candidates()
+            for item in candidates:
+                (self.root / item.path).unlink()
+            return candidates
+
+    @contextmanager
+    def _recovery_claims(self) -> Iterator[None]:
+        try:
+            with (
+                ResourceClaim(self._admission_lock()),
+                ResourceClaim(self.root / 'state' / 'readers.lock'),
+                ResourceClaim(self._metadata_lock()),
+            ):
+                yield
+        except ResourceClaimConflict as error:
+            raise AssetRecoveryBusy(
+                'Recovery requires no active asset writers or readers'
+            ) from error
+
+    def _recovery_candidates(self) -> list[RecoveryItem]:
+        referenced = {self.object_path(e.object) for e in self._entries()}
+        paths = (
+            (RecoveryKind.staging, (self.root / 'staging').glob('*')),
+            (
+                RecoveryKind.orphan_object,
+                (self.root / 'objects' / 'sha256').glob('*/*'),
+            ),
+            (RecoveryKind.asset_lease, (self.root / 'state' / 'leases').glob('*')),
+            (
+                RecoveryKind.capture_lease,
+                (self.root / 'state' / 'capture-leases').glob('*'),
+            ),
+        )
+        candidates: list[RecoveryItem] = []
+        for kind, found in paths:
+            for path in found:
+                if kind is RecoveryKind.orphan_object and path in referenced:
+                    continue
+                if kind is RecoveryKind.staging and re.fullmatch(
+                    r'capture-[0-9a-f]{32}\.json', path.name
+                ):
+                    continue
+                try:
+                    info = path.stat(follow_symlinks=False)
+                except FileNotFoundError:
+                    continue
+                if stat.S_ISREG(info.st_mode):
+                    candidates.append(
+                        RecoveryItem(
+                            kind=kind,
+                            path=str(path.relative_to(self.root)),
+                            byte_length=info.st_size,
+                        )
+                    )
+        return sorted(candidates, key=lambda item: item.path)
+
     @contextmanager
     def _open_selected(
         self,
@@ -731,38 +806,42 @@ class AssetStore:
     ) -> Iterator[BinaryIO]:
         lease_id = uuid4().hex
         lease_path = self.root / 'state' / 'leases' / f'{lease_id}.json'
-        with ResourceClaim(self._metadata_lock(), timeout=5):
-            if entry_id is not None:
-                entry = self.entry(entry_id)
-            else:
-                assert expected is not None
-                matches = (e for e in self._entries() if e.object == expected)
-                if (entry := next(matches, None)) is None:
-                    raise AssetCacheMiss(
-                        f'No retained asset object {expected.sha256}/{expected.length}'
-                    )
-            self._write_new_model(lease_path, AssetLease(entry_id=entry.id))
-        consumed = False
-        try:
-            try:
-                file = self.object_path(entry.object).open('rb')
-            except FileNotFoundError as error:
-                raise AssetCorruptionError(
-                    f'Missing asset object {entry.object.sha256}'
-                ) from error
-            with file:
-                _verify_file(file, entry.object)
-                file.seek(0)
-                yield file
-            consumed = True
-        finally:
+        with ResourceClaim(
+            self.root / 'state' / 'readers.lock', timeout=5, shared=True
+        ):
             with ResourceClaim(self._metadata_lock(), timeout=5):
-                lease_path.unlink(missing_ok=True)
-                if consumed:
-                    self._write_model(
-                        self.root / 'state' / 'access' / f'{entry.id}.json',
-                        AssetAccess(consumed_at=datetime.now(UTC)),
-                    )
+                if entry_id is not None:
+                    entry = self.entry(entry_id)
+                else:
+                    assert expected is not None
+                    matches = (e for e in self._entries() if e.object == expected)
+                    if (entry := next(matches, None)) is None:
+                        raise AssetCacheMiss(
+                            'No retained asset object '
+                            f'{expected.sha256}/{expected.length}'
+                        )
+                self._write_new_model(lease_path, AssetLease(entry_id=entry.id))
+            consumed = False
+            try:
+                try:
+                    file = self.object_path(entry.object).open('rb')
+                except FileNotFoundError as error:
+                    raise AssetCorruptionError(
+                        f'Missing asset object {entry.object.sha256}'
+                    ) from error
+                with file:
+                    _verify_file(file, entry.object)
+                    file.seek(0)
+                    yield file
+                consumed = True
+            finally:
+                with ResourceClaim(self._metadata_lock(), timeout=5):
+                    lease_path.unlink(missing_ok=True)
+                    if consumed:
+                        self._write_model(
+                            self.root / 'state' / 'access' / f'{entry.id}.json',
+                            AssetAccess(consumed_at=datetime.now(UTC)),
+                        )
 
     def _prepare_directories(self) -> None:
         for path in (
@@ -853,13 +932,8 @@ class AssetStore:
 
     @contextmanager
     def _admission(self) -> Iterator[None]:
-        claim = (
-            ResourceClaim(self._admission_lock(), timeout=5)
-            if self.capacity
-            else nullcontext()
-        )
         try:
-            with claim:
+            with ResourceClaim(self._admission_lock(), timeout=5):
                 yield
         except OSError as error:
             if error.errno != errno.ENOSPC:

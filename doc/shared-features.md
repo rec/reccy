@@ -147,6 +147,14 @@ each write; an exceeded limit or `ENOSPC` raises `AssetInsufficientSpace`.
 Every process sharing a scope must use the same capacity. Automatic pressure
 collection, Git transport quotas, and capture-recovery reservations remain
 separate work.
+All imports now take the admission claim, including stores without a capacity
+limit, so recovery cannot mistake an active staging writer for abandoned work.
+`AssetStore.plan_recovery()` lists abandoned staging files, unreferenced objects,
+and stale asset or capture leases with their byte sizes. `recover()` rechecks
+under the admission, reader, and metadata claims before discarding them. Both
+raise `AssetRecoveryBusy` while a writer or leased reader is active. Published
+capture recovery records are retained until `CaptureStore.collect()` applies
+its retention rules.
 
 ## Bounded asset capture
 

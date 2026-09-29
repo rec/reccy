@@ -273,20 +273,23 @@ class CaptureStore:
         """Keep a selected record and its fragment pins while consuming it."""
         self._prepare_directories()
         lease_path = self.root / 'state' / 'capture-leases' / f'{uuid4().hex}.json'
-        with ResourceClaim(self._metadata_lock(), timeout=5):
-            record = (
-                self.capture(capture_id)
-                if kind is CaptureRecordKind.capture
-                else self.recovery(capture_id)
-            )
-            self._write_new_model(
-                lease_path, CaptureLease(kind=kind, capture_id=capture_id)
-            )
-        try:
-            yield record
-        finally:
+        with ResourceClaim(
+            self.root / 'state' / 'readers.lock', timeout=5, shared=True
+        ):
             with ResourceClaim(self._metadata_lock(), timeout=5):
-                lease_path.unlink(missing_ok=True)
+                record = (
+                    self.capture(capture_id)
+                    if kind is CaptureRecordKind.capture
+                    else self.recovery(capture_id)
+                )
+                self._write_new_model(
+                    lease_path, CaptureLease(kind=kind, capture_id=capture_id)
+                )
+            try:
+                yield record
+            finally:
+                with ResourceClaim(self._metadata_lock(), timeout=5):
+                    lease_path.unlink(missing_ok=True)
 
     def plan_collection(
         self,
