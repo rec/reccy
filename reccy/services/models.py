@@ -1,3 +1,4 @@
+import keyword
 import re
 from enum import auto
 from pathlib import Path
@@ -74,6 +75,16 @@ class DaemonMetadata(BaseModel, frozen=True):
     control_endpoint: str
     event_endpoint: str | None = None
     executable: Path | None = None
+
+    @field_validator('module')
+    @classmethod
+    def validate_module(cls, value: str) -> str:
+        if not all(
+            part.isidentifier() and not keyword.iskeyword(part)
+            for part in value.split('.')
+        ):
+            raise ValueError('module must be a dotted Python module name')
+        return value
 
 
 class DaemonStatus(BaseModel):

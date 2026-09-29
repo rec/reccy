@@ -4,7 +4,7 @@ from io import StringIO
 from pathlib import Path
 
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 import reccy.services.controller
 from reccy.services.controller import ServiceController, ServiceRegistry
@@ -108,6 +108,16 @@ def test_install_rejects_mismatched_metadata_before_writing(
         controller.install(metadata)
     assert not list(tmp_path.iterdir())
     assert runner.commands == []
+
+
+@pytest.mark.parametrize('module', ['', 'bad-module', 'app..daemon', 'app.class'])
+def test_metadata_rejects_invalid_module_names(module: str) -> None:
+    with pytest.raises(ValidationError, match='dotted Python module'):
+        DaemonMetadata(
+            module=module,
+            platform=Platform.linux,
+            control_endpoint='/tmp/control.sock',
+        )
 
 
 def test_macos_controller_installs_launch_agent(

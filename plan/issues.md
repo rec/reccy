@@ -68,10 +68,6 @@ Platform-specific behavior still needs native verification.
 - **Blocking stderr callbacks (24).** Process kill waits are bounded and
   `run_silent()` accepts a caller deadline, but a blocking `capture_stderr()`
   callback can still stall its reader. Define callback ownership and test it.
-- **Service module metadata (26).** Installation now checks metadata platform
-  and endpoints against the controller. The module name is caller-supplied and
-  may still be invalid; validate it at the public boundary or explicitly
-  document caller ownership.
 - **Remaining test gaps (31).** Add persistent blocked-handler shutdown cases
   and native Windows pipe and scheduled-task coverage. Existing tests cannot
   establish native Windows behavior, including named-pipe access controls and
