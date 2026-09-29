@@ -298,3 +298,15 @@ def test_while_fresh_requires_download_only_retention() -> None:
             match=assets.RetentionMatch(source_kind=[assets.SourceKind.download]),
             protect='while_fresh',
         )
+
+
+def test_only_if_cached_never_opens_the_network(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    opener = Opener([Response(b'network', {})])
+    monkeypatch.setattr(http_assets, 'build_opener', lambda handler: opener)
+    store = assets.AssetStore(tmp_path / 'cache', credential_scope='private')
+    with pytest.raises(assets.AssetCacheMiss, match='No fresh cached response'):
+        with _open(store, headers={'Cache-Control': 'only-if-cached'}):
+            pass
+    assert opener.requests == []
