@@ -37,6 +37,15 @@ class ServiceController:
             raise ValueError(
                 'Service installation does not support frozen applications'
             )
+        if metadata.platform != self.platform:
+            raise ValueError('Service metadata platform does not match controller')
+        if metadata.control_endpoint != str(self.paths.control_endpoint):
+            raise ValueError('Service metadata control endpoint does not match service')
+        expected_event = (
+            str(self.paths.event_endpoint) if self.paths.event_endpoint else None
+        )
+        if metadata.event_endpoint != expected_event:
+            raise ValueError('Service metadata event endpoint does not match service')
         self._write_metadata(metadata)
         self._ensure_log()
         if self.platform == models.Platform.macos:

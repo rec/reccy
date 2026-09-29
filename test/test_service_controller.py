@@ -86,6 +86,28 @@ def test_frozen_install_rejected_before_writing(
     assert runner.commands == []
 
 
+@pytest.mark.parametrize(
+    'field,value',
+    [
+        ('platform', Platform.windows),
+        ('control_endpoint', 'wrong'),
+        ('event_endpoint', 'wrong'),
+    ],
+)
+def test_install_rejects_mismatched_metadata_before_writing(
+    tmp_path: Path, field: str, value: object
+) -> None:
+    runner = FakeRunner()
+    controller = ServiceController(lyte_service(), Platform.linux, tmp_path, runner)
+    metadata = service_metadata(Platform.linux, 'lyte', ['run'], controller.paths)
+    metadata = metadata.model_copy(update={field: value})
+
+    with pytest.raises(ValueError, match='metadata'):
+        controller.install(metadata)
+    assert not list(tmp_path.iterdir())
+    assert runner.commands == []
+
+
 def test_macos_controller_installs_launch_agent(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
