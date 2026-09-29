@@ -91,8 +91,16 @@ separate future work; this adapter never treats a changed URL body as a score
 update.
 `reccy.runtime.http_freshness.response_freshness()` calculates explicit
 private-cache lifetime and corrected age from response and request headers.
-It grants no heuristic or stale reuse. Persisted response metadata and
-conditional current-URL acquisition are not yet connected to it.
+It grants no heuristic or stale reuse. `reccy.runtime.http_current`
+uses it for current-URL imports. `open_current_https_asset()` returns the
+verified content identity and a leased byte stream. It stores only selected
+response metadata under an opaque request key, and conservatively keys all
+request headers so differing `Vary` variants cannot collide. Fresh bodies are
+reused; stale bodies use ETag or Last-Modified validation when available, or
+fetch an unconditional replacement. A 304 with no stored body causes an
+unconditional fetch. `no-store` and `Vary: *` bodies are transient. One
+acquisition at a time may update each request key, and an incomplete body is
+not published.
 
 `RetentionRule` and `RetentionMatch` provide pure, additive rule evaluation for
 finite entries. A rule either `protect`s an entry from every collection mode or
