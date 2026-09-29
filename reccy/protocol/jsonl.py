@@ -7,11 +7,13 @@ the key, so reconstruction preserves this equivalence, not exact dictionaries.
 An absent field in an encoded delta means unchanged, not cleared.
 
 Each instance retains independent state per string key across calls. Use fresh
-compressor and decompressor instances for each independent stream, and consume
-successive batches in order.
+compressor and decompressor instances for each independent, finite stream, and
+consume successive batches in order. Create a new instance when the stream ends
+to release its key state.
 """
 
 from collections.abc import Iterable, Iterator
+from copy import deepcopy
 
 
 class Jsonl:
@@ -26,7 +28,7 @@ class Jsonl:
 
             prev = self._previous_values.setdefault(key, {})
             res = self._call(prev, d)
-            prev |= res
+            prev |= deepcopy(res)
             yield res
 
     def _call(self, prev: dict[str, object], d: dict[str, object]) -> dict[str, object]:

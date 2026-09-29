@@ -57,3 +57,19 @@ def test_tracks_state_independently_for_each_type() -> None:
         {'type': 'status', 'online': True},
         {'type': 'meter'},
     ]
+
+
+def test_mutating_input_or_output_does_not_change_codec_state() -> None:
+    compressor = Compress('type')
+    input_record = {'type': 'meter', 'values': [1]}
+    output_record = list(compressor([input_record]))[0]
+    input_record['values'].append(2)
+    output_record['values'].append(3)
+    assert list(compressor([{'type': 'meter', 'values': [1]}])) == [{'type': 'meter'}]
+
+    decompressor = Decompress('type')
+    delta = {'type': 'meter', 'values': [1]}
+    result = list(decompressor([delta]))[0]
+    delta['values'].append(2)
+    result['values'].append(3)
+    assert list(decompressor([{'type': 'meter'}])) == [{'type': 'meter', 'values': [1]}]
