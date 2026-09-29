@@ -548,6 +548,8 @@ def test_recovery_inspection_reports_unreferenced_bytes_without_deleting_them(
     )
     staging = store.root / 'staging' / 'interrupted'
     staging.write_bytes(b'partial')
+    recovery = store.root / 'staging' / f'capture-{"a" * 32}.json'
+    recovery.write_bytes(b'{}')
     orphan = store.root / 'objects' / 'sha256' / 'ab' / ('ab' * 32)
     orphan.parent.mkdir(parents=True)
     orphan.write_bytes(b'orphan')
@@ -558,6 +560,11 @@ def test_recovery_inspection_reports_unreferenced_bytes_without_deleting_them(
             byte_length=6,
         ),
         assets.RecoveryItem(
+            kind=assets.RecoveryKind.capture_recovery,
+            path=str(recovery.relative_to(store.root)),
+            byte_length=2,
+        ),
+        assets.RecoveryItem(
             kind=assets.RecoveryKind.staging,
             path=str(staging.relative_to(store.root)),
             byte_length=7,
@@ -565,4 +572,5 @@ def test_recovery_inspection_reports_unreferenced_bytes_without_deleting_them(
     ]
     assert store.object_path(entry.object).read_bytes() == b'referenced'
     assert orphan.read_bytes() == b'orphan'
+    assert recovery.read_bytes() == b'{}'
     assert staging.read_bytes() == b'partial'

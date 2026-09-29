@@ -329,6 +329,7 @@ class AssetAccess(BaseModel, frozen=True):
 
 class RecoveryKind(StrEnum):
     staging = auto()
+    capture_recovery = auto()
     orphan_object = auto()
 
 
@@ -634,9 +635,15 @@ class AssetStore:
                     except FileNotFoundError:
                         continue
                     if stat.S_ISREG(info.st_mode):
+                        item_kind = (
+                            RecoveryKind.capture_recovery
+                            if kind is RecoveryKind.staging
+                            and re.fullmatch(r'capture-[0-9a-f]{32}\.json', path.name)
+                            else kind
+                        )
                         found.append(
                             RecoveryItem(
-                                kind=kind,
+                                kind=item_kind,
                                 path=str(path.relative_to(self.root)),
                                 byte_length=info.st_size,
                             )

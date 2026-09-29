@@ -117,7 +117,8 @@ asset category, source/media kind, source key, or tags. A missing rule leaves an
 unrooted entry eligible. URL/Git acquisition, HTTP freshness, providers and
 capture streams remain host-specific later stages of Ufor's asset-cache plan.
 `inspect_recovery()` reports staged files and objects with no entry manifest,
-including byte counts, without deleting them. A staged file might still have a
+including byte counts, without deleting them. It labels capture recovery
+records separately from raw staging files. A staged file might still have a
 live writer, so the report does not classify it as abandoned.
 
 ## Bounded asset capture
