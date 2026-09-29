@@ -29,3 +29,9 @@ def test_legal_url_path_replaces_url_illegal_characters_and_spaces() -> None:
         '/tmp/device-name/track-/mix------name/one+two/one-two/one_two/'
         'one/two/other-space'
     )
+
+
+def test_legal_url_path_keeps_names_readable_without_url_delimiters() -> None:
+    assert legal_url_path(Path('mix#1%done[final]\t.wav')) == Path(
+        'mix-1-done-final--.wav'
+    )

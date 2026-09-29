@@ -22,13 +22,16 @@ behavior at their new paths.
 | `reccy.subprocess` | `reccy.runtime.subprocess` |
 | `reccy.service` | `reccy.services.controller` |
 | `reccy.models` | `reccy.services.models` |
-| `reccy.paths` | `reccy.services.paths` |
+| old `reccy.paths` service paths | `reccy.services.paths` |
 | `reccy.renderers` | `reccy.services.renderers` |
 | `reccy.service_runner` | `reccy.services.runner` |
 | `reccy.service_spec` | `reccy.services.spec` |
 
 `reccy.cli`, `reccy.device`, `reccy.errors`, and `reccy.reccy` remain at their
 existing paths.
+
+The current `reccy.paths` is a separate module for filename and readable URL
+path transformations. Its output is lossy; callers must resolve collisions.
 
 Import `current_platform` and `service_paths` from `reccy.services.paths`, not
 `reccy.services.controller`.

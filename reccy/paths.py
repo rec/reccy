@@ -8,7 +8,7 @@ FILENAME_REPLACEMENTS = str.maketrans(
     PROBLEMATIC_FILENAME_CHARACTERS,
     '-' * len(PROBLEMATIC_FILENAME_CHARACTERS),
 )
-URL_PATH_REPLACEMENTS = str.maketrans(' ^`{}', '-----')
+URL_PATH_REPLACEMENTS = str.maketrans(' #%[]^`{}', '-' * len(' #%[]^`{}'))
 
 
 def legal_filename(value: str) -> str:
@@ -23,4 +23,9 @@ def legal_path(path: Path) -> Path:
 
 def legal_url_path(path: Path) -> Path:
     value = re.sub(r'(?<=[-+_/]) | (?=[-+_/])', '', str(legal_path(path)))
-    return Path(value.translate(URL_PATH_REPLACEMENTS))
+    return Path(
+        ''.join(
+            '-' if ord(c) < 32 or ord(c) == 127 else c
+            for c in value.translate(URL_PATH_REPLACEMENTS)
+        )
+    )
