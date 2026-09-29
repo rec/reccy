@@ -185,6 +185,7 @@ collection respects retention; pressure collection overrides retention but not
 protection. Named capture references, capture pins, and active record leases are
 roots in either mode. With no matching rule, an unrooted record is immediately
 eligible. Recovery completion time comes from its private record file timestamp.
+Asset collection also removes pin metadata once its expiry has passed.
 Use `open_record()` while selecting a record and opening its fragments so the
 record cannot expire between those operations. `collect()` removes eligible
 records and releases fragment pins only after all records using those fragments
