@@ -128,6 +128,13 @@ def test_reference_movement_does_not_retarget_an_existing_pin(tmp_path: Path) ->
     assert store.pinned(pin_id) == first
 
 
+@pytest.mark.parametrize('name', ['rehearsal//intro', 'rehearsal/./intro', 'intro/'])
+def test_capture_references_reject_ambiguous_paths(tmp_path: Path, name: str) -> None:
+    store = capture_store(tmp_path)
+    with pytest.raises(ValueError, match='safe relative paths'):
+        store.set_reference(name, '0' * 32)
+
+
 def test_capture_requires_a_bound_and_budget(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match='requires one'):
         capture_spec(frame_limit=None)
