@@ -14,7 +14,7 @@ from math import isfinite
 from pathlib import Path
 from typing import BinaryIO, cast
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .assets import (
     AssetCacheError,
@@ -35,7 +35,7 @@ from .http_freshness import _normalize_headers, response_freshness
 class HTTPRecord(BaseModel, frozen=True):
     """Private metadata for one full-request cache variant."""
 
-    entry_id: str
+    entry_id: str = Field(pattern=r'^[0-9a-f]{32}$')
     headers: dict[str, str]
     request_time: datetime
     response_time: datetime
@@ -129,7 +129,7 @@ def _resolve_current(
     request_policy = response_freshness({}, request_headers, now, now, now)
     if not request_policy.storable:
         record = None
-    if record is not None and _entry_exists(store, record.entry_id):
+    if record is not None and _entry_exists(store, record.entry_id, source_key):
         policy = response_freshness(
             record.headers,
             request_headers,
@@ -171,7 +171,7 @@ def _resolve_current(
                         record = None
                         break
                 else:
-                    if _entry_exists(store, record.entry_id):
+                    if _entry_exists(store, record.entry_id, source_key):
                         combined = _response_headers(record.headers | updated)
                         policy = response_freshness(
                             combined,
@@ -255,13 +255,15 @@ def _read_record(path: Path) -> HTTPRecord | None:
         return None
 
 
-def _entry_exists(store: AssetStore, entry_id: str) -> bool:
+def _entry_exists(store: AssetStore, entry_id: str, source_key: str) -> bool:
     try:
-        store.entry(entry_id)
+        entry = store.entry(entry_id)
     except AssetCorruptionError:
         raise
     except AssetCacheError:
         return False
+    if entry.source_key != source_key:
+        raise AssetCorruptionError('HTTP record points to another source request')
     return True
 
 

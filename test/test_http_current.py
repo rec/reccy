@@ -1,4 +1,5 @@
 import hashlib
+import json
 from concurrent.futures import ThreadPoolExecutor
 from email.message import Message
 from io import BytesIO
@@ -239,3 +240,26 @@ def test_concurrent_current_https_requests_share_one_acquisition(
         assert first.result() == b'bytes'
         assert second.result() == b'bytes'
     assert len(opener.requests) == 1
+
+
+def test_http_record_cannot_reuse_another_source_entry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    opener = Opener([Response(b'first', {'Cache-Control': 'max-age=3600'})])
+    monkeypatch.setattr(http_assets, 'build_opener', lambda handler: opener)
+    store = assets.AssetStore(tmp_path / 'cache', credential_scope='private')
+    with _open(store):
+        pass
+    unrelated = store.import_bytes(
+        b'unrelated',
+        source_key=assets.source_fingerprint({'kind': 'unrelated'}, {}, None, {}),
+        category=assets.AssetCategory.acquired,
+        source_kind=assets.SourceKind.download,
+    )
+    record_path = next((store.root / 'state' / 'http').glob('*.json'))
+    record = json.loads(record_path.read_text())
+    record['entry_id'] = unrelated.id
+    record_path.write_text(json.dumps(record))
+    with pytest.raises(assets.AssetCorruptionError, match='another source request'):
+        with _open(store):
+            pass
