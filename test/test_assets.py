@@ -501,6 +501,12 @@ def test_newest_retention_groups_by_source_and_recomputes_after_collection(
         name='latest per source', all=True, newest=assets.RetentionNewest(count=1)
     )
     older, latest = sorted((first, second), key=lambda e: (e.created_at, e.id))
+    assert store.explain_retention(older.id, [rule]).newest_ranks == {
+        'latest per source': 2
+    }
+    assert store.explain_retention(latest.id, [rule]).newest_ranks == {
+        'latest per source': 1
+    }
     assert [d.entry_id for d in store.plan_collection([rule])] == [older.id]
     assert store.collect([rule]) == [older.id]
     assert store.explain_retention(latest.id, [rule]).retained

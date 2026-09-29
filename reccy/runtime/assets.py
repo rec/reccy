@@ -304,6 +304,7 @@ class RetentionDecision(BaseModel, frozen=True):
     protected: bool
     retained: bool
     matching_rules: list[str]
+    newest_ranks: dict[str, int] = Field(default_factory=dict)
 
     @property
     def eligible_for_ordinary_collection(self) -> bool:
@@ -807,7 +808,7 @@ class AssetStore:
         now: datetime,
         roots: set[str],
         access: datetime | None,
-        newest: dict[str, set[str]],
+        newest: dict[str, dict[str, int]],
     ) -> RetentionDecision:
         matching = [rule for rule in rules if rule.matches(entry)]
         protected = any(
@@ -824,7 +825,11 @@ class AssetStore:
                 isinstance(rule.retain, RetentionDuration)
                 and now < self._deadline(rule.retain, entry.created_at, access)
             )
-            or entry.id in newest.get(rule.name, set())
+            or (
+                rule.newest is not None
+                and (rank := newest.get(rule.name, {}).get(entry.id)) is not None
+                and rank <= rule.newest.count
+            )
             for rule in matching
         )
         return RetentionDecision(
@@ -833,12 +838,17 @@ class AssetStore:
             protected=protected,
             retained=retained,
             matching_rules=[rule.name for rule in matching],
+            newest_ranks={
+                rule.name: rank
+                for rule in matching
+                if (rank := newest.get(rule.name, {}).get(entry.id)) is not None
+            },
         )
 
     def _newest_matches(
         self, entries: list[AssetEntry], rules: list[RetentionRule]
-    ) -> dict[str, set[str]]:
-        result: dict[str, set[str]] = {}
+    ) -> dict[str, dict[str, int]]:
+        result: dict[str, dict[str, int]] = {}
         for rule in rules:
             if rule.newest is None:
                 continue
@@ -848,11 +858,12 @@ class AssetStore:
                     key = entry.source_key if rule.newest.group_by == 'source' else ''
                     groups.setdefault(key, []).append(entry)
             result[rule.name] = {
-                entry.id
+                entry.id: rank
                 for group in groups.values()
-                for entry in sorted(
-                    group, key=lambda e: (e.created_at, e.id), reverse=True
-                )[: rule.newest.count]
+                for rank, entry in enumerate(
+                    sorted(group, key=lambda e: (e.created_at, e.id), reverse=True),
+                    start=1,
+                )
             }
         return result
 

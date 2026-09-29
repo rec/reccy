@@ -109,7 +109,8 @@ finite entries. A rule either `protect`s an entry from every collection mode or
 matching entries in each source group or across all matches. It may be combined
 with a duration: either condition retains the entry. Equal creation times are
 ordered by entry ID. A newest rule cannot combine with `retain="forever"`,
-which would make its ranking ineffective.
+which would make its ranking ineffective. `explain_retention()` reports each
+matching newest rule's rank, including entries outside the retained count.
 `explain_retention()` reports applicable rules and roots, `plan_collection()` is
 read-only, and `collect()` rechecks roots under the store-wide metadata claim
 before deleting manifests and then unreachable objects. Rules may select an
