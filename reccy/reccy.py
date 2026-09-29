@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 import time
 from logging import Logger
 from pathlib import Path
@@ -47,6 +48,8 @@ class Reccy(BaseModel, frozen=True):
     _errors: list[ErrorRecord] = PrivateAttr(default_factory=list)
     _rpc_server: rpc.Server | None = PrivateAttr(default=None)
     _started: bool = PrivateAttr(default=False)
+    _stopping: bool = PrivateAttr(default=False)
+    _status_lock: threading.RLock = PrivateAttr(default_factory=threading.RLock)
 
     @property
     def logger(self) -> Logger:
@@ -135,6 +138,10 @@ class Reccy(BaseModel, frozen=True):
         logging.configure()
         started = False
         try:
+            self._stopping = False
+            self._started = True
+            self.on_started()
+            self.publish_status()
             if self.rpc_enabled:
                 self._rpc_server = rpc.Server(
                     self.control_endpoint,
@@ -143,9 +150,6 @@ class Reccy(BaseModel, frozen=True):
                     role=self.rpc_role or self.name,
                 )
                 self._rpc_server.start()
-            self._started = True
-            self.publish_status()
-            self.on_started()
             started = True
         finally:
             if not started:
@@ -160,6 +164,7 @@ class Reccy(BaseModel, frozen=True):
     def close(self) -> None:
         if not self._started:
             return
+        self._stopping = True
         try:
             self.on_stopping()
             self._started = False
@@ -175,6 +180,8 @@ class Reccy(BaseModel, frozen=True):
                 self.on_closed()
 
     def rpc_response(self, request: rpc.Request) -> rpc.Result:
+        if not self._started or self._stopping:
+            return ipc.Error(type='error', message='application is not running')
         if request.command == 'status':
             return self.status_snapshot().model_dump(mode='json')
         if request.command == 'mutable_attributes':
@@ -205,7 +212,8 @@ class Reccy(BaseModel, frozen=True):
 
     def status_snapshot(self) -> ReccyStatus:
         model = self.status_model or ReccyStatus
-        return model(running=self._started, errors=self._errors.copy())
+        with self._status_lock:
+            return model(running=self._started, errors=self._errors.copy())
 
     def mutable_attributes(self) -> list[MutableAttribute]:
         return []
@@ -216,9 +224,10 @@ class Reccy(BaseModel, frozen=True):
     def publish_status(self) -> None:
         if self.status_model is None:
             return
-        status = self.status_snapshot()
-        settings.save(self.status_path, status)
-        self.publish_event('status', status=status.model_dump(mode='json'))
+        with self._status_lock:
+            status = self.status_snapshot()
+            settings.save(self.status_path, status)
+            self.publish_event('status', status=status.model_dump(mode='json'))
 
     def publish_event(self, name: str, **data: object) -> None:
         if self._rpc_server is not None:
@@ -226,10 +235,11 @@ class Reccy(BaseModel, frozen=True):
 
     def publish_error(self, message: str) -> None:
         self.logger.error('%s', message)
-        self._errors.append(ErrorRecord(message=message))
-        del self._errors[:-1000]
-        self.publish_status()
-        self.publish_event('error', message=message)
+        with self._status_lock:
+            self._errors.append(ErrorRecord(message=message))
+            del self._errors[:-1000]
+            self.publish_status()
+            self.publish_event('error', message=message)
 
     def on_started(self) -> None:
         pass
