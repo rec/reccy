@@ -36,7 +36,9 @@ class FakeRunner:
         check: bool,
         text: bool,
         capture_output: bool,
+        timeout: float,
     ) -> subprocess.CompletedProcess[str]:
+        assert timeout == reccy.services.controller.SERVICE_COMMAND_TIMEOUT
         self.commands.append(command)
         returncode, stdout = (
             self.responses.pop(0) if self.responses else (self.returncode, self.stdout)
@@ -198,8 +200,14 @@ def test_linux_uninstall_removes_unit_before_reload(tmp_path: Path) -> None:
     commands: list[list[str]] = []
 
     def run(
-        command: list[str], *, check: bool, text: bool, capture_output: bool
+        command: list[str],
+        *,
+        check: bool,
+        text: bool,
+        capture_output: bool,
+        timeout: float,
     ) -> subprocess.CompletedProcess[str]:
+        assert timeout == reccy.services.controller.SERVICE_COMMAND_TIMEOUT
         commands.append(command)
         if command[-1] == 'daemon-reload':
             assert not controller.paths.service.exists()

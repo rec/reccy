@@ -12,6 +12,8 @@ from ..configuration.settings import write_text_atomically
 from . import models, renderers
 from .paths import current_platform, service_paths
 
+SERVICE_COMMAND_TIMEOUT = 30
+
 
 class ServiceController:
     def __init__(
@@ -224,6 +226,7 @@ class ServiceController:
             check=check,
             text=True,
             capture_output=capture_output,
+            timeout=SERVICE_COMMAND_TIMEOUT,
         )
 
     def _read_status(self, path: Path) -> BaseModel | None:

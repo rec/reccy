@@ -91,8 +91,14 @@ def test_service_status_reads_configured_model_with_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def run(
-        command: list[str], *, check: bool, text: bool, capture_output: bool
+        command: list[str],
+        *,
+        check: bool,
+        text: bool,
+        capture_output: bool,
+        timeout: float,
     ) -> subprocess.CompletedProcess[str]:
+        assert timeout == 30
         return subprocess.CompletedProcess(command, 0, stdout='active', stderr='')
 
     class DefaultSnapshotApplication(Reccy):
