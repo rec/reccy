@@ -678,6 +678,41 @@ def test_capacity_respects_existing_staging_and_free_space(
         )
 
 
+def test_capacity_admission_tolerates_disappearing_staging_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = assets.AssetStore(
+        tmp_path / 'cache',
+        credential_scope='public',
+        capacity=assets.AssetCapacity(
+            maximum_object_bytes=10,
+            maximum_staging_bytes=10,
+            minimum_free_space=0,
+        ),
+    )
+    staged = store.root / 'staging' / 'completed-recovery'
+    staged.parent.mkdir(parents=True)
+    staged.write_bytes(b'old')
+    original_stat = Path.stat
+
+    def stat(path: Path, *args: object, **kwargs: object) -> object:
+        if path == staged:
+            staged.unlink()
+            raise FileNotFoundError(staged)
+        return original_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, 'stat', stat)
+
+    entry = store.import_bytes(
+        b'new',
+        source_key=_source_key('after-recovery'),
+        category=assets.AssetCategory.acquired,
+        source_kind=assets.SourceKind.local_file,
+    )
+    with store.open_entry(entry.id) as file:
+        assert file.read() == b'new'
+
+
 def test_capacity_serializes_competing_imports(tmp_path: Path) -> None:
     store = assets.AssetStore(
         tmp_path / 'cache',
