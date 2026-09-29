@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import BinaryIO
 
 import pytest
 
@@ -71,7 +72,7 @@ def test_open_entry_leases_verified_bytes_and_releases_lease(tmp_path: Path) -> 
     assert list((tmp_path / 'cache' / 'state' / 'leases').iterdir()) == []
 
 
-def test_open_entry_creates_lease_before_verifying(
+def test_open_entry_keeps_verified_handle_and_lease_when_path_changes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     store = assets.AssetStore(tmp_path / 'cache')
@@ -81,13 +82,18 @@ def test_open_entry_creates_lease_before_verifying(
         category=assets.AssetCategory.acquired,
         source_kind=assets.SourceKind.local_file,
     )
-    verify = store.verify_object
+    verify = store._verify_file
 
-    def verify_with_collection(identity: assets.ObjectIdentity) -> None:
+    def verify_with_replacement(
+        file: BinaryIO, identity: assets.ObjectIdentity
+    ) -> None:
         assert store.collect([]) == []
-        verify(identity)
+        verify(file, identity)
+        replacement = tmp_path / 'replacement'
+        replacement.write_bytes(b'other')
+        replacement.replace(store.object_path(identity))
 
-    monkeypatch.setattr(store, 'verify_object', verify_with_collection)
+    monkeypatch.setattr(store, '_verify_file', verify_with_replacement)
     with store.open_entry(entry.id) as file:
         assert file.read() == b'bytes'
 

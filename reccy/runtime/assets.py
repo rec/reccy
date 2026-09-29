@@ -310,19 +310,13 @@ class AssetStore:
     def verify_object(self, identity: ObjectIdentity) -> None:
         """Check stored bytes, rather than trusting an existing pathname or size."""
         path = self.object_path(identity)
-        digest = hashlib.sha256()
-        length = 0
         try:
             with path.open('rb') as file:
-                while block := file.read(65536):
-                    digest.update(block)
-                    length += len(block)
+                self._verify_file(file, identity)
         except FileNotFoundError as error:
             raise AssetCorruptionError(
                 f'Missing asset object {identity.sha256}'
             ) from error
-        if digest.hexdigest() != identity.sha256 or length != identity.length:
-            raise AssetCorruptionError(f'Corrupt asset object {identity.sha256}')
 
     @contextmanager
     def open_entry(self, entry_id: str) -> Iterator[BinaryIO]:
@@ -334,8 +328,15 @@ class AssetStore:
             self._write_new_model(lease_path, AssetLease(entry_id=entry.id))
         consumed = False
         try:
-            self.verify_object(entry.object)
-            with self.object_path(entry.object).open('rb') as file:
+            try:
+                file = self.object_path(entry.object).open('rb')
+            except FileNotFoundError as error:
+                raise AssetCorruptionError(
+                    f'Missing asset object {entry.object.sha256}'
+                ) from error
+            with file:
+                self._verify_file(file, entry.object)
+                file.seek(0)
                 yield file
             consumed = True
         finally:
@@ -468,6 +469,15 @@ class AssetStore:
 
     def object_path(self, identity: ObjectIdentity) -> Path:
         return self.root / 'objects' / 'sha256' / identity.sha256[:2] / identity.sha256
+
+    def _verify_file(self, file: BinaryIO, identity: ObjectIdentity) -> None:
+        digest = hashlib.sha256()
+        length = 0
+        while block := file.read(65536):
+            digest.update(block)
+            length += len(block)
+        if digest.hexdigest() != identity.sha256 or length != identity.length:
+            raise AssetCorruptionError(f'Corrupt asset object {identity.sha256}')
 
     def _prepare_directories(self) -> None:
         for path in (
