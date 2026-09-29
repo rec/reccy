@@ -78,6 +78,18 @@ submodules, and unresolved Git LFS pointers are rejected. The returned Git blob
 ID is transport evidence and remains distinct from the entry's file SHA-256.
 Remote fetching and transport-cache limits remain host work.
 
+`http_assets.open_https_asset()` resolves a declared immutable HTTPS object.
+The host authorizes the initial URL and each redirect and supplies credentials
+and a private fingerprint key. A retained object in the same credential scope
+is opened offline by SHA-256 and length. Otherwise the adapter bounds encoded
+and decoded transfer, handles identity and gzip bodies, and checks the declared
+content identity before publication. Cross-origin redirects drop Authorization,
+Cookie, and Proxy-Authorization headers. `no-store` and `Vary: *` responses are
+verified in bounded memory for the current use and are not persisted. HTTP
+freshness, conditional validation, and mutable current-URL imports remain
+separate future work; this adapter never treats a changed URL body as a score
+update.
+
 `RetentionRule` and `RetentionMatch` provide pure, additive rule evaluation for
 finite entries. A rule either `protect`s an entry from every collection mode or
 `retain`s it until its deadline, which pressure collection may override.
