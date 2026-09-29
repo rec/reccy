@@ -65,9 +65,6 @@ Platform-specific behavior still needs native verification.
 
 ## Engineering and verification still open
 
-- **Blocking stderr callbacks (24).** Process kill waits are bounded and
-  `run_silent()` accepts a caller deadline, but a blocking `capture_stderr()`
-  callback can still stall its reader. Define callback ownership and test it.
 - **Remaining test gaps (31).** Add persistent blocked-handler shutdown cases
   and native Windows pipe and scheduled-task coverage. Existing tests cannot
   establish native Windows behavior, including named-pipe access controls and

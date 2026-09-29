@@ -61,6 +61,12 @@ def capture_stderr(
     *,
     thread_name: str = 'ProcessOutput',
 ) -> OutputTail:
+    """Capture stderr in a reader thread; ``on_line`` must not block.
+
+    The callback runs synchronously in that reader thread. A blocked callback
+    also blocks pipe draining; callers own its completion and can use
+    ``OutputTail.wait(timeout)`` to detect a stalled reader.
+    """
     tail = OutputTail()
     if process.stderr is None:
         return tail

@@ -39,6 +39,27 @@ def test_stderr_without_newlines_has_bounded_capture() -> None:
     assert sum(sizes) == 1_000_000
 
 
+def test_blocking_stderr_callback_leaves_reader_unfinished() -> None:
+    started = threading.Event()
+    release = threading.Event()
+
+    def block(line: str) -> None:
+        started.set()
+        assert release.wait(1)
+
+    tail = process.capture_stderr(
+        SimpleNamespace(stderr=BytesIO(b'first\nsecond\n')), block
+    )
+    try:
+        assert started.wait(1)
+        assert not tail.wait(0.01)
+        assert tail.text() == 'first'
+    finally:
+        release.set()
+    assert tail.wait(1)
+    assert tail.text() == 'first\nsecond'
+
+
 class FakeProcess:
     def __init__(self, *, wait_raises: bool = False) -> None:
         self.returncode: int | None = None
