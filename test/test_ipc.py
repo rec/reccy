@@ -338,6 +338,35 @@ def test_protocol_listener_closes_malformed_transport() -> None:
     assert len(errors) == 1
 
 
+def test_protocol_listener_does_not_mislabel_handler_failure() -> None:
+    connection = FakeConnection(
+        [
+            '{"type":"hello","role":"gui","version":1}\n',
+            '{"type":"app","value":"x"}\n',
+        ]
+    )
+    errors: list[str] = []
+
+    def fail(listener: ipc.ProtocolListener, message: object) -> None:
+        raise ValueError('handler failed')
+
+    listener = ipc.ProtocolListener(
+        connection,
+        parse=parse_message,
+        version=1,
+        peer_role='GUI',
+        local_role='daemon',
+        on_message=fail,
+        on_validation_error=errors.append,
+    )
+
+    with pytest.raises(ValueError, match='handler failed'):
+        listener.read()
+
+    assert connection.closed
+    assert errors == []
+
+
 def test_protocol_listener_closes_stalled_handshake(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
