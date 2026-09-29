@@ -1,7 +1,10 @@
 import hashlib
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from pathlib import Path
+from threading import Event
+from types import SimpleNamespace
 from typing import BinaryIO
 
 import pytest
@@ -599,3 +602,126 @@ def test_export_entry_is_atomic_and_rejects_corrupt_stored_bytes(
     with pytest.raises(assets.AssetCorruptionError):
         store.export_entry(entry.id, destination)
     assert destination.read_bytes() == b'verified bytes'
+
+
+def test_capacity_counts_staging_and_distinct_objects(tmp_path: Path) -> None:
+    store = assets.AssetStore(
+        tmp_path / 'cache',
+        credential_scope='public',
+        capacity=assets.AssetCapacity(
+            maximum_object_bytes=5,
+            maximum_staging_bytes=5,
+            minimum_free_space=0,
+        ),
+    )
+    first = store.import_bytes(
+        b'first',
+        source_key=_source_key('one'),
+        category=assets.AssetCategory.acquired,
+        source_kind=assets.SourceKind.local_file,
+    )
+    store.import_bytes(
+        b'first',
+        source_key=_source_key('two'),
+        category=assets.AssetCategory.acquired,
+        source_kind=assets.SourceKind.local_file,
+    )
+    assert store.object_path(first.object).read_bytes() == b'first'
+    with pytest.raises(assets.AssetInsufficientSpace, match='Object admission'):
+        store.import_bytes(
+            b'other',
+            source_key=_source_key('three'),
+            category=assets.AssetCategory.acquired,
+            source_kind=assets.SourceKind.local_file,
+        )
+    with pytest.raises(assets.AssetInsufficientSpace, match='Staging needs'):
+        store.import_stream(
+            BytesIO(b'too long'),
+            maximum_bytes=10,
+            source_key=_source_key('four'),
+            category=assets.AssetCategory.acquired,
+            source_kind=assets.SourceKind.local_file,
+        )
+    assert len(list((store.root / 'entries').glob('*.json'))) == 2
+
+
+def test_capacity_respects_existing_staging_and_free_space(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = assets.AssetStore(
+        tmp_path / 'cache',
+        credential_scope='public',
+        capacity=assets.AssetCapacity(
+            maximum_object_bytes=100,
+            maximum_staging_bytes=10,
+            minimum_free_space=5,
+        ),
+    )
+    (store.root / 'staging').mkdir(parents=True)
+    (store.root / 'staging' / 'recovery').write_bytes(b'12345678')
+    with pytest.raises(assets.AssetInsufficientSpace, match='Staging needs'):
+        store.import_bytes(
+            b'abc',
+            source_key=_source_key('one'),
+            category=assets.AssetCategory.acquired,
+            source_kind=assets.SourceKind.local_file,
+        )
+    monkeypatch.setattr(
+        assets.shutil, 'disk_usage', lambda path: SimpleNamespace(free=6)
+    )
+    with pytest.raises(assets.AssetInsufficientSpace, match='free-space margin'):
+        store.import_bytes(
+            b'ab',
+            source_key=_source_key('two'),
+            category=assets.AssetCategory.acquired,
+            source_kind=assets.SourceKind.local_file,
+        )
+
+
+def test_capacity_serializes_competing_imports(tmp_path: Path) -> None:
+    store = assets.AssetStore(
+        tmp_path / 'cache',
+        credential_scope='public',
+        capacity=assets.AssetCapacity(
+            maximum_object_bytes=5,
+            maximum_staging_bytes=5,
+            minimum_free_space=0,
+        ),
+    )
+    entered = Event()
+    release = Event()
+
+    class BlockingReader:
+        def __init__(self) -> None:
+            self.done = False
+
+        def read(self, size: int = -1) -> bytes:
+            if self.done:
+                return b''
+            entered.set()
+            assert release.wait(5)
+            self.done = True
+            return b'first'
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(
+            store.import_stream,
+            BlockingReader(),
+            maximum_bytes=5,
+            source_key=_source_key('one'),
+            category=assets.AssetCategory.acquired,
+            source_kind=assets.SourceKind.local_file,
+        )
+        assert entered.wait(5)
+        second = pool.submit(
+            store.import_bytes,
+            b'other',
+            source_key=_source_key('two'),
+            category=assets.AssetCategory.acquired,
+            source_kind=assets.SourceKind.local_file,
+        )
+        release.set()
+        assert first.result().object.length == 5
+        with pytest.raises(assets.AssetInsufficientSpace):
+            second.result()
+    assert len(list((store.root / 'objects' / 'sha256').glob('*/*'))) == 1
