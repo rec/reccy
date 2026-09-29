@@ -1,5 +1,6 @@
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -110,6 +111,118 @@ def test_aborted_capture_fragments_survive_store_reopen(tmp_path: Path) -> None:
     assert reopened.recovery(session.id) == recovery
     with reopened.assets.open_entry(recovery.fragments[0].entry_id) as file:
         assert file.read() == b'abcd'
+
+
+def test_recovery_evidence_expires_and_releases_fragment_pins(tmp_path: Path) -> None:
+    store = capture_store(tmp_path)
+    session = store.start(capture_spec())
+    session.queue_fragment(b'abcd', frame_count=4)
+    recovery = session.abort('provider failed')
+    rule = capture.CaptureRetentionRule(
+        name='one day', retain=assets.RetentionDuration(days=1, since='created')
+    )
+    assert store.plan_collection([rule]) == []
+    later = datetime.now(UTC) + timedelta(days=2)
+    planned = store.plan_collection([rule], now=later)
+    assert [(d.kind, d.capture_id) for d in planned] == [
+        (capture.CaptureRecordKind.recovery, recovery.id)
+    ]
+    assert store.collect([rule], now=later) == planned
+    with pytest.raises(capture.CaptureError, match='Unknown capture record'):
+        store.recovery(recovery.id)
+    assert store.assets.collect([]) == [recovery.fragments[0].entry_id]
+
+
+def test_recovery_expiry_preserves_shared_salvaged_fragments(tmp_path: Path) -> None:
+    store = capture_store(tmp_path)
+    session = store.start(capture_spec())
+    session.queue_fragment(b'abcd', frame_count=4)
+    manifest = session.salvage('provider failed')
+    rules = [
+        capture.CaptureRetentionRule(
+            name='keep captures',
+            kinds=[capture.CaptureRecordKind.capture],
+            retain='forever',
+        )
+    ]
+    assert [(d.kind, d.capture_id) for d in store.collect(rules)] == [
+        (capture.CaptureRecordKind.recovery, manifest.id)
+    ]
+    assert store.assets.collect([]) == []
+    with store.assets.open_entry(manifest.fragments[0].entry_id) as file:
+        assert file.read() == b'abcd'
+    assert len(store.collect([])) == 1
+    assert store.assets.collect([]) == [manifest.fragments[0].entry_id]
+
+
+def test_capture_roots_and_reader_lease_block_collection(tmp_path: Path) -> None:
+    store = capture_store(tmp_path)
+    session = store.start(capture_spec())
+    session.queue_fragment(b'abcd', frame_count=4)
+    manifest = session.finish(capture.CaptureTermination.bound)
+    store.set_reference('rehearsal/current', manifest.id)
+    assert store.collect([]) == []
+    pin_id = store.pin_reference('rehearsal/current')
+    store.remove_reference('rehearsal/current')
+    assert store.collect([]) == []
+    store.remove_pin(pin_id)
+    with store.open_record(capture.CaptureRecordKind.capture, manifest.id) as selected:
+        assert selected == manifest
+        assert store.collect([]) == []
+    assert [d.capture_id for d in store.collect([])] == [manifest.id]
+
+
+def test_pressure_overrides_retention_but_not_protection(tmp_path: Path) -> None:
+    store = capture_store(tmp_path)
+    session = store.start(capture_spec())
+    session.queue_fragment(b'abcd', frame_count=4)
+    manifest = session.finish(capture.CaptureTermination.bound)
+    rule = capture.CaptureRetentionRule(
+        name='recent', retain=assets.RetentionDuration(days=1, since='created')
+    )
+    assert store.collect([rule]) == []
+    assert [d.capture_id for d in store.plan_collection([rule], pressure=True)] == [
+        manifest.id
+    ]
+    protected = capture.CaptureRetentionRule(name='protected', protect='forever')
+    assert store.collect([rule, protected], pressure=True) == []
+
+
+def test_collection_rechecks_new_roots_before_deletion(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = capture_store(tmp_path)
+    session = store.start(capture_spec())
+    session.queue_fragment(b'abcd', frame_count=4)
+    manifest = session.finish(capture.CaptureTermination.bound)
+    plan = store.plan_collection
+
+    def root_after_plan(
+        rules: list[capture.CaptureRetentionRule], **kwargs: object
+    ) -> list[capture.CaptureRetentionDecision]:
+        decisions = plan(rules, **kwargs)
+        store.set_reference('current', manifest.id)
+        return decisions
+
+    monkeypatch.setattr(store, 'plan_collection', root_after_plan)
+    assert store.collect([]) == []
+    assert store.capture(manifest.id) == manifest
+
+
+def test_newest_retention_keeps_latest_capture_per_source(tmp_path: Path) -> None:
+    store = capture_store(tmp_path)
+    manifests: list[capture.CaptureManifest] = []
+    for payload in (b'1111', b'2222'):
+        session = store.start(capture_spec())
+        session.queue_fragment(payload, frame_count=4)
+        manifests.append(session.finish(capture.CaptureTermination.bound))
+    rule = capture.CaptureRetentionRule(
+        name='latest',
+        kinds=[capture.CaptureRecordKind.capture],
+        newest=assets.RetentionNewest(count=1),
+    )
+    assert [d.capture_id for d in store.collect([rule])] == [manifests[0].id]
+    assert store.capture(manifests[1].id) == manifests[1]
 
 
 def test_reference_movement_does_not_retarget_an_existing_pin(tmp_path: Path) -> None:
