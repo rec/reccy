@@ -1,5 +1,6 @@
 import json
 import os
+import signal
 import subprocess
 import sys
 from collections.abc import Callable, Mapping
@@ -220,6 +221,29 @@ class ServiceController:
     def restart(self) -> None:
         self.stop()
         self.start()
+
+    def signal(self, value: signal.Signals) -> None:
+        if self.platform == models.Platform.macos:
+            self._run(
+                [
+                    'launchctl',
+                    'kill',
+                    value.name,
+                    f'gui/{_uid()}/{self.service.launchd_label}',
+                ]
+            )
+        elif self.platform == models.Platform.linux:
+            self._run(
+                [
+                    'systemctl',
+                    '--user',
+                    'kill',
+                    f'--signal={value.name}',
+                    self.service.systemd_unit,
+                ]
+            )
+        else:
+            raise ValueError('Service signals are not supported on Windows')
 
     def status(self) -> models.StatusResult:
         installed = self.paths.metadata.exists() or self.paths.service.exists()
