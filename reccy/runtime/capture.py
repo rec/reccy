@@ -277,9 +277,8 @@ class CaptureStore:
             temporary.write_text(value.model_dump_json() + '\n')
 
     def _validate_name(self, name: str) -> None:
-        if (
-            not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._/-]*', name)
-            or '..' in Path(name).parts
+        if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._/-]*', name) or any(
+            part in {'', '.', '..'} for part in name.split('/')
         ):
             raise ValueError('capture reference names must be safe relative paths')
 
