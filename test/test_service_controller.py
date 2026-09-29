@@ -1,3 +1,4 @@
+import signal
 import subprocess
 import sys
 from io import StringIO
@@ -134,6 +135,20 @@ def test_macos_controller_installs_launch_agent(
     assert controller.paths.service.exists()
     assert runner.commands == [
         ['launchctl', 'bootstrap', 'gui/501', str(controller.paths.service)]
+    ]
+
+
+def test_macos_controller_sends_signal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(reccy.services.controller, '_uid', lambda: 501)
+    runner = FakeRunner()
+    controller = ServiceController(lyte_service(), Platform.macos, tmp_path, runner)
+
+    controller.signal(signal.SIGTERM)
+
+    assert runner.commands == [
+        ['launchctl', 'kill', 'SIGTERM', 'gui/501/com.swirly.lyte']
     ]
 
 
