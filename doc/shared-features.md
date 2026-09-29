@@ -124,6 +124,12 @@ live writer, so the report does not classify it as abandoned.
 `export_entry()` leases and verifies a finite object before atomically copying
 it to a host-approved destination. Package layout and destination authorization
 remain with the consuming host.
+`reccy.runtime.file_assets` resolves host-measured volume IDs to current roots.
+The optional display name is diagnostic only; a different ID never matches by
+name. `open_file_asset()` reads a trusted immutable file directly through its
+verified handle, or copies a mutable file into the verified store before use.
+The host remains responsible for selecting and authorizing package and volume
+roots.
 
 ## Bounded asset capture
 
