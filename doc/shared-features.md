@@ -52,7 +52,9 @@ the reference cannot retarget the pin.
 
 For callback and client-buffer sources, `CaptureSession.queue_fragment()` copies
 borrowed storage into one preallocated bounded byte queue and does no filesystem
-I/O. `drain()` performs object publication outside the producer call. Queue
+I/O. `maximum_queue_bytes` is allocated when the session starts; the host is
+trusted to choose that budget, and reccy does not impose an additional cap.
+`drain()` performs object publication outside the producer call. Queue
 overflow either raises `CaptureQueueOverflow` or records an explicit native-frame
 gap according to `CaptureOverflowPolicy`; it never silently drops data. Stop the
 provider using its own protocol, then finalize with EOF, reached-bound, or clean

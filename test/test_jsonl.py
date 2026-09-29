@@ -73,3 +73,15 @@ def test_mutating_input_or_output_does_not_change_codec_state() -> None:
     delta['values'].append(2)
     result['values'].append(3)
     assert list(decompressor([{'type': 'meter'}])) == [{'type': 'meter', 'values': [1]}]
+
+
+def test_distant_key_reappearance_keeps_its_delta_baseline() -> None:
+    compressor = Compress('type')
+    decompressor = Decompress('type')
+    original = {'type': 'first', 'value': [1]}
+    assert list(decompressor(compressor([original]))) == [original]
+    for i in range(100):
+        assert list(decompressor(compressor([{'type': f'other-{i}', 'value': i}])))
+    delta = list(compressor([original]))
+    assert delta == [{'type': 'first'}]
+    assert list(decompressor(delta)) == [original]

@@ -16,6 +16,9 @@ def legal_filename(value: str) -> str:
         '-' if ord(c) < 32 or ord(c) == 127 else c
         for c in value.translate(FILENAME_REPLACEMENTS)
     )
+    value = value.rstrip(' ')
+    trailing_dots = len(value) - len(value.rstrip('.'))
+    value = value.rstrip('.') + '-' * trailing_dots
     if not value:
         return '-'
     if re.fullmatch(

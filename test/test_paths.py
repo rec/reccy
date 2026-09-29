@@ -10,7 +10,7 @@ def test_legal_filename_can_be_created(tmp_path: Path) -> None:
 
 def test_legal_filename_replaces_problematic_characters() -> None:
     assert legal_filename(r'\/:*?"<>|') == '---------'
-    assert legal_filename('.,;= ') == '.,;= '
+    assert legal_filename('.,;= ') == '.,;='
 
 
 def test_legal_filename_avoids_windows_reserved_names_and_controls() -> None:
@@ -18,6 +18,9 @@ def test_legal_filename_avoids_windows_reserved_names_and_controls() -> None:
     assert legal_filename('lpt9') == '-lpt9'
     assert legal_filename('a\x00b') == 'a-b'
     assert legal_filename('') == '-'
+    assert legal_filename('  ') == '-'
+    assert legal_filename('album.wav.  ') == 'album.wav-'
+    assert legal_filename('..') == '--'
 
 
 def test_legal_path_replaces_each_filename_segment() -> None:

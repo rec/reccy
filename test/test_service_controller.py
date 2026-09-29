@@ -184,6 +184,146 @@ def test_windows_install_registers_then_starts(
     assert 'Start-ScheduledTask' in runner.commands[1][-1]
 
 
+@pytest.mark.parametrize(
+    'responses,manager_steps',
+    [
+        ([(1, '')], ['daemon-reload', 'daemon-reload']),
+        ([(0, ''), (1, '')], ['daemon-reload', 'enable', 'daemon-reload']),
+        (
+            [(0, ''), (0, ''), (1, '')],
+            ['daemon-reload', 'enable', 'start', 'stop', 'disable', 'daemon-reload'],
+        ),
+    ],
+)
+def test_linux_install_failure_rolls_back_new_service(
+    tmp_path: Path,
+    responses: list[tuple[int, str]],
+    manager_steps: list[str],
+) -> None:
+    runner = FakeRunner(responses=responses)
+    controller = ServiceController(lyte_service(), Platform.linux, tmp_path, runner)
+    metadata = service_metadata(Platform.linux, 'lyte', ['run'], controller.paths)
+
+    with pytest.raises(subprocess.CalledProcessError):
+        controller.install(metadata)
+
+    assert [c[2] for c in runner.commands] == manager_steps
+    assert not controller.paths.service.exists()
+    assert not controller.paths.metadata.exists()
+    assert not controller.paths.log.exists()
+
+
+@pytest.mark.parametrize('platform', [Platform.macos, Platform.windows])
+def test_failed_registration_does_not_remove_unknown_manager_entry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, platform: Platform
+) -> None:
+    monkeypatch.setattr(reccy.services.controller, '_uid', lambda: 501)
+    runner = FakeRunner(responses=[(1, '')])
+    controller = ServiceController(lyte_service(), platform, tmp_path, runner)
+    metadata = service_metadata(platform, 'lyte', ['run'], controller.paths)
+
+    with pytest.raises(subprocess.CalledProcessError):
+        controller.install(metadata)
+
+    assert len(runner.commands) == 1
+    assert not controller.paths.service.exists()
+    assert not controller.paths.metadata.exists()
+
+
+def test_windows_start_failure_unregisters_new_task(tmp_path: Path) -> None:
+    runner = FakeRunner(responses=[(0, ''), (1, '')])
+    controller = ServiceController(lyte_service(), Platform.windows, tmp_path, runner)
+    metadata = service_metadata(Platform.windows, 'lyte', ['run'], controller.paths)
+
+    with pytest.raises(subprocess.CalledProcessError):
+        controller.install(metadata)
+
+    assert len(runner.commands) == 3
+    assert 'Unregister-ScheduledTask' in runner.commands[-1][-1]
+    assert not controller.paths.service.exists()
+
+
+def test_failed_reinstall_restores_prior_files(tmp_path: Path) -> None:
+    runner = FakeRunner(responses=[(0, ''), (1, '')])
+    controller = ServiceController(lyte_service(), Platform.linux, tmp_path, runner)
+    metadata = service_metadata(Platform.linux, 'lyte', ['run'], controller.paths)
+    for path in (controller.paths.service, controller.paths.metadata):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b'prior contents')
+    controller.paths.log.parent.mkdir(parents=True, exist_ok=True)
+    controller.paths.log.write_text('prior log')
+
+    with pytest.raises(subprocess.CalledProcessError):
+        controller.install(metadata)
+
+    assert controller.paths.service.read_bytes() == b'prior contents'
+    assert controller.paths.metadata.read_bytes() == b'prior contents'
+    assert controller.paths.log.read_text() == 'prior log'
+    assert [c[2] for c in runner.commands] == [
+        'daemon-reload',
+        'enable',
+        'daemon-reload',
+    ]
+
+
+def test_install_restores_local_files_after_write_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner = FakeRunner()
+    controller = ServiceController(lyte_service(), Platform.linux, tmp_path, runner)
+    metadata = service_metadata(Platform.linux, 'lyte', ['run'], controller.paths)
+
+    def fail_write(definition: object) -> None:
+        raise OSError('disk full')
+
+    monkeypatch.setattr(controller, '_write_definition', fail_write)
+    with pytest.raises(OSError, match='disk full'):
+        controller.install(metadata)
+    assert not controller.paths.metadata.exists()
+    assert not controller.paths.log.exists()
+    assert runner.commands == []
+
+
+def test_install_preserves_primary_error_when_rollback_fails(tmp_path: Path) -> None:
+    runner = FakeRunner(responses=[(0, ''), (0, ''), (1, ''), (1, '')])
+    controller = ServiceController(lyte_service(), Platform.linux, tmp_path, runner)
+    metadata = service_metadata(Platform.linux, 'lyte', ['run'], controller.paths)
+
+    with pytest.raises(subprocess.CalledProcessError) as caught:
+        controller.install(metadata)
+
+    assert caught.value.cmd[-1] == 'lyte.service'
+    assert any('Rollback command failed' in note for note in caught.value.__notes__)
+    assert not controller.paths.service.exists()
+
+
+def test_install_rolls_back_after_keyboard_interrupt(tmp_path: Path) -> None:
+    runner = FakeRunner()
+    original_run = runner.__call__
+    interrupted = False
+
+    def interrupt_once(
+        command: list[str], **kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        nonlocal interrupted
+        if not interrupted:
+            interrupted = True
+            raise KeyboardInterrupt
+        return original_run(command, **kwargs)
+
+    controller = ServiceController(
+        lyte_service(), Platform.linux, tmp_path, interrupt_once
+    )
+    metadata = service_metadata(Platform.linux, 'lyte', ['run'], controller.paths)
+
+    with pytest.raises(KeyboardInterrupt):
+        controller.install(metadata)
+
+    assert not controller.paths.service.exists()
+    assert not controller.paths.metadata.exists()
+    assert runner.commands == [['systemctl', '--user', 'daemon-reload']]
+
+
 @pytest.mark.parametrize('platform', list(Platform))
 def test_failed_uninstall_preserves_records(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, platform: Platform
@@ -231,7 +371,51 @@ def test_linux_uninstall_removes_unit_before_reload(tmp_path: Path) -> None:
     result = controller.uninstall()
     assert not result.installed
     assert not controller.paths.metadata.exists()
-    assert [c[2] for c in commands] == ['stop', 'disable', 'daemon-reload']
+    assert [c[2] for c in commands] == [
+        'is-enabled',
+        'is-active',
+        'stop',
+        'disable',
+        'daemon-reload',
+    ]
+
+
+def test_linux_uninstall_failure_restores_files_and_manager_state(
+    tmp_path: Path,
+) -> None:
+    runner = FakeRunner(
+        responses=[(0, 'enabled'), (0, 'active'), (0, ''), (0, ''), (1, '')]
+    )
+    controller = ServiceController(lyte_service(), Platform.linux, tmp_path, runner)
+    for path in (
+        controller.paths.service,
+        controller.paths.metadata,
+        controller.paths.status,
+    ):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text('original')
+
+    with pytest.raises(subprocess.CalledProcessError):
+        controller.uninstall()
+
+    assert all(
+        path.read_text() == 'original'
+        for path in (
+            controller.paths.service,
+            controller.paths.metadata,
+            controller.paths.status,
+        )
+    )
+    assert [c[2] for c in runner.commands] == [
+        'is-enabled',
+        'is-active',
+        'stop',
+        'disable',
+        'daemon-reload',
+        'daemon-reload',
+        'enable',
+        'start',
+    ]
 
 
 @pytest.mark.parametrize(

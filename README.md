@@ -74,14 +74,19 @@ history is subject to the configured log retention policy.
 
 Service lifecycle results confirm manager command completion, not the running
 state (`running=None`). Call `status()` to observe the manager's current state.
-Installation requests startup on every platform. Uninstall errors propagate and
-retain local metadata; an already-unloaded service may require manager-specific
-attention before uninstall can complete. Linux reloads its manager after removing
-the unit file and before deleting metadata.
+Installation requests startup on every platform. Failed or interrupted install
+and uninstall operations attempt to restore prior local files and manager state;
+rollback failures are attached to the original error. Manager operations cannot
+be made atomic, so an already-unloaded service may still require
+manager-specific attention. Linux reloads its manager after removing the unit
+file and before deleting metadata.
 
 `logging.configure(path=..., service_name=...)` replaces root handlers and redirects
 stdout/stderr to the rotating file. Repeating the same path reuses the stream.
-Without a path, existing handlers are preserved and only the log level changes.
+Only one writer can hold a log path at a time; a second writer raises a resource
+claim conflict. The adjacent `.lock` file persists so the claim remains stable
+across process restarts. Without a path, existing handlers are preserved and
+only the log level changes.
 
 ## Service installation contract
 
@@ -132,7 +137,9 @@ is not promised. In an encoded delta, an absent field means unchanged.
 
 Each codec keeps state per string key across calls. Consume batches in order and
 create fresh codec instances for every independent stream. A fresh decoder cannot
-reconstruct values omitted by a compressor continuing an earlier stream.
+reconstruct values omitted by a compressor continuing an earlier stream. Keys
+are not evicted automatically, because that could corrupt later deltas; discard
+the codec instance when its stream ends.
 
 ## Child-process output
 

@@ -9,7 +9,8 @@ An absent field in an encoded delta means unchanged, not cleared.
 Each instance retains independent state per string key across calls. Use fresh
 compressor and decompressor instances for each independent, finite stream, and
 consume successive batches in order. Create a new instance when the stream ends
-to release its key state.
+to release its key state. Keys are never evicted automatically: evicting one
+without a matching stream reset would corrupt later deltas.
 """
 
 from collections.abc import Iterable, Iterator

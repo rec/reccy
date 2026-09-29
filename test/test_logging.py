@@ -51,17 +51,52 @@ def test_configure_redirects_output_to_rotating_log(monkeypatch, tmp_path) -> No
 
 def test_rotating_log_stream_limits_retained_files(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(reccy_logging, 'MAX_LOG_BYTES', 3)
-    stream = reccy_logging.RotatingLogStream(tmp_path / 'service.log')
+    with reccy_logging.RotatingLogStream(tmp_path / 'service.log') as stream:
+        for _ in range(4):
+            stream.write('abc')
+            stream.write('\n')
 
-    for _ in range(4):
-        stream.write('abc')
-        stream.write('\n')
-
-    assert sorted(p.name for p in tmp_path.iterdir()) == [
+    assert sorted(p.name for p in tmp_path.iterdir() if p.suffix != '.lock') == [
         'service.log',
         'service.log.1',
         'service.log.2',
     ]
+
+
+def test_log_path_allows_only_one_writer(tmp_path: Path) -> None:
+    path = tmp_path / 'service.log'
+    with reccy_logging.RotatingLogStream(path) as first:
+        first.write('first\n')
+        with pytest.raises(BlockingIOError, match='claimed'):
+            reccy_logging.RotatingLogStream(path)
+    with reccy_logging.RotatingLogStream(path) as second:
+        second.write('second\n')
+    assert path.read_text() == 'first\nsecond\n'
+
+
+def test_failed_rotation_keeps_log_stream_writable(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(reccy_logging, 'MAX_LOG_BYTES', 3)
+    path = tmp_path / 'service.log'
+    replace = Path.replace
+    failed = False
+
+    def fail_once(self: Path, target: Path) -> Path:
+        nonlocal failed
+        if self == path and not failed:
+            failed = True
+            raise OSError('rename failed')
+        return replace(self, target)
+
+    monkeypatch.setattr(Path, 'replace', fail_once)
+    with reccy_logging.RotatingLogStream(path) as stream:
+        stream.write('abc')
+        with pytest.raises(OSError, match='rename failed'):
+            stream.write('d')
+        stream.write('e')
+    assert path.read_text() == 'e'
+    assert path.with_suffix('.log.1').read_text() == 'abc'
 
 
 def test_explicit_file_logging_replaces_existing_handlers(
@@ -86,6 +121,27 @@ def test_explicit_file_logging_replaces_existing_handlers(
         assert 'redirected' in path.read_text()
     finally:
         stream.close()
+
+
+def test_switching_log_paths_releases_previous_writer(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    root = logging.getLogger()
+    monkeypatch.setattr(root, 'handlers', [])
+    monkeypatch.setattr(root, 'level', root.level)
+    monkeypatch.setattr(reccy_logging.sys, 'stdout', StringIO())
+    monkeypatch.setattr(reccy_logging.sys, 'stderr', StringIO())
+    first_path = tmp_path / 'first.log'
+    second_path = tmp_path / 'second.log'
+    reccy_logging.configure(first_path, service_name='test')
+    first = reccy_logging.sys.stderr
+    try:
+        reccy_logging.configure(second_path, service_name='test')
+        assert first.closed
+        with reccy_logging.RotatingLogStream(first_path):
+            pass
+    finally:
+        reccy_logging.sys.stderr.close()
 
 
 def test_concurrent_rotation_preserves_complete_writes(

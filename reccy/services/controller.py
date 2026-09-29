@@ -9,6 +9,7 @@ from typing import TextIO
 from pydantic import BaseModel, ValidationError
 
 from ..configuration.settings import write_text_atomically
+from ..runtime.files import atomic_output
 from . import models, renderers
 from .paths import current_platform, service_paths
 
@@ -48,62 +49,129 @@ class ServiceController:
         )
         if metadata.event_endpoint != expected_event:
             raise ValueError('Service metadata event endpoint does not match service')
-        self._write_metadata(metadata)
-        self._ensure_log()
-        if self.platform == models.Platform.macos:
-            self._write_definition(
-                renderers.macos_launch_agent(metadata, self.paths, self.service)
-            )
-            self._run(
-                ['launchctl', 'bootstrap', f'gui/{_uid()}', str(self.paths.service)]
-            )
-        elif self.platform == models.Platform.windows:
-            self._write_windows_task(metadata)
-            self._run(
-                [
-                    'powershell',
-                    '-NoProfile',
-                    '-Command',
-                    _register_windows_task_command(self.paths.service),
-                ]
-            )
-            self.start()
-        else:
-            self._write_definition(
-                renderers.linux_systemd_unit(metadata, self.paths, self.service)
-            )
-            self._run(['systemctl', '--user', 'daemon-reload'])
-            self._run(['systemctl', '--user', 'enable', self.service.systemd_unit])
-            self._run(['systemctl', '--user', 'start', self.service.systemd_unit])
+        original = {
+            path: path.read_bytes() if path.exists() else None
+            for path in (self.paths.metadata, self.paths.service)
+        }
+        log_existed = self.paths.log.exists()
+        attempted: list[str] = []
+        completed: list[str] = []
+        try:
+            self._write_metadata(metadata)
+            self._ensure_log()
+            if self.platform == models.Platform.macos:
+                self._write_definition(
+                    renderers.macos_launch_agent(metadata, self.paths, self.service)
+                )
+                attempted.append('bootstrap')
+                self._run(
+                    ['launchctl', 'bootstrap', f'gui/{_uid()}', str(self.paths.service)]
+                )
+                completed.append('bootstrap')
+            elif self.platform == models.Platform.windows:
+                self._write_windows_task(metadata)
+                attempted.append('register')
+                self._run(
+                    [
+                        'powershell',
+                        '-NoProfile',
+                        '-Command',
+                        _register_windows_task_command(self.paths.service),
+                    ]
+                )
+                completed.append('register')
+                attempted.append('start')
+                self.start()
+                completed.append('start')
+            else:
+                self._write_definition(
+                    renderers.linux_systemd_unit(metadata, self.paths, self.service)
+                )
+                attempted.append('reload')
+                self._run(['systemctl', '--user', 'daemon-reload'])
+                completed.append('reload')
+                attempted.append('enable')
+                self._run(['systemctl', '--user', 'enable', self.service.systemd_unit])
+                completed.append('enable')
+                attempted.append('start')
+                self._run(['systemctl', '--user', 'start', self.service.systemd_unit])
+                completed.append('start')
+        except (
+            OSError,
+            ValueError,
+            subprocess.SubprocessError,
+            KeyboardInterrupt,
+        ) as error:
+            self._rollback_install(original, log_existed, attempted, completed, error)
+            raise
         return models.StatusResult(installed=True)
 
     def uninstall(self) -> models.StatusResult:
-        if self.platform == models.Platform.macos:
-            self._run(
-                ['launchctl', 'bootout', f'gui/{_uid()}', str(self.paths.service)],
-            )
-        elif self.platform == models.Platform.windows:
-            self._run(
-                [
-                    'powershell',
-                    '-NoProfile',
-                    '-Command',
-                    _unregister_windows_task_command(self.service.name),
-                ],
-            )
-        else:
-            self._run(
-                ['systemctl', '--user', 'stop', self.service.systemd_unit],
-            )
-            self._run(
-                ['systemctl', '--user', 'disable', self.service.systemd_unit],
-            )
-
-        self.paths.service.unlink(missing_ok=True)
+        original = {
+            path: path.read_bytes() if path.exists() else None
+            for path in (self.paths.service, self.paths.metadata, self.paths.status)
+        }
+        was_enabled = was_running = False
         if self.platform == models.Platform.linux:
-            self._run(['systemctl', '--user', 'daemon-reload'])
-        for path in [self.paths.metadata, self.paths.status]:
-            path.unlink(missing_ok=True)
+            enabled = self._run(
+                ['systemctl', '--user', 'is-enabled', self.service.systemd_unit],
+                check=False,
+                capture_output=True,
+            )
+            was_enabled = enabled.returncode == 0 and (
+                enabled.stdout or ''
+            ).strip() in {
+                'enabled',
+                'enabled-runtime',
+            }
+            was_running = (
+                self._run(
+                    ['systemctl', '--user', 'is-active', self.service.systemd_unit],
+                    check=False,
+                ).returncode
+                == 0
+            )
+        attempted = False
+        try:
+            if self.platform == models.Platform.macos:
+                attempted = True
+                self._run(
+                    ['launchctl', 'bootout', f'gui/{_uid()}', str(self.paths.service)],
+                )
+            elif self.platform == models.Platform.windows:
+                attempted = True
+                self._run(
+                    [
+                        'powershell',
+                        '-NoProfile',
+                        '-Command',
+                        _unregister_windows_task_command(self.service.name),
+                    ],
+                )
+            else:
+                attempted = True
+                self._run(
+                    ['systemctl', '--user', 'stop', self.service.systemd_unit],
+                )
+                self._run(
+                    ['systemctl', '--user', 'disable', self.service.systemd_unit],
+                )
+
+            self.paths.service.unlink(missing_ok=True)
+            if self.platform == models.Platform.linux:
+                self._run(['systemctl', '--user', 'daemon-reload'])
+            for path in (self.paths.metadata, self.paths.status):
+                path.unlink(missing_ok=True)
+        except (
+            OSError,
+            ValueError,
+            subprocess.SubprocessError,
+            KeyboardInterrupt,
+        ) as error:
+            self._restore_files(original, error)
+            if attempted and original[self.paths.service] is not None:
+                self._rollback_uninstall(was_enabled, was_running, error)
+            raise
         return models.StatusResult(installed=False)
 
     def start(self) -> models.StatusResult:
@@ -201,14 +269,135 @@ class ServiceController:
 
     def _write_definition(self, definition: models.ServiceDefinition) -> None:
         definition.path.parent.mkdir(parents=True, exist_ok=True)
-        definition.path.write_text(definition.content)
+        write_text_atomically(definition.path, definition.content)
 
     def _write_windows_task(self, metadata: models.DaemonMetadata) -> None:
         task = renderers.windows_task(metadata, self.paths, self.service)
         self.paths.service.parent.mkdir(parents=True, exist_ok=True)
-        self.paths.service.write_text(
-            json.dumps(task.model_dump(mode='json'), indent=2) + '\n'
+        write_text_atomically(
+            self.paths.service,
+            json.dumps(task.model_dump(mode='json'), indent=2) + '\n',
         )
+
+    def _rollback_install(
+        self,
+        original: dict[Path, bytes | None],
+        log_existed: bool,
+        attempted: list[str],
+        completed: list[str],
+        error: BaseException,
+    ) -> None:
+        commands: list[list[str]] = []
+        if attempted and attempted[-1] not in completed:
+            error.add_note(
+                f'{attempted[-1]} may have partially completed; inspect manager state'
+            )
+        was_installed = original[self.paths.service] is not None
+        if (
+            self.platform == models.Platform.macos
+            and 'bootstrap' in completed
+            and not was_installed
+        ):
+            commands.append(
+                ['launchctl', 'bootout', f'gui/{_uid()}', str(self.paths.service)]
+            )
+        elif (
+            self.platform == models.Platform.windows
+            and 'register' in completed
+            and not was_installed
+        ):
+            commands.append(
+                [
+                    'powershell',
+                    '-NoProfile',
+                    '-Command',
+                    _unregister_windows_task_command(self.service.name),
+                ]
+            )
+        elif self.platform == models.Platform.linux and not was_installed:
+            if 'start' in attempted and 'enable' in completed:
+                commands.append(
+                    ['systemctl', '--user', 'stop', self.service.systemd_unit]
+                )
+            if 'enable' in completed:
+                commands.append(
+                    ['systemctl', '--user', 'disable', self.service.systemd_unit]
+                )
+        for command in commands:
+            try:
+                self._run(command)
+            except (OSError, subprocess.SubprocessError) as rollback_error:
+                error.add_note(f'Rollback command failed: {rollback_error}')
+        self._restore_files(original, error)
+        if not log_existed:
+            try:
+                if self.paths.log.exists() and self.paths.log.stat().st_size == 0:
+                    self.paths.log.unlink()
+            except OSError as rollback_error:
+                error.add_note(f'Could not remove empty log: {rollback_error}')
+        if self.platform == models.Platform.linux and attempted:
+            commands = [['systemctl', '--user', 'daemon-reload']]
+        elif self.platform == models.Platform.windows and attempted and was_installed:
+            commands = [
+                [
+                    'powershell',
+                    '-NoProfile',
+                    '-Command',
+                    _register_windows_task_command(self.paths.service),
+                ]
+            ]
+        else:
+            commands = []
+        for command in commands:
+            try:
+                self._run(command)
+            except (OSError, subprocess.SubprocessError) as rollback_error:
+                error.add_note(f'Rollback command failed: {rollback_error}')
+
+    def _restore_files(
+        self, original: dict[Path, bytes | None], error: BaseException
+    ) -> None:
+        for path, content in original.items():
+            try:
+                if content is None:
+                    path.unlink(missing_ok=True)
+                else:
+                    with atomic_output(path, sync=True) as temporary:
+                        temporary.write_bytes(content)
+            except OSError as rollback_error:
+                error.add_note(f'Could not restore {path}: {rollback_error}')
+
+    def _rollback_uninstall(
+        self, was_enabled: bool, was_running: bool, error: BaseException
+    ) -> None:
+        if self.platform == models.Platform.macos:
+            commands = [
+                ['launchctl', 'bootstrap', f'gui/{_uid()}', str(self.paths.service)]
+            ]
+        elif self.platform == models.Platform.windows:
+            commands = [
+                [
+                    'powershell',
+                    '-NoProfile',
+                    '-Command',
+                    _register_windows_task_command(self.paths.service),
+                ]
+            ]
+        else:
+            commands = [['systemctl', '--user', 'daemon-reload']]
+            if was_enabled:
+                commands.append(
+                    ['systemctl', '--user', 'enable', self.service.systemd_unit]
+                )
+            if was_running:
+                commands.append(
+                    ['systemctl', '--user', 'start', self.service.systemd_unit]
+                )
+        for command in commands:
+            try:
+                self._run(command)
+            except (OSError, subprocess.SubprocessError) as rollback_error:
+                error.add_note(f'Rollback command failed: {rollback_error}')
 
     def _ensure_log(self) -> None:
         self.paths.log.parent.mkdir(parents=True, exist_ok=True)
