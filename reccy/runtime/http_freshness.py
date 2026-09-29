@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from datetime import UTC, datetime
+from email.message import Message
 from email.utils import parsedate_to_datetime
 
 from pydantic import BaseModel
@@ -21,7 +22,7 @@ class HTTPFreshness(BaseModel, frozen=True):
 
 
 def response_freshness(
-    response_headers: Mapping[str, str],
+    response_headers: Mapping[str, str] | Message,
     request_headers: Mapping[str, str],
     request_time: datetime,
     response_time: datetime,
@@ -38,8 +39,8 @@ def response_freshness(
             raise ValueError('HTTP cache times must be timezone-aware')
     if request_time > response_time or response_time > now:
         raise ValueError('HTTP cache times must be ordered')
-    response = {key.casefold(): value for key, value in response_headers.items()}
-    request = {key.casefold(): value for key, value in request_headers.items()}
+    response = _normalize_headers(response_headers)
+    request = _normalize_headers(request_headers)
     controls = _directives(response.get('cache-control', ''))
     request_controls = _directives(request.get('cache-control', ''))
     vary = [
@@ -111,3 +112,15 @@ def _http_date(value: str | None) -> datetime | None:
     except (TypeError, ValueError):
         return None
     return parsed.astimezone(UTC) if parsed.tzinfo is not None else None
+
+
+def _normalize_headers(headers: Mapping[str, str] | Message) -> dict[str, str]:
+    result: dict[str, str] = {}
+    for name, value in headers.items():
+        key = name.casefold()
+        if key in result:
+            if key in {'cache-control', 'vary'}:
+                result[key] += ',' + value
+        else:
+            result[key] = value
+    return result

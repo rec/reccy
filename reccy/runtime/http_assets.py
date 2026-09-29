@@ -8,6 +8,7 @@ import json
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import ExitStack, contextmanager
 from datetime import UTC, datetime
+from email.message import Message
 from http.client import HTTPMessage
 from io import BytesIO
 from math import isfinite
@@ -88,6 +89,61 @@ def open_https_asset(
         lookup_secret=secret,
         fingerprint_key=fingerprint_key,
     )
+    with _open_response(url, allow_url, request_headers, timeout) as (
+        response,
+        status,
+        response_headers,
+        request_time,
+        response_time,
+    ):
+        if status != 200:
+            raise AssetCacheError(f'HTTPS acquisition returned status {status}')
+        encoding = response_headers.get('Content-Encoding', 'identity').casefold()
+        if encoding not in {'identity', 'gzip'}:
+            raise AssetCacheError('Unsupported HTTP content encoding')
+        encoded = _BoundedReader(
+            response,
+            maximum_encoded_bytes,
+            expected_length=_content_length(response_headers),
+        )
+        decoded = (
+            gzip.GzipFile(fileobj=cast(BinaryIO, encoded))
+            if encoding == 'gzip'
+            else encoded
+        )
+        freshness = response_freshness(
+            response_headers,
+            request_headers,
+            request_time,
+            response_time,
+            response_time,
+        )
+        if not freshness.storable or '*' in freshness.vary:
+            contents = _read_transient(decoded, maximum_decoded_bytes, expected)
+            with BytesIO(contents) as file:
+                yield file
+            return
+        entry = store.import_stream(
+            decoded,
+            maximum_bytes=maximum_decoded_bytes,
+            source_key=source_key,
+            category=AssetCategory.acquired,
+            source_kind=SourceKind.download,
+            media_kind=media_kind,
+            expected=expected,
+        )
+    with store.open_entry(entry.id) as file:
+        yield file
+
+
+@contextmanager
+def _open_response(
+    url: str,
+    allow_url: Callable[[str], bool],
+    request_headers: dict[str, str],
+    timeout: float,
+) -> Iterator[tuple[BinaryIO, int, Message, datetime, datetime]]:
+    _authorize(url, allow_url)
     opener = build_opener(_NoRedirect())
     current = url
     for _ in range(6):
@@ -97,6 +153,16 @@ def open_https_asset(
                 Request(current, headers=request_headers), timeout=timeout
             )
         except HTTPError as error:
+            if error.code == 304:
+                with error:
+                    yield (
+                        cast(BinaryIO, error),
+                        error.code,
+                        error.headers,
+                        request_time,
+                        datetime.now(UTC),
+                    )
+                return
             try:
                 if error.code not in {301, 302, 303, 307, 308}:
                     raise AssetCacheError(
@@ -126,44 +192,14 @@ def open_https_asset(
             raise AssetCacheError(
                 f'HTTPS acquisition failed: {type(error).__name__}'
             ) from error
-        response_time = datetime.now(UTC)
         with response:
-            if response.status != 200:
-                raise AssetCacheError(
-                    f'HTTPS acquisition returned status {response.status}'
-                )
-            encoding = response.headers.get('Content-Encoding', 'identity').casefold()
-            if encoding not in {'identity', 'gzip'}:
-                raise AssetCacheError('Unsupported HTTP content encoding')
-            encoded = _BoundedReader(response, maximum_encoded_bytes)
-            decoded = (
-                gzip.GzipFile(fileobj=cast(BinaryIO, encoded))
-                if encoding == 'gzip'
-                else encoded
-            )
-            freshness = response_freshness(
+            yield (
+                response,
+                response.status,
                 response.headers,
-                request_headers,
                 request_time,
-                response_time,
-                response_time,
+                datetime.now(UTC),
             )
-            if not freshness.storable or '*' in freshness.vary:
-                contents = _read_transient(decoded, maximum_decoded_bytes, expected)
-                with BytesIO(contents) as file:
-                    yield file
-                return
-            entry = store.import_stream(
-                decoded,
-                maximum_bytes=maximum_decoded_bytes,
-                source_key=source_key,
-                category=AssetCategory.acquired,
-                source_kind=SourceKind.download,
-                media_kind=media_kind,
-                expected=expected,
-            )
-        with store.open_entry(entry.id) as file:
-            yield file
         return
     raise AssetCacheError('HTTPS acquisition exceeded five redirects')
 
@@ -204,6 +240,15 @@ def _read_transient(
     return bytes(contents)
 
 
+def _content_length(headers: Message) -> int | None:
+    value = headers.get('Content-Length')
+    if value is None or headers.get('Transfer-Encoding') is not None:
+        return None
+    if len(value) > 20 or not value.isascii() or not value.isdecimal():
+        raise AssetCacheError('Invalid HTTP Content-Length')
+    return int(value)
+
+
 class _NoRedirect(HTTPRedirectHandler):
     def redirect_request(
         self,
@@ -218,9 +263,16 @@ class _NoRedirect(HTTPRedirectHandler):
 
 
 class _BoundedReader:
-    def __init__(self, stream: BinaryIO, maximum_bytes: int) -> None:
+    def __init__(
+        self,
+        stream: BinaryIO,
+        maximum_bytes: int,
+        *,
+        expected_length: int | None = None,
+    ) -> None:
         self.stream = stream
         self.maximum_bytes = maximum_bytes
+        self.expected_length = expected_length
         self.length = 0
 
     def read(self, size: int = -1) -> bytes:
@@ -231,4 +283,10 @@ class _BoundedReader:
             raise AssetCacheError(
                 f'Encoded HTTP body exceeds maximum_encoded_bytes={self.maximum_bytes}'
             )
+        if (
+            not block
+            and self.expected_length is not None
+            and self.length != self.expected_length
+        ):
+            raise AssetCacheError('Incomplete HTTP body differs from Content-Length')
         return block
