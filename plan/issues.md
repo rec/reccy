@@ -10,25 +10,9 @@ native verification.
 - **Public API naming and result semantics (27).** Service `install/start/stop`
    return `StatusResult.installed` without proving the daemon is running;
    `status()` performs that observation. `ProtocolClient.shutdown()` requests
-   peer shutdown whereas `close()` disconnects locally, and `Jsonl` is a delta
-   codec rather than JSONL framing. Renaming can wait because consumers need
-   coordinated changes; backward compatibility is not required.
-
-## Verification requiring another platform
-
-- **Native Windows verification (31).** Named-pipe access controls,
-  oversize-frame error delivery, and scheduled-task behavior need native
-  Windows coverage. The simulated pipe and mocked manager tests in this macOS
-  checkout cannot establish those platform behaviors.
-
-## Optional structural follow-ups
-
-- **Structure and test maintenance (29, 30, 32).** `assets.py`, `ipc.py`, and
-  `controller.py` remain large; `errors.py` and `services/spec.py` are small;
-  some service fixtures and atomic-write tests overlap in shape but exercise
-  distinct behavior. No standalone refactor is warranted by size alone. Split,
-  inline, or consolidate only when a related change benefits from it. The
-  executable `services/runner.py` should remain separate.
+   peer shutdown whereas `close()` disconnects locally. Renaming can wait
+   because consumers need coordinated changes; backward compatibility is not
+   required.
 
 ## RPC work and shutdown policy, deferred to the end
 
