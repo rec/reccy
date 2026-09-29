@@ -310,6 +310,32 @@ def test_protocol_listener_replies_to_supported_hello() -> None:
     listener.read()
 
     assert connection.sent == ['{"type":"hello","role":"daemon","version":1}\n']
+    assert connection.closed
+
+
+def test_protocol_listener_closes_malformed_transport() -> None:
+    class MalformedConnection(FakeConnection):
+        def read_lines(self, *, max_bytes: int | None = None) -> typing.Iterator[str]:
+            assert max_bytes == ipc.MAX_IPC_MESSAGE_BYTES
+            raise UnicodeDecodeError('utf-8', b'\xff', 0, 1, 'invalid byte')
+            yield ''
+
+    errors: list[str] = []
+    connection = MalformedConnection()
+    listener = ipc.ProtocolListener(
+        connection,
+        parse=parse_message,
+        version=1,
+        peer_role='GUI',
+        local_role='daemon',
+        on_message=lambda listener, message: None,
+        on_validation_error=errors.append,
+    )
+
+    listener.read()
+
+    assert connection.closed
+    assert len(errors) == 1
 
 
 def test_protocol_listener_requires_hello() -> None:

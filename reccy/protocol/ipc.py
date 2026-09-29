@@ -15,6 +15,7 @@ PIPE_CONNECT_TIMEOUT = 0.2
 SOCKET_TIMEOUT = 0.2
 WRITE_TIMEOUT = 0.2
 HANDSHAKE_TIMEOUT = 1.0
+MAX_IPC_MESSAGE_BYTES = 1_048_576
 CONNECTING_PIPES: set[str] = set()
 CONNECTING_PIPES_LOCK = threading.Lock()
 
@@ -114,26 +115,35 @@ class ProtocolListener:
         self.conn.close()
 
     def read(self) -> None:
-        for line in self.conn.read_lines():
-            try:
-                message = self.parse(line)
-            except ValidationError as e:
-                self.logger.warning('Ignoring malformed IPC message')
-                if self.on_validation_error is not None:
-                    self.on_validation_error(str(e))
-                continue
-            if isinstance(message, Hello):
-                if not self.receive_hello(message):
+        try:
+            for line in self.conn.read_lines(max_bytes=MAX_IPC_MESSAGE_BYTES):
+                try:
+                    message = self.parse(line)
+                except ValidationError as e:
+                    self.logger.warning('Ignoring malformed IPC message')
+                    if self.on_validation_error is not None:
+                        self.on_validation_error(str(e))
+                    continue
+                if isinstance(message, Hello):
+                    if not self.receive_hello(message):
+                        return
+                    continue
+                if not self.handshake_complete:
+                    self.reject(
+                        f'{self.peer_role} hello required before other messages'
+                    )
                     return
-                continue
-            if not self.handshake_complete:
-                self.reject(f'{self.peer_role} hello required before other messages')
-                return
-            if isinstance(message, Shutdown):
-                if self.request_shutdown:
-                    self.request_shutdown()
-                continue
-            self.on_message(self, message)
+                if isinstance(message, Shutdown):
+                    if self.request_shutdown:
+                        self.request_shutdown()
+                    continue
+                self.on_message(self, message)
+        except (UnicodeError, ValueError) as error:
+            self.logger.warning('Closing malformed IPC connection: %s', error)
+            if self.on_validation_error is not None:
+                self.on_validation_error(str(error))
+        finally:
+            self.close()
 
     def receive_hello(self, message: Hello) -> bool:
         if message.version != self.version:
