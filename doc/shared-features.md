@@ -111,6 +111,10 @@ with a duration: either condition retains the entry. Equal creation times are
 ordered by entry ID. A newest rule cannot combine with `retain="forever"`,
 which would make its ranking ineffective. `explain_retention()` reports each
 matching newest rule's rank, including entries outside the retained count.
+Download-only rules may use `retain="while_fresh"`. The store reads the scoped
+current-URL response metadata and retains an entry for ordinary collection
+only while that response is fresh. Pressure collection may evict it, and a
+missing or stale response record grants no retention.
 `explain_retention()` reports applicable rules and roots, `plan_collection()` is
 read-only, and `collect()` rechecks roots under the store-wide metadata claim
 before deleting manifests and then unreachable objects. Rules may select an

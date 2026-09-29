@@ -14,8 +14,6 @@ from math import isfinite
 from pathlib import Path
 from typing import BinaryIO, cast
 
-from pydantic import BaseModel, Field
-
 from .assets import (
     AssetCacheError,
     AssetCategory,
@@ -29,16 +27,7 @@ from .assets import (
 from .claims import ResourceClaim
 from .files import atomic_output
 from .http_assets import _authorize, _BoundedReader, _content_length, _open_response
-from .http_freshness import _normalize_headers, response_freshness
-
-
-class HTTPRecord(BaseModel, frozen=True):
-    """Private metadata for one full-request cache variant."""
-
-    entry_id: str = Field(pattern=r'^[0-9a-f]{32}$')
-    headers: dict[str, str]
-    request_time: datetime
-    response_time: datetime
+from .http_freshness import HTTPRecord, _normalize_headers, response_freshness
 
 
 @contextmanager
