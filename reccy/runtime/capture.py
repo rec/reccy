@@ -188,8 +188,8 @@ class CaptureStore:
 
     def set_reference(self, name: str, capture_id: str) -> None:
         self._validate_name(name)
-        self.capture(capture_id)
-        with ResourceClaim(self._metadata_lock()):
+        with ResourceClaim(self._metadata_lock(), timeout=5):
+            self.capture(capture_id)
             self._write_model(
                 self.root / 'state' / 'capture-references' / f'{name}.json',
                 CaptureReference(capture_id=capture_id),
@@ -205,15 +205,16 @@ class CaptureStore:
 
     def remove_reference(self, name: str) -> None:
         self._validate_name(name)
-        with ResourceClaim(self._metadata_lock()):
+        with ResourceClaim(self._metadata_lock(), timeout=5):
             (self.root / 'state' / 'capture-references' / f'{name}.json').unlink(
                 missing_ok=True
             )
 
     def pin_reference(self, name: str) -> str:
-        capture = self.referenced(name)
+        self._validate_name(name)
         pin_id = uuid4().hex
-        with ResourceClaim(self._metadata_lock()):
+        with ResourceClaim(self._metadata_lock(), timeout=5):
+            capture = self.referenced(name)
             self._write_new_model(
                 self.root / 'state' / 'capture-pins' / f'{pin_id}.json',
                 CapturePin(capture_id=capture.id),
@@ -229,12 +230,12 @@ class CaptureStore:
 
     def _publish(self, manifest: CaptureManifest) -> None:
         self._prepare_directories()
-        with ResourceClaim(self._metadata_lock()):
+        with ResourceClaim(self._metadata_lock(), timeout=5):
             self._write_new_model(self._capture_path(manifest.id), manifest)
 
     def _record_recovery(self, recovery: CaptureRecovery) -> None:
         self._prepare_directories()
-        with ResourceClaim(self._metadata_lock()):
+        with ResourceClaim(self._metadata_lock(), timeout=5):
             self._write_model(self._recovery_path(recovery.id), recovery)
 
     def _prepare_directories(self) -> None:

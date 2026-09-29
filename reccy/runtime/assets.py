@@ -287,7 +287,7 @@ class AssetStore:
         )
         self._prepare_directories()
         with self._stage(contents) as staged:
-            with ResourceClaim(self._metadata_lock()):
+            with ResourceClaim(self._metadata_lock(), timeout=5):
                 object_path = self.object_path(identity)
                 object_path.parent.mkdir(parents=True, exist_ok=True)
                 if object_path.exists():
@@ -321,19 +321,19 @@ class AssetStore:
     @contextmanager
     def open_entry(self, entry_id: str) -> Iterator[BinaryIO]:
         """Open verified bytes while a durable lease prevents their collection."""
-        entry = self.entry(entry_id)
-        self.verify_object(entry.object)
         lease_id = uuid4().hex
         lease_path = self.root / 'state' / 'leases' / f'{lease_id}.json'
-        with ResourceClaim(self._metadata_lock()):
+        with ResourceClaim(self._metadata_lock(), timeout=5):
+            entry = self.entry(entry_id)
             self._write_new_model(lease_path, AssetLease(entry_id=entry.id))
         consumed = False
         try:
+            self.verify_object(entry.object)
             with self.object_path(entry.object).open('rb') as file:
                 yield file
             consumed = True
         finally:
-            with ResourceClaim(self._metadata_lock()):
+            with ResourceClaim(self._metadata_lock(), timeout=5):
                 lease_path.unlink(missing_ok=True)
                 if consumed:
                     self._write_model(
@@ -344,8 +344,8 @@ class AssetStore:
     def set_reference(self, name: str, entry_id: str) -> None:
         """Create or atomically move a named root to an existing entry."""
         self._validate_name(name)
-        self.entry(entry_id)
-        with ResourceClaim(self._metadata_lock()):
+        with ResourceClaim(self._metadata_lock(), timeout=5):
+            self.entry(entry_id)
             self._write_model(
                 self.root / 'state' / 'references' / f'{name}.json',
                 AssetReference(entry_id=entry_id),
@@ -354,16 +354,16 @@ class AssetStore:
     def remove_reference(self, name: str) -> None:
         """Remove one named root without collecting the entry immediately."""
         self._validate_name(name)
-        with ResourceClaim(self._metadata_lock()):
+        with ResourceClaim(self._metadata_lock(), timeout=5):
             (self.root / 'state' / 'references' / f'{name}.json').unlink(
                 missing_ok=True
             )
 
     def add_pin(self, entry_id: str, *, expires_at: datetime | None = None) -> str:
         """Add an immutable pin and return its opaque ID."""
-        self.entry(entry_id)
         pin_id = uuid4().hex
-        with ResourceClaim(self._metadata_lock()):
+        with ResourceClaim(self._metadata_lock(), timeout=5):
+            self.entry(entry_id)
             self._write_new_model(
                 self.root / 'state' / 'pins' / f'{pin_id}.json',
                 AssetPin(entry_id=entry_id, expires_at=expires_at),
@@ -374,7 +374,7 @@ class AssetStore:
         """Remove one pin without collecting its entry immediately."""
         if not re.fullmatch(r'[0-9a-f]{32}', pin_id):
             raise ValueError('pin_id must be an opaque asset ID')
-        with ResourceClaim(self._metadata_lock()):
+        with ResourceClaim(self._metadata_lock(), timeout=5):
             (self.root / 'state' / 'pins' / f'{pin_id}.json').unlink(missing_ok=True)
 
     def explain_retention(
@@ -386,8 +386,8 @@ class AssetStore:
     ) -> RetentionDecision:
         """Explain roots and additive retention at one immutable time snapshot."""
         current = self._utc_now(now)
-        entry = self.entry(entry_id)
-        with ResourceClaim(self._metadata_lock()):
+        with ResourceClaim(self._metadata_lock(), timeout=5):
+            entry = self.entry(entry_id)
             roots = self._root_entry_ids(current)
             access = self._access_time(entry.id)
         return self._retention_decision(entry, rules, current, roots, access)
@@ -403,14 +403,18 @@ class AssetStore:
         current = self._utc_now(now)
         self._validate_rule_names(rules)
         candidates: list[RetentionDecision] = []
-        for entry_path in (self.root / 'entries').glob('*.json'):
-            decision = self.explain_retention(entry_path.stem, rules, now=current)
-            if (
-                decision.eligible_for_pressure_collection
-                if pressure
-                else decision.eligible_for_ordinary_collection
-            ):
-                candidates.append(decision)
+        with ResourceClaim(self._metadata_lock(), timeout=5):
+            roots = self._root_entry_ids(current)
+            for entry in self._entries():
+                decision = self._retention_decision(
+                    entry, rules, current, roots, self._access_time(entry.id)
+                )
+                if (
+                    decision.eligible_for_pressure_collection
+                    if pressure
+                    else decision.eligible_for_ordinary_collection
+                ):
+                    candidates.append(decision)
         return candidates
 
     def collect(
@@ -424,16 +428,21 @@ class AssetStore:
         current = self._utc_now(now)
         planned = self.plan_collection(rules, pressure=pressure, now=current)
         deleted: list[str] = []
-        with ResourceClaim(self._metadata_lock()):
+        with ResourceClaim(self._metadata_lock(), timeout=5):
+            roots = self._root_entry_ids(current)
+            entries = {e.id: e for e in self._entries()}
+            object_counts: dict[tuple[str, int], int] = {}
+            for entry in entries.values():
+                key = (entry.object.sha256, entry.object.length)
+                object_counts[key] = object_counts.get(key, 0) + 1
             for decision in planned:
-                if not self._entry_path(decision.entry_id).exists():
+                if (entry := entries.get(decision.entry_id)) is None:
                     continue
-                entry = self.entry(decision.entry_id)
                 renewed = self._retention_decision(
                     entry,
                     rules,
                     current,
-                    self._root_entry_ids(current),
+                    roots,
                     self._access_time(entry.id),
                 )
                 eligible = (
@@ -444,9 +453,9 @@ class AssetStore:
                 if not eligible:
                     continue
                 self._entry_path(entry.id).unlink()
-                if not any(
-                    candidate.object == entry.object for candidate in self._entries()
-                ):
+                key = (entry.object.sha256, entry.object.length)
+                object_counts[key] -= 1
+                if object_counts[key] == 0:
                     self.object_path(entry.object).unlink(missing_ok=True)
                 deleted.append(entry.id)
         return deleted
@@ -467,15 +476,17 @@ class AssetStore:
 
     @contextmanager
     def _stage(self, contents: bytes) -> Iterator[Path]:
-        with NamedTemporaryFile(dir=self.root / 'staging', delete=False) as file:
-            staged = Path(file.name)
-            file.write(contents)
-            file.flush()
-            os.fsync(file.fileno())
+        staged: Path | None = None
         try:
+            with NamedTemporaryFile(dir=self.root / 'staging', delete=False) as file:
+                staged = Path(file.name)
+                file.write(contents)
+                file.flush()
+                os.fsync(file.fileno())
             yield staged
         finally:
-            staged.unlink(missing_ok=True)
+            if staged is not None:
+                staged.unlink(missing_ok=True)
 
     def _metadata_lock(self) -> Path:
         return self.root / 'state' / 'metadata.lock'

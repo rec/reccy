@@ -159,13 +159,18 @@ with ResourceClaim(lock_path):
     save_settings()
 ```
 
-Construction does not acquire. `acquire()` is nonblocking and returns the claim;
+Construction does not acquire. By default, `acquire()` is nonblocking and returns the claim;
 `release()` is idempotent. Entering a context acquires and exiting releases, even
 after an exception. Acquiring the same held object again raises RuntimeError.
 Contention raises ResourceClaimConflict; file-open permission and other I/O errors
 propagate separately. Parent directories are created; new lock files use mode
 0600, subject to platform permissions. Existing contents are neither interpreted
 nor changed, so there are no invalid/stale PID records to recover.
+
+The default timeout is zero. `ResourceClaim(path, timeout=seconds)` waits up to a
+finite, nonnegative number of seconds for normal contention, then raises
+`ResourceClaimConflict`. Asset and capture metadata operations use a five-second
+timeout; ordinary instance claims remain nonblocking unless callers opt in.
 
 POSIX uses flock; Windows locks byte zero with msvcrt's nonblocking lock. Closing
 the descriptor releases it; process exit also releases it. Keep the object alive

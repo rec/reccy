@@ -71,6 +71,46 @@ def test_open_entry_leases_verified_bytes_and_releases_lease(tmp_path: Path) -> 
     assert list((tmp_path / 'cache' / 'state' / 'leases').iterdir()) == []
 
 
+def test_open_entry_creates_lease_before_verifying(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = assets.AssetStore(tmp_path / 'cache')
+    entry = store.import_bytes(
+        b'bytes',
+        source_key='v1:source',
+        category=assets.AssetCategory.acquired,
+        source_kind=assets.SourceKind.local_file,
+    )
+    verify = store.verify_object
+
+    def verify_with_collection(identity: assets.ObjectIdentity) -> None:
+        assert store.collect([]) == []
+        verify(identity)
+
+    monkeypatch.setattr(store, 'verify_object', verify_with_collection)
+    with store.open_entry(entry.id) as file:
+        assert file.read() == b'bytes'
+
+
+def test_failed_staging_sync_removes_temporary_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = assets.AssetStore(tmp_path / 'cache')
+
+    def fail_sync(descriptor: int) -> None:
+        raise OSError('disk unavailable')
+
+    monkeypatch.setattr(assets.os, 'fsync', fail_sync)
+    with pytest.raises(OSError, match='disk unavailable'):
+        store.import_bytes(
+            b'bytes',
+            source_key='v1:source',
+            category=assets.AssetCategory.acquired,
+            source_kind=assets.SourceKind.local_file,
+        )
+    assert list((store.root / 'staging').iterdir()) == []
+
+
 def test_references_move_and_pins_are_immutable_roots(tmp_path: Path) -> None:
     store = assets.AssetStore(tmp_path / 'cache')
     first = store.import_bytes(
