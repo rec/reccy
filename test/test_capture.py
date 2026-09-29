@@ -173,6 +173,35 @@ def test_failed_drain_keeps_fragments_retryable(
             assert file.read() == expected
 
 
+def test_failed_pin_write_keeps_capture_fragment_retryable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = capture_store(tmp_path)
+    session = store.start(capture_spec())
+    session.queue_fragment(b'abcd', frame_count=4)
+    write_new = store.assets._write_new_model
+    failed = False
+
+    def fail_pin_once(path: Path, value: object) -> None:
+        nonlocal failed
+        if path.parent.name == 'pins' and not failed:
+            failed = True
+            raise OSError('pin write failed')
+        write_new(path, value)
+
+    monkeypatch.setattr(store.assets, '_write_new_model', fail_pin_once)
+    with pytest.raises(OSError, match='pin write failed'):
+        session.drain()
+    assert list((store.root / 'entries').glob('*.json')) == []
+
+    manifest = session.finish(capture.CaptureTermination.bound)
+    fragment = manifest.fragments[0]
+    assert fragment.pin_id == fragment.entry_id
+    assert store.assets.collect([], pressure=True) == []
+    with store.assets.open_entry(fragment.entry_id) as file:
+        assert file.read() == b'abcd'
+
+
 def test_concurrent_finalization_publishes_once(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

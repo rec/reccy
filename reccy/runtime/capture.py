@@ -395,12 +395,12 @@ class CaptureSession:
                     category=AssetCategory.acquired,
                     source_kind=self.spec.source_kind,
                     media_kind=self.spec.media_kind,
+                    pin=True,
                 )
-                pin_id = self.store.assets.add_pin(entry.id)
                 self._fragments.append(
                     CaptureFragment(
                         entry_id=entry.id,
-                        pin_id=pin_id,
+                        pin_id=entry.id,
                         object=entry.object,
                         native_start=item.native_start,
                         frame_count=item.frame_count,

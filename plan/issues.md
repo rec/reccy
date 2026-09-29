@@ -65,10 +65,6 @@ Platform-specific behavior still needs native verification.
 
 ## Engineering and verification still open
 
-- **Capture pin failure (1).** A failed import/drain preserves queued bytes for
-  retry, but `import_bytes()` can succeed before `add_pin()` fails. That entry
-  remains unrooted and retry may create a second entry. Make import-and-pin
-  atomic or retain the imported entry through a retry; test pin-write failure.
 - **Malformed IPC and Windows pipe behavior (12, 15).** Generic listeners now
   bound message size, close on malformed bytes, and close on EOF. A stalled
   generic-listener handshake still has no deadline. Oversize Windows pipe
@@ -81,10 +77,9 @@ Platform-specific behavior still needs native verification.
   and endpoints against the controller. The module name is caller-supplied and
   may still be invalid; validate it at the public boundary or explicitly
   document caller ownership.
-- **Remaining test gaps (31).** Add crash-restart and pin-write-failure cases,
-  persistent blocked-handler shutdown cases, and native Windows pipe and
-  scheduled-task coverage. Existing tests cannot establish native Windows
-  behavior from this macOS checkout.
+- **Remaining test gaps (31).** Add persistent blocked-handler shutdown cases
+  and native Windows pipe and scheduled-task coverage. Existing tests cannot
+  establish native Windows behavior from this macOS checkout.
 - **Structure and test maintenance (29, 30, 32).** `assets.py`, `ipc.py`, and
   `controller.py` remain large; `errors.py` and `services/spec.py` are small;
   some service fixtures and atomic-write tests overlap. Split, inline, or

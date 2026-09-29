@@ -267,8 +267,9 @@ class AssetStore:
         media_kind: MediaKind = MediaKind.other,
         expected: ObjectIdentity | None = None,
         tags: list[str] | None = None,
+        pin: bool = False,
     ) -> AssetEntry:
-        """Store verified bytes and publish a new immutable entry manifest."""
+        """Store verified bytes, optionally pinning before publishing the entry."""
         identity = ObjectIdentity(
             sha256=hashlib.sha256(contents).hexdigest(), length=len(contents)
         )
@@ -294,6 +295,11 @@ class AssetStore:
                     self.verify_object(identity)
                 else:
                     staged.replace(object_path)
+                if pin:
+                    self._write_new_model(
+                        self.root / 'state' / 'pins' / f'{entry.id}.json',
+                        AssetPin(entry_id=entry.id),
+                    )
                 self._write_new_model(self._entry_path(entry.id), entry)
         return entry
 
