@@ -16,6 +16,7 @@ from typing import BinaryIO, cast
 
 from .assets import (
     AssetCacheError,
+    AssetCacheMiss,
     AssetCategory,
     AssetCorruptionError,
     AssetStore,
@@ -27,7 +28,12 @@ from .assets import (
 from .claims import ResourceClaim
 from .files import atomic_output
 from .http_assets import _authorize, _BoundedReader, _content_length, _open_response
-from .http_freshness import HTTPRecord, _normalize_headers, response_freshness
+from .http_freshness import (
+    HTTPRecord,
+    _directives,
+    _normalize_headers,
+    response_freshness,
+)
 
 
 @contextmanager
@@ -79,6 +85,9 @@ def open_current_https_asset(
         fingerprint_key=fingerprint_key,
     )
     record_path = store.root / 'state' / 'http' / f'{source_key[3:]}.json'
+    only_if_cached = 'only-if-cached' in _directives(
+        _normalize_headers(request_headers).get('cache-control', '')
+    )
     claim = store.root / 'state' / 'http-claims' / f'{source_key[3:]}.lock'
     with ExitStack() as stack:
         with ResourceClaim(claim, timeout=6 * timeout + 5):
@@ -93,6 +102,7 @@ def open_current_https_asset(
                 maximum_decoded_bytes,
                 timeout,
                 media_kind,
+                only_if_cached,
             )
             if isinstance(result, bytes):
                 file = stack.enter_context(BytesIO(result))
@@ -112,6 +122,7 @@ def _resolve_current(
     maximum_decoded_bytes: int,
     timeout: float,
     media_kind: MediaKind,
+    only_if_cached: bool,
 ) -> tuple[ObjectIdentity, str | bytes]:
     record = _read_record(record_path)
     now = datetime.now(UTC)
@@ -130,6 +141,8 @@ def _resolve_current(
             return store.entry(record.entry_id).object, record.entry_id
     else:
         record = None
+    if only_if_cached:
+        raise AssetCacheMiss('No fresh cached response for this HTTPS request')
 
     for _ in range(2):
         outgoing = request_headers.copy()
