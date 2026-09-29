@@ -89,6 +89,10 @@ verified in bounded memory for the current use and are not persisted. HTTP
 freshness, conditional validation, and mutable current-URL imports remain
 separate future work; this adapter never treats a changed URL body as a score
 update.
+`reccy.runtime.http_freshness.response_freshness()` calculates explicit
+private-cache lifetime and corrected age from response and request headers.
+It grants no heuristic or stale reuse. Persisted response metadata and
+conditional current-URL acquisition are not yet connected to it.
 
 `RetentionRule` and `RetentionMatch` provide pure, additive rule evaluation for
 finite entries. A rule either `protect`s an entry from every collection mode or
