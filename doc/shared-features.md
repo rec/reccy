@@ -71,6 +71,13 @@ raises `AssetCacheMiss`; an existing but corrupt object raises
 `AssetCorruptionError`. Content identity is not authorization, so hosts must
 check request authority before this lookup.
 
+`git_assets.import_local_git_file()` reads a full-commit, path-selected regular
+blob from a host-approved local Git repository into the bounded store. It does
+not check out files or run filters, hooks, or lazy remote fetches. Symlinks,
+submodules, and unresolved Git LFS pointers are rejected. The returned Git blob
+ID is transport evidence and remains distinct from the entry's file SHA-256.
+Remote fetching and transport-cache limits remain host work.
+
 `RetentionRule` and `RetentionMatch` provide pure, additive rule evaluation for
 finite entries. A rule either `protect`s an entry from every collection mode or
 `retain`s it until its deadline, which pressure collection may override.

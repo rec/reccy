@@ -19,7 +19,7 @@ from enum import auto
 from math import isfinite
 from pathlib import Path, PureWindowsPath
 from tempfile import NamedTemporaryFile
-from typing import BinaryIO
+from typing import BinaryIO, Protocol
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -369,7 +369,7 @@ class AssetStore:
 
     def import_stream(
         self,
-        source: BinaryIO,
+        source: _ByteReader,
         *,
         maximum_bytes: int,
         source_key: str,
@@ -665,7 +665,7 @@ class AssetStore:
 
     @contextmanager
     def _stage_stream(
-        self, source: BinaryIO, maximum_bytes: int
+        self, source: _ByteReader, maximum_bytes: int
     ) -> Iterator[tuple[Path, ObjectIdentity]]:
         staged: Path | None = None
         try:
@@ -879,3 +879,7 @@ def _verify_file(file: BinaryIO, identity: ObjectIdentity) -> None:
         length += len(block)
     if digest.hexdigest() != identity.sha256 or length != identity.length:
         raise AssetCorruptionError(f'Corrupt asset object {identity.sha256}')
+
+
+class _ByteReader(Protocol):
+    def read(self, size: int = -1, /) -> bytes: ...
