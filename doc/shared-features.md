@@ -51,6 +51,19 @@ The host resolves credentials and the scope independently; a matching key does
 not authorize access to another scope. Stored source keys must be `v1:` followed
 by a lowercase SHA-256 digest; raw source descriptions are rejected.
 
+`import_stream()` reads a finite source in chunks into staging, with a required
+maximum byte count. An oversized body, interrupted read, or wrong expected
+identity never publishes an entry. `import_file()` uses that path to copy a
+relative file beneath a host-supplied package or volume root into an independent
+snapshot. It rejects traversal, symlinks, and nonregular files. The host still
+maps volume IDs to approved roots and authorizes access before calling it.
+
+For a source the host trusts to remain immutable throughout use,
+`open_verified_file(root, path, expected, trusted_immutable=True)` verifies and
+returns the same open file handle without caching a copy. A mutable source must
+use `import_file()` instead. Reccy cannot make in-place changes by another
+process impossible after a direct read is verified.
+
 `RetentionRule` and `RetentionMatch` provide pure, additive rule evaluation for
 finite entries. A rule either `protect`s an entry from every collection mode or
 `retain`s it until its deadline, which pressure collection may override.

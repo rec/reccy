@@ -1,4 +1,6 @@
+import hashlib
 from datetime import UTC, datetime, timedelta
+from io import BytesIO
 from pathlib import Path
 from typing import BinaryIO
 
@@ -152,6 +154,115 @@ def test_store_rejects_wrong_expected_identity(tmp_path: Path) -> None:
         )
 
 
+def test_stream_admission_verifies_bounded_complete_bytes(tmp_path: Path) -> None:
+    store = assets.AssetStore(tmp_path / 'cache', credential_scope='public')
+    contents = b'chunk' * 20000
+    expected = assets.ObjectIdentity(
+        sha256=hashlib.sha256(contents).hexdigest(), length=len(contents)
+    )
+    entry = store.import_stream(
+        BytesIO(contents),
+        maximum_bytes=len(contents),
+        source_key=_source_key('large file'),
+        category=assets.AssetCategory.acquired,
+        source_kind=assets.SourceKind.local_file,
+        expected=expected,
+    )
+    assert entry.object == expected
+    with store.open_entry(entry.id) as file:
+        assert file.read() == contents
+
+
+def test_stream_admission_cleans_up_oversize_and_interrupted_reads(
+    tmp_path: Path,
+) -> None:
+    store = assets.AssetStore(tmp_path / 'cache', credential_scope='public')
+    fields = {
+        'source_key': _source_key('interrupted file'),
+        'category': assets.AssetCategory.acquired,
+        'source_kind': assets.SourceKind.local_file,
+    }
+    with pytest.raises(assets.AssetCacheError, match='maximum_bytes'):
+        store.import_stream(BytesIO(b'oversize'), maximum_bytes=4, **fields)
+
+    class Interrupted(BytesIO):
+        def read(self, size: int = -1) -> bytes:
+            if self.tell() > 0:
+                raise OSError('source disappeared')
+            return super().read(1)
+
+    with pytest.raises(OSError, match='source disappeared'):
+        store.import_stream(Interrupted(b'bytes'), maximum_bytes=5, **fields)
+    assert list((store.root / 'staging').iterdir()) == []
+    assert list((store.root / 'entries').iterdir()) == []
+
+
+@pytest.mark.parametrize(
+    'source_kind', [assets.SourceKind.local_file, assets.SourceKind.volume_file]
+)
+def test_file_snapshot_survives_source_changes(
+    tmp_path: Path, source_kind: assets.SourceKind
+) -> None:
+    root = tmp_path / 'source'
+    (root / 'audio').mkdir(parents=True)
+    path = root / 'audio' / 'take.bin'
+    path.write_bytes(b'original')
+    expected = assets.ObjectIdentity(
+        sha256=hashlib.sha256(b'original').hexdigest(), length=8
+    )
+    store = assets.AssetStore(tmp_path / 'cache', credential_scope='public')
+    entry = store.import_file(
+        root,
+        'audio/take.bin',
+        maximum_bytes=8,
+        source_key=_source_key('local take'),
+        source_kind=source_kind,
+        expected=expected,
+    )
+    path.write_bytes(b'changed!')
+    with store.open_entry(entry.id) as file:
+        assert file.read() == b'original'
+
+
+def test_direct_file_read_requires_immutable_host_policy(tmp_path: Path) -> None:
+    root = tmp_path / 'source'
+    root.mkdir()
+    (root / 'take.bin').write_bytes(b'original')
+    expected = assets.ObjectIdentity(
+        sha256=hashlib.sha256(b'original').hexdigest(), length=8
+    )
+    with pytest.raises(ValueError, match='trusted immutable'):
+        with assets.open_verified_file(
+            root, 'take.bin', expected, trusted_immutable=False
+        ):
+            pass
+    with assets.open_verified_file(
+        root, 'take.bin', expected, trusted_immutable=True
+    ) as file:
+        assert file.read() == b'original'
+
+
+def test_file_resolution_rejects_traversal_and_symlinks(tmp_path: Path) -> None:
+    root = tmp_path / 'source'
+    root.mkdir()
+    (root / 'take.bin').write_bytes(b'original')
+    (root / 'linked.bin').symlink_to('take.bin')
+    expected = assets.ObjectIdentity(
+        sha256=hashlib.sha256(b'original').hexdigest(), length=8
+    )
+    store = assets.AssetStore(tmp_path / 'cache', credential_scope='public')
+    for path in ('../take.bin', '/take.bin', 'linked.bin'):
+        with pytest.raises((ValueError, assets.AssetCacheError)):
+            store.import_file(
+                root,
+                path,
+                maximum_bytes=8,
+                source_key=_source_key(path),
+                source_kind=assets.SourceKind.local_file,
+                expected=expected,
+            )
+
+
 def test_open_entry_leases_verified_bytes_and_releases_lease(tmp_path: Path) -> None:
     store = assets.AssetStore(tmp_path / 'cache', credential_scope='public')
     entry = store.import_bytes(
@@ -176,7 +287,7 @@ def test_open_entry_keeps_verified_handle_and_lease_when_path_changes(
         category=assets.AssetCategory.acquired,
         source_kind=assets.SourceKind.local_file,
     )
-    verify = store._verify_file
+    verify = assets._verify_file
 
     def verify_with_replacement(
         file: BinaryIO, identity: assets.ObjectIdentity
@@ -187,7 +298,7 @@ def test_open_entry_keeps_verified_handle_and_lease_when_path_changes(
         replacement.write_bytes(b'other')
         replacement.replace(store.object_path(identity))
 
-    monkeypatch.setattr(store, '_verify_file', verify_with_replacement)
+    monkeypatch.setattr(assets, '_verify_file', verify_with_replacement)
     with store.open_entry(entry.id) as file:
         assert file.read() == b'bytes'
 

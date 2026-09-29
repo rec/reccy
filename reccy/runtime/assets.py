@@ -11,12 +11,13 @@ import hmac
 import json
 import os
 import re
+import stat
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from enum import auto
 from math import isfinite
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from tempfile import NamedTemporaryFile
 from typing import BinaryIO
 from uuid import uuid4
@@ -113,6 +114,23 @@ def source_fingerprint(
         allow_nan=False,
     ).encode('utf-8')
     return f'v1:{hashlib.sha256(encoded).hexdigest()}'
+
+
+@contextmanager
+def open_verified_file(
+    root: Path,
+    relative_path: str,
+    expected: ObjectIdentity,
+    *,
+    trusted_immutable: bool,
+) -> Iterator[BinaryIO]:
+    """Read a trusted immutable file in place through its verified handle."""
+    if not trusted_immutable:
+        raise ValueError('direct reads require a trusted immutable source')
+    with _open_file_beneath(root, relative_path) as file:
+        _verify_file(file, expected)
+        file.seek(0)
+        yield file
 
 
 class AssetEntry(BaseModel, frozen=True):
@@ -342,20 +360,73 @@ class AssetStore:
         )
         self._prepare_directories()
         with self._stage(contents) as staged:
-            with ResourceClaim(self._metadata_lock(), timeout=5):
-                object_path = self.object_path(identity)
-                object_path.parent.mkdir(parents=True, exist_ok=True)
-                if object_path.exists():
-                    self.verify_object(identity)
-                else:
-                    staged.replace(object_path)
-                if pin:
-                    self._write_new_model(
-                        self.root / 'state' / 'pins' / f'{entry.id}.json',
-                        AssetPin(entry_id=entry.id),
-                    )
-                self._write_new_model(self._entry_path(entry.id), entry)
+            self._publish(staged, entry, pin=pin)
         return entry
+
+    def import_stream(
+        self,
+        source: BinaryIO,
+        *,
+        maximum_bytes: int,
+        source_key: str,
+        category: AssetCategory,
+        source_kind: SourceKind,
+        media_kind: MediaKind = MediaKind.other,
+        expected: ObjectIdentity | None = None,
+        tags: list[str] | None = None,
+        pin: bool = False,
+    ) -> AssetEntry:
+        """Stage and verify a finite source without keeping its body in memory."""
+        if type(maximum_bytes) is not int or maximum_bytes <= 0:
+            raise ValueError('maximum_bytes must be a positive integer')
+        self._prepare_directories()
+        with self._stage_stream(source, maximum_bytes) as (staged, identity):
+            if expected is not None and identity != expected:
+                raise AssetIdentityMismatch(
+                    f'Expected {expected.sha256}/{expected.length}, got '
+                    f'{identity.sha256}/{identity.length}'
+                )
+            entry = AssetEntry(
+                object=identity,
+                source_key=source_key,
+                category=category,
+                source_kind=source_kind,
+                media_kind=media_kind,
+                tags=[] if tags is None else tags,
+            )
+            self._publish(staged, entry, pin=pin)
+        return entry
+
+    def import_file(
+        self,
+        root: Path,
+        relative_path: str,
+        *,
+        maximum_bytes: int,
+        source_key: str,
+        source_kind: SourceKind,
+        expected: ObjectIdentity,
+        media_kind: MediaKind = MediaKind.other,
+        pin: bool = False,
+    ) -> AssetEntry:
+        """Copy a confined file into a verified immutable cache snapshot."""
+        if source_kind not in {SourceKind.local_file, SourceKind.volume_file}:
+            raise ValueError('import_file requires a local or volume source')
+        if type(maximum_bytes) is not int or maximum_bytes <= 0:
+            raise ValueError('maximum_bytes must be a positive integer')
+        if expected.length > maximum_bytes:
+            raise AssetCacheError(f'Asset exceeds maximum_bytes={maximum_bytes}')
+        with _open_file_beneath(root, relative_path) as file:
+            return self.import_stream(
+                file,
+                maximum_bytes=maximum_bytes,
+                source_key=source_key,
+                category=AssetCategory.acquired,
+                source_kind=source_kind,
+                media_kind=media_kind,
+                expected=expected,
+                pin=pin,
+            )
 
     def entry(self, entry_id: str) -> AssetEntry:
         """Read an immutable entry manifest without treating it as consumption."""
@@ -366,7 +437,7 @@ class AssetStore:
         path = self.object_path(identity)
         try:
             with path.open('rb') as file:
-                self._verify_file(file, identity)
+                _verify_file(file, identity)
         except FileNotFoundError as error:
             raise AssetCorruptionError(
                 f'Missing asset object {identity.sha256}'
@@ -389,7 +460,7 @@ class AssetStore:
                     f'Missing asset object {entry.object.sha256}'
                 ) from error
             with file:
-                self._verify_file(file, entry.object)
+                _verify_file(file, entry.object)
                 file.seek(0)
                 yield file
             consumed = True
@@ -524,15 +595,6 @@ class AssetStore:
     def object_path(self, identity: ObjectIdentity) -> Path:
         return self.root / 'objects' / 'sha256' / identity.sha256[:2] / identity.sha256
 
-    def _verify_file(self, file: BinaryIO, identity: ObjectIdentity) -> None:
-        digest = hashlib.sha256()
-        length = 0
-        while block := file.read(65536):
-            digest.update(block)
-            length += len(block)
-        if digest.hexdigest() != identity.sha256 or length != identity.length:
-            raise AssetCorruptionError(f'Corrupt asset object {identity.sha256}')
-
     def _prepare_directories(self) -> None:
         for path in (
             self.root / 'staging',
@@ -544,6 +606,21 @@ class AssetStore:
         ):
             path.mkdir(parents=True, exist_ok=True)
 
+    def _publish(self, staged: Path, entry: AssetEntry, *, pin: bool) -> None:
+        with ResourceClaim(self._metadata_lock(), timeout=5):
+            object_path = self.object_path(entry.object)
+            object_path.parent.mkdir(parents=True, exist_ok=True)
+            if object_path.exists():
+                self.verify_object(entry.object)
+            else:
+                staged.replace(object_path)
+            if pin:
+                self._write_new_model(
+                    self.root / 'state' / 'pins' / f'{entry.id}.json',
+                    AssetPin(entry_id=entry.id),
+                )
+            self._write_new_model(self._entry_path(entry.id), entry)
+
     @contextmanager
     def _stage(self, contents: bytes) -> Iterator[Path]:
         staged: Path | None = None
@@ -554,6 +631,31 @@ class AssetStore:
                 file.flush()
                 os.fsync(file.fileno())
             yield staged
+        finally:
+            if staged is not None:
+                staged.unlink(missing_ok=True)
+
+    @contextmanager
+    def _stage_stream(
+        self, source: BinaryIO, maximum_bytes: int
+    ) -> Iterator[tuple[Path, ObjectIdentity]]:
+        staged: Path | None = None
+        try:
+            digest = hashlib.sha256()
+            length = 0
+            with NamedTemporaryFile(dir=self.root / 'staging', delete=False) as file:
+                staged = Path(file.name)
+                while block := source.read(min(65536, maximum_bytes - length + 1)):
+                    length += len(block)
+                    if length > maximum_bytes:
+                        raise AssetCacheError(
+                            f'Asset exceeds maximum_bytes={maximum_bytes}'
+                        )
+                    digest.update(block)
+                    file.write(block)
+                file.flush()
+                os.fsync(file.fileno())
+            yield staged, ObjectIdentity(sha256=digest.hexdigest(), length=length)
         finally:
             if staged is not None:
                 staged.unlink(missing_ok=True)
@@ -698,3 +800,54 @@ def _validate_fingerprint_json(value: object) -> None:
             pending.extend((child, depth + 1) for child in item.values())
             continue
         raise ValueError('source request must contain only JSON values')
+
+
+def _open_file_beneath(root: Path, relative_path: str) -> BinaryIO:
+    parts = relative_path.split('/')
+    if (
+        not relative_path
+        or relative_path.startswith('/')
+        or '\\' in relative_path
+        or PureWindowsPath(relative_path).drive
+        or any(part in {'', '.', '..'} for part in parts)
+    ):
+        raise ValueError('asset path must stay beneath its declared root')
+    directory_fds: list[int] = []
+    file_fd: int | None = None
+    try:
+        directory_fds.append(os.open(root, os.O_RDONLY | os.O_DIRECTORY))
+        for part in parts[:-1]:
+            directory_fds.append(
+                os.open(
+                    part,
+                    os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                    dir_fd=directory_fds[-1],
+                )
+            )
+        file_fd = os.open(
+            parts[-1], os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory_fds[-1]
+        )
+        if not stat.S_ISREG(os.fstat(file_fd).st_mode):
+            raise AssetCacheError(f'Asset is not a regular file: {relative_path}')
+        file = os.fdopen(file_fd, 'rb')
+        file_fd = None
+        return file
+    except OSError as error:
+        raise AssetCacheError(
+            f'Cannot open asset beneath its root: {relative_path}: {error.strerror}'
+        ) from error
+    finally:
+        if file_fd is not None:
+            os.close(file_fd)
+        for descriptor in reversed(directory_fds):
+            os.close(descriptor)
+
+
+def _verify_file(file: BinaryIO, identity: ObjectIdentity) -> None:
+    digest = hashlib.sha256()
+    length = 0
+    while block := file.read(65536):
+        digest.update(block)
+        length += len(block)
+    if digest.hexdigest() != identity.sha256 or length != identity.length:
+        raise AssetCorruptionError(f'Corrupt asset object {identity.sha256}')
