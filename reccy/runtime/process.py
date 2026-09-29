@@ -75,7 +75,7 @@ def capture_stderr(
 
 
 def run_silent(
-    command: Sequence[str], *, text: bool = False
+    command: Sequence[str], *, text: bool = False, timeout: float | None = None
 ) -> subprocess.CompletedProcess[object]:
     try:
         return subprocess.run(
@@ -83,6 +83,7 @@ def run_silent(
             check=True,
             text=text,
             capture_output=True,
+            timeout=timeout,
         )
     except subprocess.CalledProcessError as error:
         report_failed_command(command, error.stdout, error.stderr)
@@ -97,7 +98,7 @@ def terminate(process: subprocess.Popen[bytes], *, timeout: float = 5) -> None:
         process.wait(timeout=timeout)
     except subprocess.TimeoutExpired:
         process.kill()
-        process.wait()
+        process.wait(timeout=timeout)
 
 
 def report_failed_process(

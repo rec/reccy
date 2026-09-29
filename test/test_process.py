@@ -89,6 +89,34 @@ def test_managed_process_kills_after_termination_timeout() -> None:
     assert managed.process is None
 
 
+def test_terminate_bounds_wait_after_kill() -> None:
+    class StuckProcess(FakeProcess):
+        def __init__(self) -> None:
+            super().__init__()
+            self.timeouts: list[float | None] = []
+
+        def wait(self, timeout: float | None = None) -> int:
+            self.timeouts.append(timeout)
+            raise subprocess.TimeoutExpired('command', timeout)
+
+    fake = StuckProcess()
+    with pytest.raises(subprocess.TimeoutExpired):
+        process.terminate(fake, timeout=0.1)
+    assert fake.terminated
+    assert fake.killed
+    assert fake.timeouts == [0.1, 0.1]
+
+
+def test_run_silent_passes_caller_deadline(monkeypatch: pytest.MonkeyPatch) -> None:
+    def run(*args: object, **kwargs: object) -> object:
+        assert kwargs['timeout'] == 0.1
+        raise subprocess.TimeoutExpired('command', 0.1)
+
+    monkeypatch.setattr(process.subprocess, 'run', run)
+    with pytest.raises(subprocess.TimeoutExpired):
+        process.run_silent(['command'], timeout=0.1)
+
+
 def test_run_silent_reports_command_output(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
