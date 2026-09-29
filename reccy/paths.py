@@ -12,7 +12,19 @@ URL_PATH_REPLACEMENTS = str.maketrans(' #%[]^`{}', '-' * len(' #%[]^`{}'))
 
 
 def legal_filename(value: str) -> str:
-    return value.translate(FILENAME_REPLACEMENTS)
+    value = ''.join(
+        '-' if ord(c) < 32 or ord(c) == 127 else c
+        for c in value.translate(FILENAME_REPLACEMENTS)
+    )
+    if not value:
+        return '-'
+    if re.fullmatch(
+        r'(CON|PRN|AUX|NUL|COM[1-9¹²³]|LPT[1-9¹²³])',
+        value.split('.')[0].rstrip(' '),
+        re.I,
+    ):
+        return '-' + value
+    return value
 
 
 def legal_path(path: Path) -> Path:

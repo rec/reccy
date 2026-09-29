@@ -13,6 +13,13 @@ def test_legal_filename_replaces_problematic_characters() -> None:
     assert legal_filename('.,;= ') == '.,;= '
 
 
+def test_legal_filename_avoids_windows_reserved_names_and_controls() -> None:
+    assert legal_filename('CON.txt') == '-CON.txt'
+    assert legal_filename('lpt9') == '-lpt9'
+    assert legal_filename('a\x00b') == 'a-b'
+    assert legal_filename('') == '-'
+
+
 def test_legal_path_replaces_each_filename_segment() -> None:
     assert legal_path(Path('/tmp/device:name/track?')) == Path(
         '/tmp/device-name/track-'
