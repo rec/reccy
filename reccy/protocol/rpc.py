@@ -73,12 +73,16 @@ class Client:
                 except ValidationError:
                     return TypeAdapter(str | dict[str, object]).validate_json(line)
                 raise ConnectionError(error.message)
+            if expired.is_set():
+                raise TimeoutError(f'RPC request timed out after {self.timeout}s')
             raise ConnectionError('RPC server closed the connection')
-        except OSError:
+        except (OSError, ValidationError, ValueError) as error:
             if expired.is_set():
                 raise TimeoutError(
                     f'RPC request timed out after {self.timeout}s'
                 ) from None
+            if isinstance(error, (ValidationError, ValueError)):
+                raise ConnectionError('Invalid RPC response') from error
             raise
         finally:
             timer.cancel()
@@ -195,12 +199,12 @@ class EventClient:
                 reason = EventCloseReason.callback_error
                 self.on_event(message)
                 reason = EventCloseReason.peer_eof
-        except (OSError, ValidationError) as error:
+        except (OSError, ValidationError, UnicodeError) as error:
             if reason == EventCloseReason.callback_error:
                 raise
             reason = (
                 EventCloseReason.protocol_error
-                if isinstance(error, ValidationError)
+                if isinstance(error, (ValidationError, UnicodeError))
                 else EventCloseReason.transport_error
             )
             LOGGER.error('RPC event stream failed: %s', error)
@@ -224,13 +228,16 @@ class Server:
         self.event_connections: list[ipc.Connection] = []
         self.connections: list[ipc.Connection] = []
         self.lock = threading.Lock()
+        self.publish_lock = threading.Lock()
         self.request_slots = threading.BoundedSemaphore(MAX_CONCURRENT_REQUESTS)
         self.event_slots = threading.BoundedSemaphore(MAX_EVENT_CONNECTIONS)
         self.running = False
+        self._started_once = False
 
     def start(self) -> None:
-        if self.running:
-            raise RuntimeError('RPC server is already running')
+        if self._started_once:
+            raise RuntimeError('RPC server instances cannot be restarted')
+        self._started_once = True
         started = False
         try:
             self.control_backend.start()
@@ -259,11 +266,12 @@ class Server:
 
     def publish(self, name: str, **data: object) -> None:
         message = ipc.message_json(Event(name=name, data=data))
-        with self.lock:
-            connections = list(self.event_connections)
-        for connection in connections:
-            if not connection.write(message):
-                self._close_connection(connection)
+        with self.publish_lock:
+            with self.lock:
+                connections = list(self.event_connections)
+            for connection in connections:
+                if not connection.write(message):
+                    self._close_connection(connection)
 
     def _accept_control(self) -> None:
         while self.running:

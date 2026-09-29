@@ -30,6 +30,20 @@ def test_failed_server_start_releases_control_listener() -> None:
         assert events.read_text() == 'not a socket'
 
 
+def test_closed_server_cannot_restart() -> None:
+    with TemporaryDirectory(dir='/tmp') as directory:
+        server = rpc.Server(
+            Path(directory) / 'control.sock',
+            Path(directory) / 'events.sock',
+            lambda request: 'ok',
+            role='test',
+        )
+        server.start()
+        server.close()
+        with pytest.raises(RuntimeError, match='cannot be restarted'):
+            server.start()
+
+
 @pytest.mark.parametrize('event_endpoint', [False, True])
 def test_server_close_disconnects_clients_waiting_after_hello(
     event_endpoint: bool,

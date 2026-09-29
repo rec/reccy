@@ -73,6 +73,22 @@ def test_event_reader_closes_after_malformed_event(
     assert client.terminal_reason == rpc.EventCloseReason.protocol_error
 
 
+def test_event_reader_classifies_invalid_utf8_as_protocol_error(
+    connected_peer: socket.socket,
+) -> None:
+    connected_peer.sendall(b'{"type":"hello","role":"test","version":1}\n\xff\n')
+    client = rpc.EventClient(Path('/unused.sock'), lambda event: None)
+    client.start()
+    assert client.wait_closed(1)
+    assert client.terminal_reason == rpc.EventCloseReason.protocol_error
+
+
+def test_rpc_call_reports_malformed_response(connected_peer: socket.socket) -> None:
+    connected_peer.sendall(b'{"type":"hello","role":"test","version":1}\n[]\n')
+    with pytest.raises(ConnectionError, match='Invalid RPC response'):
+        rpc.Client(Path('/unused.sock')).call('status')
+
+
 @pytest.mark.parametrize('error_type', [RuntimeError, OSError])
 def test_event_reader_closes_after_callback_failure(
     connected_peer: socket.socket,
