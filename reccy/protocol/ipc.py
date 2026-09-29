@@ -1,6 +1,5 @@
 import json
 import logging
-import pickle
 import queue
 import socket
 import stat
@@ -358,13 +357,19 @@ class WindowsPipeConnection:
         while True:
             try:
                 frame = self.conn.recv_bytes(maxlength=max_bytes)
-            except (EOFError, OSError):
+            except EOFError:
                 return
-            yield str(pickle.loads(frame))
+            except OSError as error:
+                if max_bytes is not None:
+                    raise ValueError('RPC request exceeds the size limit') from error
+                return
+            yield frame.decode('utf-8')
 
     def write(self, message: str) -> bool:
         return _write_with_timeout(
-            lambda: self.conn.send(message), self.close, self.write_lock
+            lambda: self.conn.send_bytes(message.encode('utf-8')),
+            self.close,
+            self.write_lock,
         )
 
     def close(self) -> None:
@@ -396,20 +401,37 @@ def connect_windows_pipe(endpoint: str) -> connection.Connection:
         CONNECTING_PIPES.add(endpoint)
 
     results: queue.Queue[connection.Connection | OSError | ValueError] = queue.Queue()
+    abandoned = False
+    result_lock = threading.Lock()
 
     def connect() -> None:
+        nonlocal abandoned
         try:
             result = connection.Client(endpoint, family='AF_PIPE')
         except (OSError, ValueError) as error:
             result = error
         with CONNECTING_PIPES_LOCK:
             CONNECTING_PIPES.discard(endpoint)
-        results.put(result)
+        with result_lock:
+            if abandoned:
+                if isinstance(result, connection.Connection):
+                    result.close()
+            else:
+                results.put(result)
 
     threading.Thread(target=connect, daemon=True).start()
     try:
         result = results.get(timeout=PIPE_CONNECT_TIMEOUT)
     except queue.Empty:
+        with result_lock:
+            abandoned = True
+            try:
+                late_result = results.get_nowait()
+            except queue.Empty:
+                pass
+            else:
+                if isinstance(late_result, connection.Connection):
+                    late_result.close()
         raise TimeoutError(f'Timed out connecting to {endpoint}') from None
     if isinstance(result, OSError | ValueError):
         raise result

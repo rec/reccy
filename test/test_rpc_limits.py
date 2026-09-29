@@ -87,7 +87,7 @@ def test_rpc_accepts_filesystem_endpoint_loaded_from_metadata(
 def test_pipe_reader_accepts_existing_serialized_messages_with_a_limit() -> None:
     receiver, sender = ipc.connection.Pipe()
     with receiver, sender:
-        sender.send('hello\n')
+        sender.send_bytes(b'hello\n')
         lines = ipc.WindowsPipeConnection(receiver).read_lines(max_bytes=128)
         assert next(lines) == 'hello\n'
 
@@ -95,5 +95,14 @@ def test_pipe_reader_accepts_existing_serialized_messages_with_a_limit() -> None
 def test_pipe_reader_rejects_oversized_serialized_frames() -> None:
     receiver, sender = ipc.connection.Pipe()
     with receiver, sender:
-        sender.send('x' * 129)
-        assert list(ipc.WindowsPipeConnection(receiver).read_lines(max_bytes=128)) == []
+        sender.send_bytes(b'x' * 129)
+        with pytest.raises(ValueError, match='size limit'):
+            list(ipc.WindowsPipeConnection(receiver).read_lines(max_bytes=128))
+
+
+def test_pipe_reader_rejects_non_utf8_frames() -> None:
+    receiver, sender = ipc.connection.Pipe()
+    with receiver, sender:
+        sender.send_bytes(b'\xff')
+        with pytest.raises(UnicodeDecodeError):
+            next(ipc.WindowsPipeConnection(receiver).read_lines())

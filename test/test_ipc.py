@@ -236,7 +236,7 @@ def test_windows_pipe_client_uses_named_pipe_family(
     connection.write('hello\n')
 
     assert calls == [(WINDOWS_PIPE, 'AF_PIPE')]
-    assert pipe.sent == ['hello\n']
+    assert pipe.sent == [b'hello\n']
 
 
 def test_windows_pipe_client_times_out(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -256,6 +256,32 @@ def test_windows_pipe_client_times_out(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(TimeoutError, match='Timed out connecting'):
         ipc.WindowsPipeConnection.connect(WINDOWS_PIPE)
     assert calls == 1
+
+
+def test_late_windows_pipe_connection_is_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connected = threading.Event()
+    release = threading.Event()
+    receiver, sender = ipc.connection.Pipe()
+
+    def connect(endpoint: str, family: str) -> ipc.connection.Connection:
+        connected.set()
+        assert release.wait(1)
+        return receiver
+
+    monkeypatch.setattr(ipc, 'PIPE_CONNECT_TIMEOUT', 0.01)
+    monkeypatch.setattr(ipc.connection, 'Client', connect)
+    try:
+        with pytest.raises(TimeoutError, match='Timed out connecting'):
+            ipc.connect_windows_pipe(WINDOWS_PIPE + '-late')
+        assert connected.is_set()
+        release.set()
+        assert _eventually(lambda: receiver.closed)
+    finally:
+        release.set()
+        receiver.close()
+        sender.close()
 
 
 def test_rpc_client_times_out_when_server_does_not_reply(
@@ -569,7 +595,7 @@ class FakeListener:
 class FakePipe:
     def __init__(self, received: list[str] | None = None) -> None:
         self.received = received or []
-        self.sent: list[str] = []
+        self.sent: list[bytes] = []
         self.closed = False
 
     def recv(self) -> str:
@@ -577,7 +603,7 @@ class FakePipe:
             raise EOFError
         return self.received.pop(0)
 
-    def send(self, message: str) -> None:
+    def send_bytes(self, message: bytes) -> None:
         self.sent.append(message)
 
     def close(self) -> None:
