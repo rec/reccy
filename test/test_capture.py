@@ -96,6 +96,20 @@ def test_abort_and_explicit_salvage_have_distinct_results(tmp_path: Path) -> Non
     assert store.capture(salvaged.id) == manifest
 
 
+def test_aborted_capture_fragments_survive_store_reopen(tmp_path: Path) -> None:
+    root = tmp_path / 'cache'
+    store = capture.CaptureStore(assets.AssetStore(root))
+    session = store.start(capture_spec())
+    session.queue_fragment(b'abcd', frame_count=4)
+    recovery = session.abort('provider failed')
+
+    reopened = capture.CaptureStore(assets.AssetStore(root))
+    assert reopened.assets.collect([], pressure=True) == []
+    assert reopened.recovery(session.id) == recovery
+    with reopened.assets.open_entry(recovery.fragments[0].entry_id) as file:
+        assert file.read() == b'abcd'
+
+
 def test_reference_movement_does_not_retarget_an_existing_pin(tmp_path: Path) -> None:
     store = capture_store(tmp_path)
     first_session = store.start(capture_spec())

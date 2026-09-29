@@ -63,14 +63,6 @@ Platform-specific behavior still needs native verification.
    for clarity? Backward compatibility is not required, but consumers would
    need coordinated updates.
 
-## Agreed policy, still requiring later work
-
-- **Retain crash artifacts (4, 19).** Abandoned leases, fragment pins, and
-  orphan objects can grow storage. Per the current decision, retain all crash
-  artifacts; a future crash analyzer will define safe garbage collection.
-  Collection no longer rescans all metadata for each candidate, but a crash
-  between deleting an entry manifest and its object can still leave an orphan.
-
 ## Engineering and verification still open
 
 - **Capture pin failure (1).** A failed import/drain preserves queued bytes for

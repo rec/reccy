@@ -92,6 +92,41 @@ def test_open_entry_creates_lease_before_verifying(
         assert file.read() == b'bytes'
 
 
+def test_abandoned_lease_remains_a_root_after_store_reopens(tmp_path: Path) -> None:
+    root = tmp_path / 'cache'
+    store = assets.AssetStore(root)
+    entry = store.import_bytes(
+        b'crash artifact',
+        source_key='v1:source',
+        category=assets.AssetCategory.acquired,
+        source_kind=assets.SourceKind.local_file,
+    )
+    (root / 'state' / 'leases' / 'abandoned.json').write_text(
+        assets.AssetLease(entry_id=entry.id).model_dump_json()
+    )
+
+    reopened = assets.AssetStore(root)
+    assert reopened.collect([], pressure=True) == []
+    assert reopened.entry(entry.id) == entry
+    assert reopened.object_path(entry.object).read_bytes() == b'crash artifact'
+
+
+def test_collection_does_not_sweep_orphaned_crash_bytes(tmp_path: Path) -> None:
+    root = tmp_path / 'cache'
+    store = assets.AssetStore(root)
+    entry = store.import_bytes(
+        b'crash artifact',
+        source_key='v1:source',
+        category=assets.AssetCategory.acquired,
+        source_kind=assets.SourceKind.local_file,
+    )
+    store._entry_path(entry.id).unlink()
+
+    reopened = assets.AssetStore(root)
+    assert reopened.collect([], pressure=True) == []
+    assert reopened.object_path(entry.object).read_bytes() == b'crash artifact'
+
+
 def test_failed_staging_sync_removes_temporary_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

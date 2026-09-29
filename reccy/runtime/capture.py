@@ -166,7 +166,10 @@ class CapturePin(BaseModel, frozen=True):
 
 
 class CaptureStore:
-    """Capture manifests and versions sharing an ``AssetStore`` root."""
+    """Capture manifests and versions sharing an ``AssetStore`` root.
+
+    Fragment pins persist through aborted captures and process restarts.
+    """
 
     def __init__(self, assets: AssetStore) -> None:
         self.assets = assets

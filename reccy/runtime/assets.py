@@ -424,7 +424,7 @@ class AssetStore:
         pressure: bool = False,
         now: datetime | None = None,
     ) -> list[str]:
-        """Delete eligible manifests and then their newly unreachable objects."""
+        """Delete eligible entries, retaining orphan objects for crash analysis."""
         current = self._utc_now(now)
         planned = self.plan_collection(rules, pressure=pressure, now=current)
         deleted: list[str] = []
