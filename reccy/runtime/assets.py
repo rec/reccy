@@ -327,6 +327,19 @@ class AssetAccess(BaseModel, frozen=True):
         return value
 
 
+class RecoveryKind(StrEnum):
+    staging = auto()
+    orphan_object = auto()
+
+
+class RecoveryItem(BaseModel, frozen=True):
+    """Unreferenced store bytes requiring operator review before reclamation."""
+
+    kind: RecoveryKind
+    path: str
+    byte_length: int = Field(ge=0)
+
+
 class AssetStore:
     """A cooperating-process store of verified finite bytes and entry manifests.
 
@@ -597,6 +610,38 @@ class AssetStore:
 
     def object_path(self, identity: ObjectIdentity) -> Path:
         return self.root / 'objects' / 'sha256' / identity.sha256[:2] / identity.sha256
+
+    def inspect_recovery(self) -> list[RecoveryItem]:
+        """Report staged and orphan bytes without deleting possibly live work.
+
+        A staging file can belong to an active writer; this report cannot
+        classify it as abandoned until writer ownership is recorded.
+        """
+        with ResourceClaim(self._metadata_lock(), timeout=5):
+            referenced = {self.object_path(e.object) for e in self._entries()}
+            staging = self.root / 'staging'
+            objects = self.root / 'objects' / 'sha256'
+            found: list[RecoveryItem] = []
+            for kind, paths in (
+                (RecoveryKind.staging, staging.glob('*')),
+                (RecoveryKind.orphan_object, objects.glob('*/*')),
+            ):
+                for path in paths:
+                    if kind is RecoveryKind.orphan_object and path in referenced:
+                        continue
+                    try:
+                        info = path.stat(follow_symlinks=False)
+                    except FileNotFoundError:
+                        continue
+                    if stat.S_ISREG(info.st_mode):
+                        found.append(
+                            RecoveryItem(
+                                kind=kind,
+                                path=str(path.relative_to(self.root)),
+                                byte_length=info.st_size,
+                            )
+                        )
+            return sorted(found, key=lambda item: item.path)
 
     @contextmanager
     def _open_selected(

@@ -534,3 +534,35 @@ def test_newest_retention_combines_with_duration_and_global_ranking(
     later = second.created_at + timedelta(days=2)
     older = min((first, second), key=lambda e: (e.created_at, e.id))
     assert [d.entry_id for d in store.plan_collection([rule], now=later)] == [older.id]
+
+
+def test_recovery_inspection_reports_unreferenced_bytes_without_deleting_them(
+    tmp_path: Path,
+) -> None:
+    store = assets.AssetStore(tmp_path / 'cache', credential_scope='public')
+    entry = store.import_bytes(
+        b'referenced',
+        source_key=_source_key('one'),
+        category=assets.AssetCategory.acquired,
+        source_kind=assets.SourceKind.local_file,
+    )
+    staging = store.root / 'staging' / 'interrupted'
+    staging.write_bytes(b'partial')
+    orphan = store.root / 'objects' / 'sha256' / 'ab' / ('ab' * 32)
+    orphan.parent.mkdir(parents=True)
+    orphan.write_bytes(b'orphan')
+    assert store.inspect_recovery() == [
+        assets.RecoveryItem(
+            kind=assets.RecoveryKind.orphan_object,
+            path=str(orphan.relative_to(store.root)),
+            byte_length=6,
+        ),
+        assets.RecoveryItem(
+            kind=assets.RecoveryKind.staging,
+            path=str(staging.relative_to(store.root)),
+            byte_length=7,
+        ),
+    ]
+    assert store.object_path(entry.object).read_bytes() == b'referenced'
+    assert orphan.read_bytes() == b'orphan'
+    assert staging.read_bytes() == b'partial'
