@@ -136,6 +136,13 @@ identity even after collection. Regeneration with different bytes invalidates
 the mapping and reports `AssetValueConflict`; a later call cannot silently
 replace it. The host must construct the key from all effective inputs, versions,
 and output settings, and encode the provider's result to bytes.
+An optional `AssetCapacity` bounds distinct stored-object bytes, total staging
+bytes, and the minimum free-space margin for admissions. Imports using a
+capacity serialize across cooperating processes and check staging growth before
+each write; an exceeded limit or `ENOSPC` raises `AssetInsufficientSpace`.
+Every process sharing a scope must use the same capacity. Automatic pressure
+collection, Git transport quotas, and capture-recovery reservations remain
+separate work.
 
 ## Bounded asset capture
 

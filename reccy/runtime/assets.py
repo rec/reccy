@@ -6,6 +6,7 @@ and real-time capture stay with their host-specific adapters.
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import hmac
 import json
@@ -14,7 +15,7 @@ import re
 import shutil
 import stat
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from datetime import UTC, datetime, timedelta
 from enum import auto
 from math import isfinite
@@ -44,6 +45,10 @@ class AssetIdentityMismatch(AssetCacheError):
 
 class AssetCacheMiss(AssetCacheError):
     """No retained entry in this credential scope has the requested bytes."""
+
+
+class AssetInsufficientSpace(AssetCacheError):
+    """An admission would exceed a configured storage or free-space budget."""
 
 
 class AssetCategory(StrEnum):
@@ -329,6 +334,14 @@ class AssetAccess(BaseModel, frozen=True):
         return value
 
 
+class AssetCapacity(BaseModel, frozen=True):
+    """Installation-specific byte budgets for one credential scope."""
+
+    maximum_object_bytes: int = Field(gt=0)
+    maximum_staging_bytes: int = Field(gt=0)
+    minimum_free_space: int = Field(ge=0)
+
+
 class RecoveryKind(StrEnum):
     staging = auto()
     capture_recovery = auto()
@@ -352,7 +365,13 @@ class AssetStore:
     use this class so publication and retention-root updates share the claim.
     """
 
-    def __init__(self, root: Path, *, credential_scope: str) -> None:
+    def __init__(
+        self,
+        root: Path,
+        *,
+        credential_scope: str,
+        capacity: AssetCapacity | None = None,
+    ) -> None:
         if not credential_scope:
             raise ValueError('credential_scope must be a nonempty host-owned ID')
         self.root = (
@@ -360,6 +379,7 @@ class AssetStore:
             / 'scopes'
             / hashlib.sha256(credential_scope.encode('utf-8')).hexdigest()
         )
+        self.capacity = capacity
 
     def import_bytes(
         self,
@@ -391,8 +411,9 @@ class AssetStore:
             tags=[] if tags is None else tags,
         )
         self._prepare_directories()
-        with self._stage(contents) as staged:
-            self._publish(staged, entry, pin=pin)
+        with self._admission():
+            with self._stage(contents) as staged:
+                self._publish(staged, entry, pin=pin)
         return entry
 
     def import_stream(
@@ -412,21 +433,22 @@ class AssetStore:
         if type(maximum_bytes) is not int or maximum_bytes <= 0:
             raise ValueError('maximum_bytes must be a positive integer')
         self._prepare_directories()
-        with self._stage_stream(source, maximum_bytes) as (staged, identity):
-            if expected is not None and identity != expected:
-                raise AssetIdentityMismatch(
-                    f'Expected {expected.sha256}/{expected.length}, got '
-                    f'{identity.sha256}/{identity.length}'
+        with self._admission():
+            with self._stage_stream(source, maximum_bytes) as (staged, identity):
+                if expected is not None and identity != expected:
+                    raise AssetIdentityMismatch(
+                        f'Expected {expected.sha256}/{expected.length}, got '
+                        f'{identity.sha256}/{identity.length}'
+                    )
+                entry = AssetEntry(
+                    object=identity,
+                    source_key=source_key,
+                    category=category,
+                    source_kind=source_kind,
+                    media_kind=media_kind,
+                    tags=[] if tags is None else tags,
                 )
-            entry = AssetEntry(
-                object=identity,
-                source_key=source_key,
-                category=category,
-                source_kind=source_kind,
-                media_kind=media_kind,
-                tags=[] if tags is None else tags,
-            )
-            self._publish(staged, entry, pin=pin)
+                self._publish(staged, entry, pin=pin)
         return entry
 
     def import_file(
@@ -721,6 +743,17 @@ class AssetStore:
             if object_path.exists():
                 self.verify_object(entry.object)
             else:
+                if self.capacity is not None:
+                    used = sum(
+                        path.stat().st_size
+                        for path in (self.root / 'objects' / 'sha256').glob('*/*')
+                        if path.is_file()
+                    )
+                    if used + entry.object.length > self.capacity.maximum_object_bytes:
+                        raise AssetInsufficientSpace(
+                            f'Object admission needs {entry.object.length} bytes; '
+                            f'{self.capacity.maximum_object_bytes - used} bytes remain'
+                        )
                 staged.replace(object_path)
             if pin:
                 self._write_new_model(
@@ -733,6 +766,9 @@ class AssetStore:
     def _stage(self, contents: bytes) -> Iterator[Path]:
         staged: Path | None = None
         try:
+            self._check_staging_growth(
+                self._staging_bytes(), len(contents), len(contents)
+            )
             with NamedTemporaryFile(dir=self.root / 'staging', delete=False) as file:
                 staged = Path(file.name)
                 file.write(contents)
@@ -751,6 +787,7 @@ class AssetStore:
         try:
             digest = hashlib.sha256()
             length = 0
+            existing = self._staging_bytes()
             with NamedTemporaryFile(dir=self.root / 'staging', delete=False) as file:
                 staged = Path(file.name)
                 while block := source.read(min(65536, maximum_bytes - length + 1)):
@@ -759,6 +796,7 @@ class AssetStore:
                         raise AssetCacheError(
                             f'Asset exceeds maximum_bytes={maximum_bytes}'
                         )
+                    self._check_staging_growth(existing, length, len(block))
                     digest.update(block)
                     file.write(block)
                 file.flush()
@@ -770,6 +808,54 @@ class AssetStore:
 
     def _metadata_lock(self) -> Path:
         return self.root / 'state' / 'metadata.lock'
+
+    def _admission_lock(self) -> Path:
+        return self.root / 'state' / 'admission.lock'
+
+    @contextmanager
+    def _admission(self) -> Iterator[None]:
+        claim = (
+            ResourceClaim(self._admission_lock(), timeout=5)
+            if self.capacity
+            else nullcontext()
+        )
+        try:
+            with claim:
+                yield
+        except OSError as error:
+            if error.errno != errno.ENOSPC:
+                raise
+            raise AssetInsufficientSpace(
+                'Filesystem exhausted during admission'
+            ) from error
+
+    def _staging_bytes(self) -> int:
+        if self.capacity is None:
+            return 0
+        return sum(
+            path.stat().st_size
+            for path in (self.root / 'staging').glob('*')
+            if path.is_file()
+        )
+
+    def _check_staging_growth(
+        self, existing: int, staged_total: int, additional: int
+    ) -> None:
+        if self.capacity is None:
+            return
+        required = existing + staged_total
+        if required > self.capacity.maximum_staging_bytes:
+            raise AssetInsufficientSpace(
+                f'Staging needs {required} bytes; '
+                f'limit is {self.capacity.maximum_staging_bytes}'
+            )
+        free = shutil.disk_usage(self.root).free
+        if free < additional + self.capacity.minimum_free_space:
+            raise AssetInsufficientSpace(
+                f'Admission needs {additional} bytes and '
+                f'{self.capacity.minimum_free_space} bytes free-space margin; '
+                f'{free} bytes free'
+            )
 
     def _entry_path(self, entry_id: str) -> Path:
         if not re.fullmatch(r'[0-9a-f]{32}', entry_id):
