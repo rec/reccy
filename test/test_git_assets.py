@@ -1,4 +1,5 @@
 import hashlib
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -84,6 +85,52 @@ def test_local_git_file_rejects_symlink_and_lfs_pointer(tmp_path: Path) -> None:
                 ),
             )
     assert list((store.root / 'entries').glob('*.json')) == []
+
+
+def test_remote_git_file_fetches_selected_blob_without_checkout(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    _git(repository, 'config', 'uploadpack.allowFilter', 'true')
+    (repository / 'take.bin').write_bytes(b'selected recording')
+    (repository / 'unused.bin').write_bytes(b'unused recording')
+    _git(repository, 'add', 'take.bin', 'unused.bin')
+    _git(repository, 'commit', '-m', 'Add recordings')
+    commit = _git(repository, 'rev-parse', 'HEAD').strip().decode()
+    unused = _git(repository, 'rev-parse', 'HEAD:unused.bin').strip().decode()
+    transport = tmp_path / 'quota-limited-transport'
+    transport.mkdir()
+    _git(transport, 'init', '--bare', '-q')
+    contents = b'selected recording'
+    expected = assets.ObjectIdentity(
+        sha256=hashlib.sha256(contents).hexdigest(), length=len(contents)
+    )
+    store = assets.AssetStore(tmp_path / 'cache', credential_scope='public')
+
+    entry, blob = git_assets.import_remote_git_file(
+        store,
+        repository.as_uri(),
+        transport,
+        commit,
+        'take.bin',
+        expected,
+        maximum_bytes=len(contents),
+        source_key=assets.source_fingerprint(
+            {'commit': commit, 'path': 'take.bin'}, {}, expected, {}
+        ),
+    )
+
+    assert blob == _git(repository, 'rev-parse', 'HEAD:take.bin').strip().decode()
+    assert not (transport / 'take.bin').exists()
+    assert (
+        subprocess.run(
+            ['git', '-C', str(transport), 'cat-file', '-e', unused],
+            capture_output=True,
+            check=False,
+            env={**os.environ, 'GIT_NO_LAZY_FETCH': '1'},
+        ).returncode
+        != 0
+    )
+    with store.open_entry(entry.id) as file:
+        assert file.read() == contents
 
 
 def _repository(tmp_path: Path) -> Path:
