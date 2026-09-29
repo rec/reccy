@@ -41,6 +41,10 @@ class AssetIdentityMismatch(AssetCacheError):
     """Admitted bytes do not match the caller's expected object identity."""
 
 
+class AssetCacheMiss(AssetCacheError):
+    """No retained entry in this credential scope has the requested bytes."""
+
+
 class AssetCategory(StrEnum):
     acquired = auto()
     generated = auto()
@@ -446,32 +450,14 @@ class AssetStore:
     @contextmanager
     def open_entry(self, entry_id: str) -> Iterator[BinaryIO]:
         """Open verified bytes while a durable lease prevents their collection."""
-        lease_id = uuid4().hex
-        lease_path = self.root / 'state' / 'leases' / f'{lease_id}.json'
-        with ResourceClaim(self._metadata_lock(), timeout=5):
-            entry = self.entry(entry_id)
-            self._write_new_model(lease_path, AssetLease(entry_id=entry.id))
-        consumed = False
-        try:
-            try:
-                file = self.object_path(entry.object).open('rb')
-            except FileNotFoundError as error:
-                raise AssetCorruptionError(
-                    f'Missing asset object {entry.object.sha256}'
-                ) from error
-            with file:
-                _verify_file(file, entry.object)
-                file.seek(0)
-                yield file
-            consumed = True
-        finally:
-            with ResourceClaim(self._metadata_lock(), timeout=5):
-                lease_path.unlink(missing_ok=True)
-                if consumed:
-                    self._write_model(
-                        self.root / 'state' / 'access' / f'{entry.id}.json',
-                        AssetAccess(consumed_at=datetime.now(UTC)),
-                    )
+        with self._open_selected(entry_id=entry_id) as file:
+            yield file
+
+    @contextmanager
+    def open_expected(self, expected: ObjectIdentity) -> Iterator[BinaryIO]:
+        """Open retained bytes by identity after the host authorizes the request."""
+        with self._open_selected(expected=expected) as file:
+            yield file
 
     def set_reference(self, name: str, entry_id: str) -> None:
         """Create or atomically move a named root to an existing entry."""
@@ -594,6 +580,48 @@ class AssetStore:
 
     def object_path(self, identity: ObjectIdentity) -> Path:
         return self.root / 'objects' / 'sha256' / identity.sha256[:2] / identity.sha256
+
+    @contextmanager
+    def _open_selected(
+        self,
+        *,
+        entry_id: str | None = None,
+        expected: ObjectIdentity | None = None,
+    ) -> Iterator[BinaryIO]:
+        lease_id = uuid4().hex
+        lease_path = self.root / 'state' / 'leases' / f'{lease_id}.json'
+        with ResourceClaim(self._metadata_lock(), timeout=5):
+            if entry_id is not None:
+                entry = self.entry(entry_id)
+            else:
+                assert expected is not None
+                matches = (e for e in self._entries() if e.object == expected)
+                if (entry := next(matches, None)) is None:
+                    raise AssetCacheMiss(
+                        f'No retained asset object {expected.sha256}/{expected.length}'
+                    )
+            self._write_new_model(lease_path, AssetLease(entry_id=entry.id))
+        consumed = False
+        try:
+            try:
+                file = self.object_path(entry.object).open('rb')
+            except FileNotFoundError as error:
+                raise AssetCorruptionError(
+                    f'Missing asset object {entry.object.sha256}'
+                ) from error
+            with file:
+                _verify_file(file, entry.object)
+                file.seek(0)
+                yield file
+            consumed = True
+        finally:
+            with ResourceClaim(self._metadata_lock(), timeout=5):
+                lease_path.unlink(missing_ok=True)
+                if consumed:
+                    self._write_model(
+                        self.root / 'state' / 'access' / f'{entry.id}.json',
+                        AssetAccess(consumed_at=datetime.now(UTC)),
+                    )
 
     def _prepare_directories(self) -> None:
         for path in (

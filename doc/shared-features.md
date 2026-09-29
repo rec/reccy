@@ -64,6 +64,13 @@ returns the same open file handle without caching a copy. A mutable source must
 use `import_file()` instead. Reccy cannot make in-place changes by another
 process impossible after a direct read is verified.
 
+After the host authorizes an immutable asset request, `open_expected(identity)`
+finds verified retained bytes in that credential scope without contacting the
+original source. It leases the selected entry before reading. A missing entry
+raises `AssetCacheMiss`; an existing but corrupt object raises
+`AssetCorruptionError`. Content identity is not authorization, so hosts must
+check request authority before this lookup.
+
 `RetentionRule` and `RetentionMatch` provide pure, additive rule evaluation for
 finite entries. A rule either `protect`s an entry from every collection mode or
 `retain`s it until its deadline, which pressure collection may override.

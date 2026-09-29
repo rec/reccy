@@ -277,6 +277,29 @@ def test_open_entry_leases_verified_bytes_and_releases_lease(tmp_path: Path) -> 
     assert list((store.root / 'state' / 'leases').iterdir()) == []
 
 
+def test_offline_identity_lookup_is_scoped_and_leased(tmp_path: Path) -> None:
+    root = tmp_path / 'cache'
+    store = assets.AssetStore(root, credential_scope='alice')
+    entry = store.import_bytes(
+        b'offline bytes',
+        source_key=_source_key('old URL'),
+        category=assets.AssetCategory.acquired,
+        source_kind=assets.SourceKind.download,
+    )
+    with store.open_expected(entry.object) as file:
+        assert store.collect([]) == []
+        assert file.read() == b'offline bytes'
+    with pytest.raises(assets.AssetCacheMiss):
+        with assets.AssetStore(root, credential_scope='bob').open_expected(
+            entry.object
+        ):
+            pass
+    assert store.collect([]) == [entry.id]
+    with pytest.raises(assets.AssetCacheMiss):
+        with store.open_expected(entry.object):
+            pass
+
+
 def test_open_entry_keeps_verified_handle_and_lease_when_path_changes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
