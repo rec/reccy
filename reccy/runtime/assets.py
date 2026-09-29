@@ -29,6 +29,7 @@ from strenum import StrEnum
 
 from .claims import ResourceClaim
 from .files import atomic_output
+from .http_freshness import HTTPRecord, response_freshness
 
 
 class AssetCacheError(RuntimeError):
@@ -292,8 +293,18 @@ class RetentionRule(BaseModel, frozen=True):
         if self.protect is None and self.retain is None and self.newest is None:
             raise ValueError('retention rule requires protect, retain, or newest')
         action = self.protect if self.protect is not None else self.retain
-        if isinstance(action, str) and action != 'forever':
-            raise ValueError('retention action must be forever or a duration')
+        if isinstance(action, str) and action not in {'forever', 'while_fresh'}:
+            raise ValueError(
+                'retention action must be forever, while_fresh, or a duration'
+            )
+        if self.protect == 'while_fresh':
+            raise ValueError('while_fresh is a retain action')
+        if self.retain == 'while_fresh' and (
+            self.match is None
+            or self.match.source_kind is None
+            or set(self.match.source_kind) != {SourceKind.download}
+        ):
+            raise ValueError('while_fresh requires a download-only source-kind match')
         if self.newest is not None and self.retain == 'forever':
             raise ValueError('newest cannot be combined with retain=forever')
         return self
@@ -559,7 +570,14 @@ class AssetStore:
             roots = self._root_entry_ids(current)
             access = self._access_time(entry.id)
             newest = self._newest_matches(self._entries(), rules)
-        return self._retention_decision(entry, rules, current, roots, access, newest)
+            fresh = (
+                self._fresh_entry_ids(current)
+                if any(rule.retain == 'while_fresh' for rule in rules)
+                else set()
+            )
+        return self._retention_decision(
+            entry, rules, current, roots, access, newest, fresh
+        )
 
     def plan_collection(
         self,
@@ -576,9 +594,20 @@ class AssetStore:
             roots = self._root_entry_ids(current)
             entries = self._entries()
             newest = self._newest_matches(entries, rules)
+            fresh = (
+                self._fresh_entry_ids(current)
+                if any(rule.retain == 'while_fresh' for rule in rules)
+                else set()
+            )
             for entry in entries:
                 decision = self._retention_decision(
-                    entry, rules, current, roots, self._access_time(entry.id), newest
+                    entry,
+                    rules,
+                    current,
+                    roots,
+                    self._access_time(entry.id),
+                    newest,
+                    fresh,
                 )
                 if (
                     decision.eligible_for_pressure_collection
@@ -603,6 +632,11 @@ class AssetStore:
             roots = self._root_entry_ids(current)
             entries = {e.id: e for e in self._entries()}
             newest = self._newest_matches(list(entries.values()), rules)
+            fresh = (
+                self._fresh_entry_ids(current)
+                if any(rule.retain == 'while_fresh' for rule in rules)
+                else set()
+            )
             object_counts: dict[tuple[str, int], int] = {}
             for entry in entries.values():
                 key = (entry.object.sha256, entry.object.length)
@@ -617,6 +651,7 @@ class AssetStore:
                     roots,
                     self._access_time(entry.id),
                     newest,
+                    fresh,
                 )
                 eligible = (
                     renewed.eligible_for_pressure_collection
@@ -905,6 +940,7 @@ class AssetStore:
         roots: set[str],
         access: datetime | None,
         newest: dict[str, dict[str, int]],
+        fresh: set[str],
     ) -> RetentionDecision:
         matching = [rule for rule in rules if rule.matches(entry)]
         protected = any(
@@ -917,6 +953,7 @@ class AssetStore:
         )
         retained = any(
             rule.retain == 'forever'
+            or (rule.retain == 'while_fresh' and entry.id in fresh)
             or (
                 isinstance(rule.retain, RetentionDuration)
                 and now < self._deadline(rule.retain, entry.created_at, access)
@@ -962,6 +999,32 @@ class AssetStore:
                 )
             }
         return result
+
+    def _fresh_entry_ids(self, now: datetime) -> set[str]:
+        fresh: set[str] = set()
+        for path in (self.root / 'state' / 'http').glob('*.json'):
+            record = self._read_model(path, HTTPRecord)
+            try:
+                entry = self.entry(record.entry_id)
+            except AssetCacheError:
+                continue
+            if entry.source_key != f'v1:{path.stem}':
+                raise AssetCorruptionError(
+                    'HTTP record points to another source request'
+                )
+            try:
+                policy = response_freshness(
+                    record.headers,
+                    {},
+                    record.request_time,
+                    record.response_time,
+                    now,
+                )
+            except ValueError:
+                continue
+            if policy.fresh:
+                fresh.add(record.entry_id)
+        return fresh
 
     def _deadline(
         self,

@@ -1,6 +1,7 @@
 import hashlib
 import json
 from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime, timedelta
 from email.message import Message
 from io import BytesIO
 from pathlib import Path
@@ -263,3 +264,37 @@ def test_http_record_cannot_reuse_another_source_entry(
     with pytest.raises(assets.AssetCorruptionError, match='another source request'):
         with _open(store):
             pass
+
+
+def test_fresh_http_response_retains_entry_until_expiry_or_pressure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    opener = Opener([Response(b'body', {'Cache-Control': 'max-age=3600'})])
+    monkeypatch.setattr(http_assets, 'build_opener', lambda handler: opener)
+    store = assets.AssetStore(tmp_path / 'cache', credential_scope='private')
+    with _open(store):
+        pass
+    entry_id = next((store.root / 'entries').glob('*.json')).stem
+    rule = assets.RetentionRule(
+        name='fresh downloads',
+        match=assets.RetentionMatch(source_kind=[assets.SourceKind.download]),
+        retain='while_fresh',
+    )
+    assert store.explain_retention(entry_id, [rule]).retained
+    assert store.plan_collection([rule]) == []
+    assert [d.entry_id for d in store.plan_collection([rule], pressure=True)] == [
+        entry_id
+    ]
+    later = datetime.now(UTC) + timedelta(hours=2)
+    assert [d.entry_id for d in store.plan_collection([rule], now=later)] == [entry_id]
+
+
+def test_while_fresh_requires_download_only_retention() -> None:
+    with pytest.raises(ValueError, match='download-only'):
+        assets.RetentionRule(name='invalid', all=True, retain='while_fresh')
+    with pytest.raises(ValueError, match='retain action'):
+        assets.RetentionRule(
+            name='invalid',
+            match=assets.RetentionMatch(source_kind=[assets.SourceKind.download]),
+            protect='while_fresh',
+        )

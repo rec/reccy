@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from email.message import Message
 from email.utils import parsedate_to_datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class HTTPFreshness(BaseModel, frozen=True):
@@ -19,6 +19,15 @@ class HTTPFreshness(BaseModel, frozen=True):
     lifetime_seconds: float
     age_seconds: float
     vary: list[str]
+
+
+class HTTPRecord(BaseModel, frozen=True):
+    """Private metadata for one full-request cache variant."""
+
+    entry_id: str = Field(pattern=r'^[0-9a-f]{32}$')
+    headers: dict[str, str]
+    request_time: datetime
+    response_time: datetime
 
 
 def response_freshness(
