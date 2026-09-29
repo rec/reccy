@@ -7,6 +7,41 @@ been reproduced. Severity describes likely impact if the relevant API is used;
 platform-specific findings need native confirmation. References are repository
 relative and line numbers refer to the reviewed revision.
 
+## Remediation status, 2026-09-29
+
+The numbered findings below are the original audit and their line numbers are
+historical. The following summarizes the current code after the subsequent
+fixes, not a claim that every finding is fully closed.
+
+- **Addressed in this checkout:** 2 (capture finalization), 3 (asset metadata
+  race), 5 (unsafe pickle transport), 6 (late pipe handle), 8 (bounded metadata
+  waits), 14 (RPC timeout/error classification), 16-18 (capture accounting,
+  duration, import staging), 28 (porting guide), and 33 (operational CLI errors).
+- **Improved, with residual work:** 1 (drain bytes survive retry, but an import
+  can still precede a failed pin); 9-13 (server is single-use, lifecycle gates
+  requests, event order is serialized, malformed listener input is bounded,
+  and listener EOF closes its connection; blocked handlers, slow subscribers,
+  and thread completion still need ownership policy); 15 (oversize pipe input
+  is diagnosed rather than treated as EOF, but native Windows behavior is
+  unverified); 19 (collection snapshot is no longer repeatedly scanned, but
+  orphan reconciliation is deferred); 21 (manager commands have a deadline,
+  but multi-step installation is not transactional); 23 (codec state no longer
+  aliases mutable records, but distinct keys accumulate for the life of a
+  stream); 24 (kill wait and optional silent-command wait are bounded, but a
+  blocking stderr callback remains caller-owned); 25 (URL delimiters and
+  controls are replaced, but portable Windows filename policy remains open);
+  26 (platform and endpoints are validated, but the service module is supplied
+  by the caller); 31 (new regression cases cover several failure paths, but
+  native Windows and crash-restart tests remain absent).
+- **Deliberately deferred:** 4 and orphan cleanup in 19. Crash artifacts,
+  including abandoned leases and capture pins, are retained until a future
+  crash analyzer defines collection. This is an explicit storage-growth tradeoff.
+- **Still open:** 7 (handler cancellation/deadlines), 20 (capture queue memory
+  budget), 22 (multi-process log rotation), 27 (API naming/result semantics),
+  and structural/test-maintenance observations 29, 30, and 32. These need
+  application policy, an ownership decision, platform validation, or a related
+  change to justify refactoring.
+
 ## High priority: data loss, unbounded work, and trust boundaries
 
 1. **A failed capture drain discards queued bytes.** `CaptureSession._take_queue()`
