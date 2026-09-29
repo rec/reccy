@@ -473,3 +473,64 @@ def test_retention_rules_reject_ambiguous_or_empty_selectors() -> None:
             protect='forever',
             retain='forever',
         )
+
+
+def test_newest_retention_groups_by_source_and_recomputes_after_collection(
+    tmp_path: Path,
+) -> None:
+    store = assets.AssetStore(tmp_path / 'cache', credential_scope='public')
+    first = store.import_bytes(
+        b'first',
+        source_key=_source_key('one'),
+        category=assets.AssetCategory.acquired,
+        source_kind=assets.SourceKind.download,
+    )
+    second = store.import_bytes(
+        b'second',
+        source_key=_source_key('one'),
+        category=assets.AssetCategory.acquired,
+        source_kind=assets.SourceKind.download,
+    )
+    other = store.import_bytes(
+        b'other',
+        source_key=_source_key('two'),
+        category=assets.AssetCategory.acquired,
+        source_kind=assets.SourceKind.download,
+    )
+    rule = assets.RetentionRule(
+        name='latest per source', all=True, newest=assets.RetentionNewest(count=1)
+    )
+    older, latest = sorted((first, second), key=lambda e: (e.created_at, e.id))
+    assert [d.entry_id for d in store.plan_collection([rule])] == [older.id]
+    assert store.collect([rule]) == [older.id]
+    assert store.explain_retention(latest.id, [rule]).retained
+    assert store.explain_retention(other.id, [rule]).retained
+    assert set(store.collect([rule], pressure=True)) == {latest.id, other.id}
+
+
+def test_newest_retention_combines_with_duration_and_global_ranking(
+    tmp_path: Path,
+) -> None:
+    store = assets.AssetStore(tmp_path / 'cache', credential_scope='public')
+    first = store.import_bytes(
+        b'first',
+        source_key=_source_key('one'),
+        category=assets.AssetCategory.derived,
+        source_kind=assets.SourceKind.complete_array,
+    )
+    second = store.import_bytes(
+        b'second',
+        source_key=_source_key('two'),
+        category=assets.AssetCategory.derived,
+        source_kind=assets.SourceKind.complete_array,
+    )
+    rule = assets.RetentionRule(
+        name='recent or latest',
+        all=True,
+        retain=assets.RetentionDuration(days=1, since=assets.RetentionSince.created),
+        newest=assets.RetentionNewest(count=1, group_by='all'),
+    )
+    assert store.plan_collection([rule], now=second.created_at) == []
+    later = second.created_at + timedelta(days=2)
+    older = min((first, second), key=lambda e: (e.created_at, e.id))
+    assert [d.entry_id for d in store.plan_collection([rule], now=later)] == [older.id]

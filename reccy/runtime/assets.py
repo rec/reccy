@@ -258,6 +258,13 @@ class RetentionMatch(BaseModel, frozen=True):
         )
 
 
+class RetentionNewest(BaseModel, frozen=True):
+    """Retain the newest matching entries, optionally within each source."""
+
+    count: int = Field(gt=0)
+    group_by: str = Field(default='source', pattern=r'^(source|all)$')
+
+
 class RetentionRule(BaseModel, frozen=True):
     """One additive protection or retention rule for finite entries."""
 
@@ -266,6 +273,7 @@ class RetentionRule(BaseModel, frozen=True):
     all: bool = False
     protect: RetentionDuration | str | None = None
     retain: RetentionDuration | str | None = None
+    newest: RetentionNewest | None = None
 
     @model_validator(mode='after')
     def validate_rule(self) -> RetentionRule:
@@ -273,11 +281,15 @@ class RetentionRule(BaseModel, frozen=True):
             raise ValueError('retention rule requires match or all=true')
         if self.match is not None and self.all:
             raise ValueError('retention rule cannot combine match and all=true')
-        if (self.protect is None) == (self.retain is None):
-            raise ValueError('retention rule requires exactly one of protect or retain')
+        if self.protect is not None and (self.retain is not None or self.newest):
+            raise ValueError('retention rule requires exactly one action family')
+        if self.protect is None and self.retain is None and self.newest is None:
+            raise ValueError('retention rule requires protect, retain, or newest')
         action = self.protect if self.protect is not None else self.retain
         if isinstance(action, str) and action != 'forever':
             raise ValueError('retention action must be forever or a duration')
+        if self.newest is not None and self.retain == 'forever':
+            raise ValueError('newest cannot be combined with retain=forever')
         return self
 
     def matches(self, entry: AssetEntry) -> bool:
@@ -508,7 +520,8 @@ class AssetStore:
             entry = self.entry(entry_id)
             roots = self._root_entry_ids(current)
             access = self._access_time(entry.id)
-        return self._retention_decision(entry, rules, current, roots, access)
+            newest = self._newest_matches(self._entries(), rules)
+        return self._retention_decision(entry, rules, current, roots, access, newest)
 
     def plan_collection(
         self,
@@ -523,9 +536,11 @@ class AssetStore:
         candidates: list[RetentionDecision] = []
         with ResourceClaim(self._metadata_lock(), timeout=5):
             roots = self._root_entry_ids(current)
-            for entry in self._entries():
+            entries = self._entries()
+            newest = self._newest_matches(entries, rules)
+            for entry in entries:
                 decision = self._retention_decision(
-                    entry, rules, current, roots, self._access_time(entry.id)
+                    entry, rules, current, roots, self._access_time(entry.id), newest
                 )
                 if (
                     decision.eligible_for_pressure_collection
@@ -549,6 +564,7 @@ class AssetStore:
         with ResourceClaim(self._metadata_lock(), timeout=5):
             roots = self._root_entry_ids(current)
             entries = {e.id: e for e in self._entries()}
+            newest = self._newest_matches(list(entries.values()), rules)
             object_counts: dict[tuple[str, int], int] = {}
             for entry in entries.values():
                 key = (entry.object.sha256, entry.object.length)
@@ -562,6 +578,7 @@ class AssetStore:
                     current,
                     roots,
                     self._access_time(entry.id),
+                    newest,
                 )
                 eligible = (
                     renewed.eligible_for_pressure_collection
@@ -738,6 +755,7 @@ class AssetStore:
         now: datetime,
         roots: set[str],
         access: datetime | None,
+        newest: dict[str, set[str]],
     ) -> RetentionDecision:
         matching = [rule for rule in rules if rule.matches(entry)]
         protected = any(
@@ -754,6 +772,7 @@ class AssetStore:
                 isinstance(rule.retain, RetentionDuration)
                 and now < self._deadline(rule.retain, entry.created_at, access)
             )
+            or entry.id in newest.get(rule.name, set())
             for rule in matching
         )
         return RetentionDecision(
@@ -763,6 +782,27 @@ class AssetStore:
             retained=retained,
             matching_rules=[rule.name for rule in matching],
         )
+
+    def _newest_matches(
+        self, entries: list[AssetEntry], rules: list[RetentionRule]
+    ) -> dict[str, set[str]]:
+        result: dict[str, set[str]] = {}
+        for rule in rules:
+            if rule.newest is None:
+                continue
+            groups: dict[str, list[AssetEntry]] = {}
+            for entry in entries:
+                if rule.matches(entry):
+                    key = entry.source_key if rule.newest.group_by == 'source' else ''
+                    groups.setdefault(key, []).append(entry)
+            result[rule.name] = {
+                entry.id
+                for group in groups.values()
+                for entry in sorted(
+                    group, key=lambda e: (e.created_at, e.id), reverse=True
+                )[: rule.newest.count]
+            }
+        return result
 
     def _deadline(
         self,
