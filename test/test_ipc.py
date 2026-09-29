@@ -338,6 +338,26 @@ def test_protocol_listener_closes_malformed_transport() -> None:
     assert len(errors) == 1
 
 
+def test_protocol_listener_closes_stalled_handshake(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(ipc, 'HANDSHAKE_TIMEOUT', 0.01)
+    connection = BlockingConnection()
+    connection.received = []
+    listener = ipc.ProtocolListener(
+        connection,
+        parse=parse_message,
+        version=1,
+        peer_role='GUI',
+        local_role='daemon',
+        on_message=lambda listener, message: None,
+    )
+
+    listener.start()
+
+    assert _eventually(lambda: connection.closed)
+
+
 def test_protocol_listener_requires_hello() -> None:
     connection = FakeConnection(['{"type":"app","value":"x"}\n'])
     messages: list[object] = []
@@ -482,6 +502,32 @@ def test_protocol_client_reports_error(
 
     assert _eventually(lambda: client.closed)
     assert capsys.readouterr().err == 'bad\n'
+
+
+def test_protocol_client_closes_malformed_transport(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    class MalformedConnection(FakeConnection):
+        def read_lines(self, *, max_bytes: int | None = None) -> typing.Iterator[str]:
+            assert max_bytes == ipc.MAX_IPC_MESSAGE_BYTES
+            yield '{"type":"hello","role":"daemon","version":1}\n'
+            raise UnicodeDecodeError('utf-8', b'\xff', 0, 1, 'invalid byte')
+
+    connection = MalformedConnection()
+    client = ipc.ProtocolClient(
+        Path('/unused.sock'),
+        parse=parse_message,
+        version=1,
+        local_role='gui',
+        peer_role='Daemon',
+        connect=lambda endpoint: connection,
+        on_message=lambda message: True,
+    )
+
+    client.start()
+
+    assert _eventually(lambda: client.closed)
+    assert 'Malformed IPC connection' in capsys.readouterr().err
 
 
 def test_protocol_client_rejects_application_data_before_hello(

@@ -115,6 +115,8 @@ class ProtocolListener:
         self.conn.close()
 
     def read(self) -> None:
+        handshake_timer = threading.Timer(HANDSHAKE_TIMEOUT, self.close)
+        handshake_timer.start()
         try:
             for line in self.conn.read_lines(max_bytes=MAX_IPC_MESSAGE_BYTES):
                 try:
@@ -127,6 +129,7 @@ class ProtocolListener:
                 if isinstance(message, Hello):
                     if not self.receive_hello(message):
                         return
+                    handshake_timer.cancel()
                     continue
                 if not self.handshake_complete:
                     self.reject(
@@ -143,6 +146,7 @@ class ProtocolListener:
             if self.on_validation_error is not None:
                 self.on_validation_error(str(error))
         finally:
+            handshake_timer.cancel()
             self.close()
 
     def receive_hello(self, message: Hello) -> bool:
@@ -230,7 +234,15 @@ class ProtocolClient:
         if self.connection is None:
             return
         try:
-            for line in self.connection.read_lines():
+            lines = iter(self.connection.read_lines(max_bytes=MAX_IPC_MESSAGE_BYTES))
+            while True:
+                try:
+                    line = next(lines)
+                except StopIteration:
+                    return
+                except (UnicodeError, ValueError) as error:
+                    print(f'Malformed IPC connection: {error}', file=sys.stderr)
+                    return
                 try:
                     message = self.parse(line)
                 except ValidationError:

@@ -65,11 +65,6 @@ Platform-specific behavior still needs native verification.
 
 ## Engineering and verification still open
 
-- **Malformed IPC and Windows pipe behavior (12, 15).** Generic listeners now
-  bound message size, close on malformed bytes, and close on EOF. A stalled
-  generic-listener handshake still has no deadline. Oversize Windows pipe
-  input is distinguished from EOF in code, but whether a protocol error can
-  be delivered and the pipe security boundary need native Windows tests.
 - **Blocking stderr callbacks (24).** Process kill waits are bounded and
   `run_silent()` accepts a caller deadline, but a blocking `capture_stderr()`
   callback can still stall its reader. Define callback ownership and test it.
@@ -79,7 +74,8 @@ Platform-specific behavior still needs native verification.
   document caller ownership.
 - **Remaining test gaps (31).** Add persistent blocked-handler shutdown cases
   and native Windows pipe and scheduled-task coverage. Existing tests cannot
-  establish native Windows behavior from this macOS checkout.
+  establish native Windows behavior, including named-pipe access controls and
+  delivery of oversize-frame errors, from this macOS checkout.
 - **Structure and test maintenance (29, 30, 32).** `assets.py`, `ipc.py`, and
   `controller.py` remain large; `errors.py` and `services/spec.py` are small;
   some service fixtures and atomic-write tests overlap. Split, inline, or

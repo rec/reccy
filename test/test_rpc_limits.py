@@ -106,3 +106,25 @@ def test_pipe_reader_rejects_non_utf8_frames() -> None:
         sender.send_bytes(b'\xff')
         with pytest.raises(UnicodeDecodeError):
             next(ipc.WindowsPipeConnection(receiver).read_lines())
+
+
+def test_pipe_server_attempts_error_reply_after_oversized_frame(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(rpc, 'MAX_REQUEST_BYTES', 128)
+    receiver, sender = ipc.connection.Pipe()
+    server = rpc.Server(
+        r'\\.\pipe\reccy-test-control',
+        r'\\.\pipe\reccy-test-events',
+        lambda request: 'ok',
+        role='test',
+    )
+    with receiver, sender:
+        sender.send_bytes(b'{"type":"hello","role":"client","version":1}\n')
+        sender.send_bytes(b'x' * 129)
+        assert server.request_slots.acquire(blocking=False)
+        server._serve_control(ipc.WindowsPipeConnection(receiver))
+        assert sender.poll(1)
+        assert b'"hello"' in sender.recv_bytes()
+        assert sender.poll(1)
+        assert b'size limit' in sender.recv_bytes()
