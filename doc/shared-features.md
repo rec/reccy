@@ -130,6 +130,12 @@ name. `open_file_asset()` reads a trusted immutable file directly through its
 verified handle, or copies a mutable file into the verified store before use.
 The host remains responsible for selecting and authorizing package and volume
 roots.
+`reccy.runtime.value_assets.open_deterministic_asset()` caches a host-declared
+finite provider result by an opaque source key. It remembers the first content
+identity even after collection. Regeneration with different bytes invalidates
+the mapping and reports `AssetValueConflict`; a later call cannot silently
+replace it. The host must construct the key from all effective inputs, versions,
+and output settings, and encode the provider's result to bytes.
 
 ## Bounded asset capture
 
