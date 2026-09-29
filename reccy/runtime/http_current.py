@@ -91,23 +91,36 @@ def open_current_https_asset(
     claim = store.root / 'state' / 'http-claims' / f'{source_key[3:]}.lock'
     with ExitStack() as stack:
         with ResourceClaim(claim, timeout=6 * timeout + 5):
-            identity, result = _resolve_current(
-                store,
-                url,
-                allow_url,
-                request_headers,
-                source_key,
-                record_path,
-                maximum_encoded_bytes,
-                maximum_decoded_bytes,
-                timeout,
-                media_kind,
-                only_if_cached,
-            )
-            if isinstance(result, bytes):
-                file = stack.enter_context(BytesIO(result))
-            else:
-                file = stack.enter_context(store.open_entry(result))
+            for attempt in range(2):
+                identity, result = _resolve_current(
+                    store,
+                    url,
+                    allow_url,
+                    request_headers,
+                    source_key,
+                    record_path,
+                    maximum_encoded_bytes,
+                    maximum_decoded_bytes,
+                    timeout,
+                    media_kind,
+                    only_if_cached,
+                )
+                if isinstance(result, bytes):
+                    file = stack.enter_context(BytesIO(result))
+                    break
+                try:
+                    file = stack.enter_context(store.open_entry(result))
+                except AssetCorruptionError:
+                    raise
+                except AssetCacheError:
+                    if _entry_exists(store, result, source_key):
+                        raise
+                    if attempt:
+                        raise AssetCacheMiss(
+                            'Cached HTTPS response was collected before opening'
+                        ) from None
+                else:
+                    break
         yield identity, file
 
 

@@ -1,11 +1,14 @@
 import hashlib
 import json
+from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from email.message import Message
 from io import BytesIO
 from pathlib import Path
 from threading import Event
+from typing import BinaryIO
 from urllib.error import HTTPError, URLError
 from urllib.request import Request
 
@@ -199,6 +202,37 @@ def test_304_with_collected_body_fetches_an_unconditional_replacement(
         assert file.read() == b'second'
     assert opener.requests[1].get_header('If-none-match') == '"one"'
     assert opener.requests[2].get_header('If-none-match') is None
+
+
+def test_collected_fresh_response_is_reacquired_before_reader_lease(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    opener = Opener(
+        [
+            Response(b'first', {'Cache-Control': 'max-age=3600'}),
+            Response(b'second', {'Cache-Control': 'max-age=3600'}),
+        ]
+    )
+    monkeypatch.setattr(http_assets, 'build_opener', lambda handler: opener)
+    store = assets.AssetStore(tmp_path / 'cache', credential_scope='private')
+    original_open = store.open_entry
+    collected = False
+
+    @contextmanager
+    def collect_before_open(entry_id: str) -> Iterator[BinaryIO]:
+        nonlocal collected
+        if not collected:
+            collected = True
+            store.collect([])
+        with original_open(entry_id) as file:
+            yield file
+
+    monkeypatch.setattr(store, 'open_entry', collect_before_open)
+
+    with _open(store) as (identity, file):
+        assert file.read() == b'second'
+        assert identity.sha256 == hashlib.sha256(b'second').hexdigest()
+    assert len(opener.requests) == 2
 
 
 def test_incomplete_current_https_body_is_not_published(
