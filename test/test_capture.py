@@ -126,6 +126,10 @@ def test_reference_movement_does_not_retarget_an_existing_pin(tmp_path: Path) ->
     store.set_reference('rehearsal/intro', second.id)
     assert store.referenced('rehearsal/intro') == second
     assert store.pinned(pin_id) == first
+    store.remove_pin(pin_id)
+    with pytest.raises(capture.CaptureError, match='Unknown capture record'):
+        store.pinned(pin_id)
+    assert store.referenced('rehearsal/intro') == second
 
 
 @pytest.mark.parametrize('name', ['rehearsal//intro', 'rehearsal/./intro', 'intro/'])
