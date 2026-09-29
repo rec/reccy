@@ -21,11 +21,12 @@ class ResourceClaimConflict(BlockingIOError):
 
 
 class ResourceClaim:
-    def __init__(self, path: Path, *, timeout: float = 0) -> None:
+    def __init__(self, path: Path, *, timeout: float = 0, shared: bool = False) -> None:
         if not math.isfinite(timeout) or timeout < 0:
             raise ValueError('claim timeout must be finite and nonnegative')
         self.path = path
         self.timeout = timeout
+        self.shared = shared
         self._descriptor: int | None = None
 
     def acquire(self) -> Self:
@@ -43,9 +44,11 @@ class ResourceClaim:
                     if sys.platform == 'win32':
                         # Locking beyond EOF is supported without writing data.
                         os.lseek(descriptor, 0, os.SEEK_SET)
-                        msvcrt.locking(descriptor, msvcrt.LK_NBLCK, 1)
+                        mode = msvcrt.LK_NBRLCK if self.shared else msvcrt.LK_NBLCK
+                        msvcrt.locking(descriptor, mode, 1)
                     else:
-                        fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        mode = fcntl.LOCK_SH if self.shared else fcntl.LOCK_EX
+                        fcntl.flock(descriptor, mode | fcntl.LOCK_NB)
                     break
                 except OSError as error:
                     if error.errno not in (errno.EACCES, errno.EAGAIN):
@@ -70,7 +73,12 @@ class ResourceClaim:
         descriptor = self._descriptor
         self._descriptor = None
         if descriptor is not None:
-            os.close(descriptor)
+            try:
+                if sys.platform == 'win32':
+                    os.lseek(descriptor, 0, os.SEEK_SET)
+                    msvcrt.locking(descriptor, msvcrt.LK_UNLCK, 1)
+            finally:
+                os.close(descriptor)
 
     def __enter__(self) -> Self:
         return self.acquire()

@@ -169,6 +169,8 @@ def test_capture_roots_and_reader_lease_block_collection(tmp_path: Path) -> None
     with store.open_record(capture.CaptureRecordKind.capture, manifest.id) as selected:
         assert selected == manifest
         assert store.collect([]) == []
+        with pytest.raises(assets.AssetRecoveryBusy, match='active asset'):
+            store.assets.recover()
     assert [d.capture_id for d in store.collect([])] == [manifest.id]
 
 
