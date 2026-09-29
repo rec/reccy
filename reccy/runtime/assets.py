@@ -867,11 +867,15 @@ class AssetStore:
     def _staging_bytes(self) -> int:
         if self.capacity is None:
             return 0
-        return sum(
-            path.stat().st_size
-            for path in (self.root / 'staging').glob('*')
-            if path.is_file()
-        )
+        total = 0
+        for path in (self.root / 'staging').glob('*'):
+            try:
+                info = path.stat()
+            except FileNotFoundError:
+                continue
+            if stat.S_ISREG(info.st_mode):
+                total += info.st_size
+        return total
 
     def _check_staging_growth(
         self, existing: int, staged_total: int, additional: int
