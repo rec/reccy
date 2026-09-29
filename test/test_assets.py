@@ -580,3 +580,22 @@ def test_recovery_inspection_reports_unreferenced_bytes_without_deleting_them(
     assert orphan.read_bytes() == b'orphan'
     assert recovery.read_bytes() == b'{}'
     assert staging.read_bytes() == b'partial'
+
+
+def test_export_entry_is_atomic_and_rejects_corrupt_stored_bytes(
+    tmp_path: Path,
+) -> None:
+    store = assets.AssetStore(tmp_path / 'cache', credential_scope='public')
+    entry = store.import_bytes(
+        b'verified bytes',
+        source_key=_source_key('export'),
+        category=assets.AssetCategory.acquired,
+        source_kind=assets.SourceKind.local_file,
+    )
+    destination = tmp_path / 'package' / 'take.bin'
+    assert store.export_entry(entry.id, destination) == entry.object
+    assert destination.read_bytes() == b'verified bytes'
+    store.object_path(entry.object).write_bytes(b'corrupt')
+    with pytest.raises(assets.AssetCorruptionError):
+        store.export_entry(entry.id, destination)
+    assert destination.read_bytes() == b'verified bytes'

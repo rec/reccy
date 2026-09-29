@@ -11,6 +11,7 @@ import hmac
 import json
 import os
 import re
+import shutil
 import stat
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -612,6 +613,15 @@ class AssetStore:
 
     def object_path(self, identity: ObjectIdentity) -> Path:
         return self.root / 'objects' / 'sha256' / identity.sha256[:2] / identity.sha256
+
+    def export_entry(self, entry_id: str, destination: Path) -> ObjectIdentity:
+        """Atomically copy one verified entry to a host-approved destination."""
+        with self.open_entry(entry_id) as source:
+            identity = self.entry(entry_id).object
+            with atomic_output(destination, sync=True) as temporary:
+                with temporary.open('wb') as target:
+                    shutil.copyfileobj(source, target, length=65536)
+        return identity
 
     def inspect_recovery(self) -> list[RecoveryItem]:
         """Report staged and orphan bytes without deleting possibly live work.
