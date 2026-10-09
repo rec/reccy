@@ -2,7 +2,7 @@ from typing import Annotated
 
 import pytest
 import tyro
-from pydantic import BaseModel, TypeAdapter, ValidationError
+from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
 from reccy.configuration import units
 from reccy.configuration.tyro import unit_spec
@@ -183,3 +183,32 @@ def test_copy_preserves_and_arithmetic_drops_provenance() -> None:
     copied = TypeAdapter(units.Seconds).validate_python(value)
     assert copied.provenance == value.provenance
     assert type(value + 1) is float
+
+
+@pytest.mark.parametrize(
+    ('unit', 'authored', 'expected'),
+    [
+        ('second', '1/3 ms', '1/3000'),
+        ('second', '0:00.1', '1/10'),
+        ('hertz', '2.4kHz', '2400'),
+        ('beat', '1/3 beat', '1/3'),
+        ('beats_per_minute', '2 beat/s', '120'),
+        ('tick', '9007199254740993 tick', '9007199254740993'),
+        ('musical_cent', '1 semitone', '100'),
+    ],
+)
+def test_exact_units_preserve_rational_magnitudes(
+    unit: str, authored: str, expected: str
+) -> None:
+    from fractions import Fraction
+
+    assert units.magnitude(authored, unit, exact=True) == Fraction(expected)
+
+
+def test_unit_validator_keeps_strict_integer_constraints() -> None:
+    annotation = Annotated[int, Field(strict=True), units.unit_validator('frame')]
+    adapter = TypeAdapter(annotation)
+    assert adapter.validate_python('2 frame') == 2
+    for v in ['1.5 frame', 2.0, True]:
+        with pytest.raises(ValidationError):
+            adapter.validate_python(v)

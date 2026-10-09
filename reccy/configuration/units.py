@@ -2,6 +2,7 @@
 
 import re
 from decimal import Decimal
+from fractions import Fraction
 from functools import cache, partial
 from importlib.resources import files
 from typing import Annotated, Literal, cast, get_args
@@ -49,27 +50,45 @@ def revalidation_dump(value: BaseModel) -> dict[str, object]:
     return authored_dump(value)
 
 
-def magnitude(value: object, unit: str) -> object:
+def unit_validator(unit: str, *, exact: bool = False) -> WrapValidator:
+    """Parse authored units before validating canonical numeric constraints.
+
+    exact preserves rational magnitudes for Fraction fields. Integer fields
+    accept only integral conversions, including when strict=True.
+    """
+    return WrapValidator(partial(_unit_value, unit=unit, exact=exact))
+
+
+def magnitude(value: object, unit: str, *, exact: bool = False) -> object:
     if isinstance(value, bool):
         raise ValueError('A quantity cannot be a boolean')
     if not isinstance(value, str):
         return value
     if unit == 'second' and ':' in value:
-        return _clock_seconds(value)
+        return _clock_seconds(value, exact=exact)
     match = QUANTITY.fullmatch(value.strip())
     if match is None:
         raise ValueError(f'Expected a number optionally followed by a {unit} unit')
     number, supplied_unit = match.groups()
-    if not supplied_unit:
-        return Decimal(number)
     try:
-        return _registry().Quantity(Decimal(number), supplied_unit).to(unit).magnitude
+        amount = Fraction(number) if exact or '/' in number else Decimal(number)
+    except (ValueError, ZeroDivisionError):
+        raise ValueError('Invalid quantity number') from None
+    if not supplied_unit:
+        return amount
+    try:
+        return (
+            _registry(exact=exact or isinstance(amount, Fraction))
+            .Quantity(amount, supplied_unit)
+            .to(unit)
+            .magnitude
+        )
     except PintError as error:
         raise ValueError(f'Expected {unit}: {error}') from None
 
 
 def _unit_value(
-    value: object, handler: ValidatorFunctionWrapHandler, unit: str
+    value: object, handler: ValidatorFunctionWrapHandler, unit: str, exact: bool = False
 ) -> object:
     if isinstance(value, bool):
         raise ValueError('A quantity cannot be a boolean')
@@ -77,7 +96,12 @@ def _unit_value(
         value = value.provenance.authored
     if not isinstance(value, str):
         return handler(value)
-    normalized = handler(magnitude(value, unit))
+    converted = magnitude(value, unit, exact=exact)
+    if isinstance(converted, (Decimal, Fraction)) and converted == int(converted):
+        converted = int(converted)
+    normalized = handler(converted)
+    if isinstance(normalized, Fraction):
+        return normalized
     provenance = UnitProvenance(
         authored=value, normalized=normalized, canonical_unit=unit
     )
@@ -87,13 +111,19 @@ def _unit_value(
 
 
 @cache
-def _registry() -> UnitRegistry:
+def _registry(*, exact: bool = False) -> UnitRegistry:
     # Define information before Pint caches its dimensionless default.
-    registry = UnitRegistry(None, non_int_type=Decimal, on_redefinition='ignore')
+    registry = UnitRegistry(
+        None, non_int_type=Fraction if exact else Decimal, on_redefinition='ignore'
+    )
     registry.load_definitions(str(files('pint').joinpath('default_en.txt')))
     registry.define('bit = [information]')
     registry.define('bit_per_second = bit / second = bps')
     registry.define('frame = [frame]')
+    registry.define('tick = [tick]')
+    registry.define('beat = [musical_beat]')
+    registry.define('beats_per_minute = beat / minute = bpm')
+    registry.define('semitone = 100 * musical_cent')
     registry.define('frame_per_second = frame / second = fps')
     registry.define('pixel = [pixel] = px')
     registry.define('kilobyte = 1000 * byte = kB = KB')
@@ -101,11 +131,11 @@ def _registry() -> UnitRegistry:
     return registry
 
 
-def _clock_seconds(value: str) -> float:
+def _clock_seconds(value: str, *, exact: bool = False) -> float | Fraction:
     parts = value.split(':')
     if not 1 <= len(parts) <= 3:
         raise ValueError('A time can only have three parts')
-    seconds = float(parts.pop())
+    seconds = Fraction(parts.pop()) if exact else float(parts.pop())
     if seconds < 0 or parts and seconds >= 60:
         raise ValueError('Invalid seconds in time')
     minutes = int(parts.pop()) if parts else 0
@@ -215,8 +245,8 @@ class _UnitInt(int):
 
 
 QUANTITY = re.compile(
-    r'([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)'
-    r'\s*([A-Za-z\u00b5\u03bc][A-Za-z\u00b5\u03bc/_]*)?'
+    r'([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?(?:/[+-]?\d+)?)'
+    r'\s*([A-Za-z\u00b5\u03bc/][A-Za-z0-9\u00b5\u03bc/ *^()._-]*)?'
 )
 
 Seconds = Annotated[
