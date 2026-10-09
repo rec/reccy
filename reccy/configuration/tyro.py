@@ -2,7 +2,7 @@ from collections.abc import Callable, Mapping
 from typing import TypeVar
 
 import tyro
-from pydantic import TypeAdapter
+from pydantic import TypeAdapter, ValidationError
 from tyro.constructors import PrimitiveConstructorSpec
 
 _T = TypeVar('_T')
@@ -10,10 +10,17 @@ _T = TypeVar('_T')
 
 def unit_spec(annotation: object, metavar: str) -> PrimitiveConstructorSpec:
     adapter = TypeAdapter(annotation)
+
+    def parse(args: list[str]) -> object:
+        try:
+            return adapter.validate_python(args[0])
+        except ValidationError as error:
+            raise ValueError(str(error)) from error
+
     return PrimitiveConstructorSpec(
         nargs=1,
         metavar=metavar,
-        instance_from_str=lambda a: adapter.validate_python(a[0]),
+        instance_from_str=parse,
         is_instance=lambda v: isinstance(v, (float, int)),
         str_from_instance=lambda v: [
             v.provenance.authored if hasattr(v, 'provenance') else str(v)
