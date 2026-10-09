@@ -56,7 +56,10 @@ def unit_validator(unit: str, *, exact: bool = False) -> WrapValidator:
     exact preserves rational magnitudes for Fraction fields. Integer fields
     accept only integral conversions, including when strict=True.
     """
-    return WrapValidator(partial(_unit_value, unit=unit, exact=exact))
+    return WrapValidator(
+        partial(_unit_value, unit=unit, exact=exact),
+        json_schema_input_type=int | float | str,
+    )
 
 
 def magnitude(value: object, unit: str, *, exact: bool = False) -> object:
