@@ -192,6 +192,8 @@ def test_copy_preserves_and_arithmetic_drops_provenance() -> None:
         ('second', '0:00.1', '1/10'),
         ('hertz', '2.4kHz', '2400'),
         ('beat', '1/3 beat', '1/3'),
+        ('1/beat', '2/beat', '2'),
+        ('1/second', '3/s', '3'),
         ('beats_per_minute', '2 beat/s', '120'),
         ('tick', '9007199254740993 tick', '9007199254740993'),
         ('musical_cent', '1 semitone', '100'),

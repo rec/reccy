@@ -79,6 +79,8 @@ def magnitude(value: object, unit: str, *, exact: bool = False) -> object:
         raise ValueError('Invalid quantity number') from None
     if not supplied_unit:
         return amount
+    if supplied_unit.startswith('/'):
+        supplied_unit = '1' + supplied_unit
     try:
         return (
             _registry(exact=exact or isinstance(amount, Fraction))
