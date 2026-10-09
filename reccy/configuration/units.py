@@ -92,6 +92,10 @@ def _registry() -> UnitRegistry:
     registry = UnitRegistry(None, non_int_type=Decimal, on_redefinition='ignore')
     registry.load_definitions(str(files('pint').joinpath('default_en.txt')))
     registry.define('bit = [information]')
+    registry.define('bit_per_second = bit / second = bps')
+    registry.define('frame = [frame]')
+    registry.define('frame_per_second = frame / second = fps')
+    registry.define('pixel = [pixel] = px')
     registry.define('kilobyte = 1000 * byte = kB = KB')
     registry.define('musical_cent = octave / 1200 = cent = cents')
     return registry
@@ -212,7 +216,7 @@ class _UnitInt(int):
 
 QUANTITY = re.compile(
     r'([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)'
-    r'\s*([A-Za-z\u00b5\u03bc]+)?'
+    r'\s*([A-Za-z\u00b5\u03bc][A-Za-z\u00b5\u03bc/_]*)?'
 )
 
 Seconds = Annotated[
@@ -236,6 +240,38 @@ Hertz = Annotated[
 ]
 
 WholeHertz = Annotated[int, WrapValidator(partial(_unit_value, unit='hertz'))]
+
+BitsPerSecond = Annotated[
+    float,
+    Field(allow_inf_nan=False),
+    WrapValidator(partial(_unit_value, unit='bit_per_second')),
+]
+
+WholeBitsPerSecond = Annotated[
+    int, WrapValidator(partial(_unit_value, unit='bit_per_second'))
+]
+
+WholeKilobitsPerSecond = Annotated[
+    int, WrapValidator(partial(_unit_value, unit='kilobit_per_second'))
+]
+
+FramesPerSecond = Annotated[
+    float,
+    Field(allow_inf_nan=False),
+    WrapValidator(partial(_unit_value, unit='frame_per_second')),
+]
+
+WholeFramesPerSecond = Annotated[
+    int, WrapValidator(partial(_unit_value, unit='frame_per_second'))
+]
+
+Decibels = Annotated[
+    float,
+    Field(allow_inf_nan=False),
+    WrapValidator(partial(_unit_value, unit='decibel')),
+]
+
+Pixels = Annotated[int, WrapValidator(partial(_unit_value, unit='pixel'))]
 
 MusicalCents = Annotated[
     float,
