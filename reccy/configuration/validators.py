@@ -1,4 +1,5 @@
 import re
+from math import isfinite
 from typing import Protocol, TypeVar
 
 
@@ -57,3 +58,35 @@ def sorted_values(values: list[_T]) -> list[_T]:
             raise ValueError('values must be sorted')
         previous = value
     return values
+
+
+def validate_json(value: object, *, label: str = 'value', strict: bool = True) -> None:
+    """Require finite JSON data bounded to 10000 values and 64 nesting levels.
+
+    strict requires exact built-in types. Otherwise string, boolean, list, and
+    dictionary subclasses are accepted, while numeric types remain exact.
+    """
+    pending = [(value, 0)]
+    count = 0
+    while pending:
+        item, depth = pending.pop()
+        count += 1
+        if count > 10000 or depth > 64:
+            raise ValueError(f'{label} exceeds 10000 values or 64 levels')
+        if item is None or type(item) in {bool, int, str}:
+            continue
+        if not strict and isinstance(item, bool | str):
+            continue
+        if type(item) is float:
+            if not isfinite(item):
+                raise ValueError(f'{label} numbers must be finite')
+            continue
+        if type(item) is list or (not strict and isinstance(item, list)):
+            pending.extend((child, depth + 1) for child in item)
+            continue
+        if type(item) is dict or (not strict and isinstance(item, dict)):
+            if any(type(key) is not str for key in item):
+                raise ValueError(f'{label} object keys must be strings')
+            pending.extend((child, depth + 1) for child in item.values())
+            continue
+        raise ValueError(f'{label} must contain only JSON values')

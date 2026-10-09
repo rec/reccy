@@ -18,7 +18,6 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from enum import auto
-from math import isfinite
 from pathlib import Path, PureWindowsPath
 from tempfile import NamedTemporaryFile
 from typing import BinaryIO, Protocol
@@ -27,6 +26,7 @@ from uuid import uuid4
 from pydantic import BaseModel, Field, field_validator, model_validator
 from strenum import StrEnum
 
+from ..configuration.validators import validate_json
 from .claims import ResourceClaim, ResourceClaimConflict
 from .files import atomic_output
 from .http_freshness import HTTPRecord, response_freshness
@@ -105,7 +105,7 @@ def source_fingerprint(
     for value in (location, context, representation):
         if type(value) is not dict:
             raise ValueError('source fingerprint fields must be JSON objects')
-        _validate_fingerprint_json(value)
+        validate_json(value, label='source request')
     if (lookup_secret is None) != (fingerprint_key is None):
         raise ValueError('lookup_secret and fingerprint_key must be supplied together')
     if fingerprint_key is not None and len(fingerprint_key) < 32:
@@ -1147,31 +1147,6 @@ class AssetStore:
     def _validate_name(self, name: str) -> None:
         if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]*', name):
             raise ValueError('reference names must be filename-safe')
-
-
-def _validate_fingerprint_json(value: object) -> None:
-    pending = [(value, 0)]
-    count = 0
-    while pending:
-        item, depth = pending.pop()
-        count += 1
-        if count > 10000 or depth > 64:
-            raise ValueError('source request exceeds 10000 values or 64 levels')
-        if item is None or type(item) in {bool, int, str}:
-            continue
-        if type(item) is float:
-            if not isfinite(item):
-                raise ValueError('source request numbers must be finite')
-            continue
-        if type(item) is list:
-            pending.extend((child, depth + 1) for child in item)
-            continue
-        if type(item) is dict:
-            if any(type(key) is not str for key in item):
-                raise ValueError('source request object keys must be strings')
-            pending.extend((child, depth + 1) for child in item.values())
-            continue
-        raise ValueError('source request must contain only JSON values')
 
 
 def _open_file_beneath(root: Path, relative_path: str) -> BinaryIO:
