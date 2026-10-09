@@ -61,13 +61,16 @@ def test_claim_keeps_existing_contents_and_releases_on_error(tmp_path: Path) -> 
     assert path.read_text() == 'not a PID or ownership record'
 
 
-def test_claim_can_wait_for_short_contention(tmp_path: Path) -> None:
+@pytest.mark.parametrize('timeout', [1, None])
+def test_claim_can_wait_for_short_contention(
+    tmp_path: Path, timeout: float | None
+) -> None:
     path = tmp_path / 'claim'
     owner = claims.ResourceClaim(path).acquire()
     release = Timer(0.02, owner.release)
     release.start()
     try:
-        with claims.ResourceClaim(path, timeout=1):
+        with claims.ResourceClaim(path, timeout=timeout):
             pass
     finally:
         release.join()

@@ -21,9 +21,13 @@ class ResourceClaimConflict(BlockingIOError):
 
 
 class ResourceClaim:
-    def __init__(self, path: Path, *, timeout: float = 0, shared: bool = False) -> None:
-        if not math.isfinite(timeout) or timeout < 0:
-            raise ValueError('claim timeout must be finite and nonnegative')
+    """Claim a resource; timeout=None waits until it becomes available."""
+
+    def __init__(
+        self, path: Path, *, timeout: float | None = 0, shared: bool = False
+    ) -> None:
+        if timeout is not None and (not math.isfinite(timeout) or timeout < 0):
+            raise ValueError('claim timeout must be finite and nonnegative, or None')
         self.path = path
         self.timeout = timeout
         self.shared = shared
@@ -35,7 +39,7 @@ class ResourceClaim:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         descriptor = os.open(self.path, os.O_RDWR | os.O_CREAT, 0o600)
         acquired = False
-        deadline = monotonic() + self.timeout
+        deadline = None if self.timeout is None else monotonic() + self.timeout
         try:
             if not stat.S_ISREG(os.fstat(descriptor).st_mode):
                 raise ValueError('Resource claim requires a regular lock file')
@@ -53,11 +57,12 @@ class ResourceClaim:
                 except OSError as error:
                     if error.errno not in (errno.EACCES, errno.EAGAIN):
                         raise
-                    if (remaining := deadline - monotonic()) <= 0:
+                    remaining = None if deadline is None else deadline - monotonic()
+                    if remaining is not None and remaining <= 0:
                         raise ResourceClaimConflict(
                             error.errno, 'Resource is already claimed', str(self.path)
                         ) from error
-                    sleep(min(remaining, 0.01))
+                    sleep(0.01 if remaining is None else min(remaining, 0.01))
             opened = os.fstat(descriptor)
             current = self.path.stat()
             if (opened.st_dev, opened.st_ino) != (current.st_dev, current.st_ino):
