@@ -239,6 +239,11 @@ class _UnitFloat(float):
         result.provenance = provenance
         return result
 
+    def __getnewargs_ex__(
+        self,
+    ) -> tuple[tuple[float, UnitProvenance], dict[str, object]]:
+        return (float(self), self.provenance), {}
+
 
 class _UnitInt(int):
     provenance: UnitProvenance
@@ -247,6 +252,9 @@ class _UnitInt(int):
         result = super().__new__(cls, value)
         result.provenance = provenance
         return result
+
+    def __getnewargs_ex__(self) -> tuple[tuple[int, UnitProvenance], dict[str, object]]:
+        return (int(self), self.provenance), {}
 
 
 QUANTITY = re.compile(
