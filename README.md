@@ -108,6 +108,13 @@ account: installation still targets the current user.
 
 ## Unit-aware configuration dumps
 
+Authored quantities use Pint expressions, with exact rational magnitudes during
+conversion. Prefixes, plurals, unit-only values, and arithmetic such as `1 ms / 3`
+are supported. Angles, logarithmic gain, pitch intervals, information sizes,
+beats, frames, and ticks have separate semantic dimensions. dB and musical cents
+are authored coordinates, not implicit power or pitch ratios. Clock notation
+such as `1:30` remains supported for seconds-valued configuration fields.
+
 `runtime_dump()` emits normalized numbers; `authored_dump()` retains authored
 unit strings. Both emit canonical field names, even when a model has aliases or
 enables alias serialization. `revalidation_dump()` is the Python-mode authored

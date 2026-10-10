@@ -1,6 +1,5 @@
 """Parse configuration units into numbers with optional authored provenance."""
 
-import re
 from decimal import Decimal
 from fractions import Fraction
 from functools import cache, partial
@@ -275,18 +274,6 @@ class _UnitInt(int):
         return (int(self), self.provenance), {}
 
 
-QUANTITY = re.compile(
-    r'([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?(?:/[+-]?\d+)?)'
-    r'\s*([A-Za-z\u00b5\u03bc/][A-Za-z0-9\u00b5\u03bc/ *^()._-]*)?'
-)
-
-UNIT_DEFINITIONS = {
-    'bit': 'bit = [information]',
-    'radian': 'radian = [angle] = rad',
-    'decibel': 'decibel = [log_gain] = dB',
-    'octave': 'octave = 1200 * musical_cent = oct',
-}
-
 Seconds = Annotated[
     float,
     Field(allow_inf_nan=False),
@@ -349,3 +336,10 @@ MusicalCents = Annotated[
 
 Bytes = Annotated[int, WrapValidator(partial(_unit_value, unit='byte'))]
 Megabytes = Annotated[int, WrapValidator(partial(_unit_value, unit='megabyte'))]
+
+UNIT_DEFINITIONS = {
+    'bit': 'bit = [information]',
+    'radian': 'radian = [angle] = rad',
+    'decibel': 'decibel = [log_gain] = dB',
+    'octave': 'octave = 1200 * musical_cent = oct',
+}
