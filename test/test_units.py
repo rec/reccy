@@ -1,4 +1,5 @@
 from copy import copy, deepcopy
+from fractions import Fraction
 from typing import Annotated
 
 import pytest
@@ -19,6 +20,12 @@ def test_clock_seconds_reject_next_minute(value: str) -> None:
     ('annotation', 'value', 'expected'),
     [
         (units.Seconds, '10ms', 0.01),
+        (units.Seconds, 'ms', 0.001),
+        (units.Seconds, '(1/3) ms', 1 / 3000),
+        (units.Seconds, '1 ms / 3', 1 / 3000),
+        (units.Hertz, '1000 / s', 1000.0),
+        (units.Bytes, '3 * (1/3) byte', 1),
+        (units.MusicalCents, '1 octave', 1200.0),
         (units.Seconds, '2 min', 120.0),
         (units.Seconds, '1:30', 90.0),
         (units.Seconds, '0:59', 59.0),
@@ -96,7 +103,6 @@ def test_units_normalize_to_numbers(
         (units.Bytes, '0.5byte'),
         (units.Megabytes, '1MiB'),
         (units.Seconds, 'junk'),
-        (units.Seconds, 'ms'),
         (units.Seconds, '1 s/'),
         (units.Seconds, 'nan'),
         (units.Seconds, float('inf')),
@@ -117,6 +123,53 @@ def test_unit_spec_preserves_authored_value() -> None:
     assert result == 0.25
     assert spec.str_from_instance(result) == ['250ms']
     assert spec.str_from_instance(0.25) == ['0.25']
+
+
+@pytest.mark.parametrize(
+    ('value', 'unit', 'expected'),
+    [
+        ('1/3 ms', 'second', Fraction(1, 3000)),
+        ('9007199254740993 frame', 'frame', Fraction(9007199254740993)),
+        ('1000 millibeat', 'beat', Fraction(1)),
+        ('1 turn', 'degree', Fraction(360)),
+        ('2 semitone', 'musical_cent', Fraction(200)),
+        ('-6 dB', 'decibel', Fraction(-6)),
+        ('50%', 'dimensionless', Fraction(1, 2)),
+    ],
+)
+def test_quantity_expressions_retain_exact_coordinates(
+    value: str, unit: str, expected: Fraction
+) -> None:
+    assert units.magnitude(value, unit, exact=True) == expected
+
+
+@pytest.mark.parametrize(
+    ('value', 'unit'),
+    [
+        ('1 degree', 'dimensionless'),
+        ('1 dB', 'dimensionless'),
+        ('1 octave', 'dimensionless'),
+        ('50%', 'radian'),
+        ('50%', 'decibel'),
+        ('1 rad/s', 'hertz'),
+        ('2**(1/2) s', 'second'),
+    ],
+)
+def test_semantic_quantities_do_not_coerce_to_other_families(
+    value: str, unit: str
+) -> None:
+    with pytest.raises(ValueError):
+        units.magnitude(value, unit, exact=True)
+
+
+@pytest.mark.parametrize(
+    ('value', 'expected'),
+    [('1 ms / 3', 'second'), ('1000 millibeat', 'beat'), ('1/3', None)],
+)
+def test_quantity_unit_uses_pint_expression_metadata(
+    value: str, expected: str | None
+) -> None:
+    assert units.quantity_unit(value) == expected
 
 
 class CliConfig(BaseModel, frozen=True):

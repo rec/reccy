@@ -5,9 +5,10 @@ from decimal import Decimal
 from fractions import Fraction
 from functools import cache, partial
 from importlib.resources import files
+from tokenize import TokenError
 from typing import Annotated, Literal, cast, get_args
 
-from pint import UnitRegistry
+from pint import Quantity, UnitRegistry
 from pint.errors import PintError
 from pydantic import BaseModel, Field, ValidatorFunctionWrapHandler, WrapValidator
 from pydantic.functional_serializers import PlainSerializer, WrapSerializer
@@ -69,27 +70,25 @@ def magnitude(value: object, unit: str, *, exact: bool = False) -> object:
         return value
     if unit == 'second' and ':' in value:
         return _clock_seconds(value, exact=exact)
-    match = QUANTITY.fullmatch(value.strip())
-    if match is None:
-        raise ValueError(f'Expected a number optionally followed by a {unit} unit')
-    number, supplied_unit = match.groups()
     try:
-        amount = Fraction(number) if exact or '/' in number else Decimal(number)
-    except (ValueError, ZeroDivisionError):
+        return Fraction(value)
+    except ZeroDivisionError:
         raise ValueError('Invalid quantity number') from None
-    if not supplied_unit:
-        return amount
-    if supplied_unit.startswith('/'):
-        supplied_unit = '1' + supplied_unit
+    except ValueError:
+        pass
     try:
-        return (
-            _registry(exact=exact or isinstance(amount, Fraction))
-            .Quantity(amount, supplied_unit)
-            .to(unit)
-            .magnitude
-        )
+        result = _quantity(value).to(unit).magnitude
     except PintError as error:
         raise ValueError(f'Expected {unit}: {error}') from None
+    if exact and not isinstance(result, (int, Fraction)):
+        raise ValueError('Quantity conversion must retain an exact rational magnitude')
+    return result
+
+
+def quantity_unit(value: str) -> str | None:
+    """Return Pint's base unit expression, or None for a dimensionless value."""
+    parsed = _quantity(value).to_base_units()
+    return str(parsed.units) if parsed.units != _registry().dimensionless else None
 
 
 def _unit_value(
@@ -115,24 +114,43 @@ def _unit_value(
     return _UnitFloat(normalized, provenance)
 
 
+def _quantity(value: str) -> Quantity:
+    if not value.strip():
+        raise ValueError('Quantity must not be empty')
+    try:
+        return _registry().parse_expression(value)
+    except (PintError, ValueError, ZeroDivisionError, SyntaxError, TokenError) as error:
+        raise ValueError(f'Invalid quantity: {error}') from None
+
+
 @cache
-def _registry(*, exact: bool = False) -> UnitRegistry:
-    # Define information before Pint caches its dimensionless default.
-    registry = UnitRegistry(
-        None, non_int_type=Fraction if exact else Decimal, on_redefinition='ignore'
+def _registry() -> UnitRegistry:
+    registry = UnitRegistry(None, non_int_type=Fraction)
+    # These are authored coordinates, not implicit angle, power, or pitch ratios.
+    # Replace definitions before loading so Pint's caches see only one contract.
+    definitions = (
+        files('pint')
+        .joinpath('default_en.txt')
+        .read_text()
+        .replace(
+            '@import constants_en.txt',
+            files('pint').joinpath('constants_en.txt').read_text(),
+        )
+        .splitlines()
     )
-    registry.load_definitions(str(files('pint').joinpath('default_en.txt')))
-    registry.define('bit = [information]')
+    registry.load_definitions(
+        [UNIT_DEFINITIONS.get(x.split('=', 1)[0].strip(), x) for x in definitions]
+    )
     registry.define('bit_per_second = bit / second = bps')
     registry.define('frame = [frame]')
     registry.define('tick = [tick]')
     registry.define('beat = [musical_beat]')
     registry.define('beats_per_minute = beat / minute = bpm')
+    registry.define('musical_cent = [pitch_interval] = cent = cents')
     registry.define('semitone = 100 * musical_cent')
     registry.define('frame_per_second = frame / second = fps')
     registry.define('pixel = [pixel] = px')
     registry.define('kilobyte = 1000 * byte = kB = KB')
-    registry.define('musical_cent = octave / 1200 = cent = cents')
     return registry
 
 
@@ -261,6 +279,13 @@ QUANTITY = re.compile(
     r'([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?(?:/[+-]?\d+)?)'
     r'\s*([A-Za-z\u00b5\u03bc/][A-Za-z0-9\u00b5\u03bc/ *^()._-]*)?'
 )
+
+UNIT_DEFINITIONS = {
+    'bit': 'bit = [information]',
+    'radian': 'radian = [angle] = rad',
+    'decibel': 'decibel = [log_gain] = dB',
+    'octave': 'octave = 1200 * musical_cent = oct',
+}
 
 Seconds = Annotated[
     float,
