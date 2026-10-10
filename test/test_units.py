@@ -1,3 +1,4 @@
+from copy import copy, deepcopy
 from typing import Annotated
 
 import pytest
@@ -183,6 +184,28 @@ def test_copy_preserves_and_arithmetic_drops_provenance() -> None:
     copied = TypeAdapter(units.Seconds).validate_python(value)
     assert copied.provenance == value.provenance
     assert type(value + 1) is float
+
+
+@pytest.mark.parametrize(
+    ('annotation', 'authored'),
+    [(units.Seconds, '250ms'), (units.WholeHertz, '48kHz')],
+)
+def test_python_copies_preserve_quantity_and_authored_provenance(
+    annotation: object, authored: str
+) -> None:
+    value = TypeAdapter(annotation).validate_python(authored)
+    for copied in [copy(value), deepcopy(value)]:
+        assert copied == value
+        assert copied.provenance == value.provenance
+        assert copied is not value
+
+
+def test_deep_model_copy_preserves_nested_authored_units() -> None:
+    value = Config(interval='250ms', nested=Nested(delay='1 min'), history=['1s', 2.0])
+    copied = value.model_copy(deep=True)
+    assert units.authored_dump(copied) == units.authored_dump(value)
+    assert units.runtime_dump(copied) == units.runtime_dump(value)
+    assert copied.nested is not value.nested
 
 
 @pytest.mark.parametrize(
