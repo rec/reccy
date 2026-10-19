@@ -130,10 +130,10 @@ def _registry() -> UnitRegistry:
     definitions = (
         files('pint')
         .joinpath('default_en.txt')
-        .read_text()
+        .read_text(encoding='utf-8')
         .replace(
             '@import constants_en.txt',
-            files('pint').joinpath('constants_en.txt').read_text(),
+            files('pint').joinpath('constants_en.txt').read_text(encoding='utf-8'),
         )
         .splitlines()
     )
