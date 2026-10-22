@@ -147,3 +147,21 @@ def test_file_asset_rejects_symlink_escape(tmp_path: Path) -> None:
             maximum_bytes=7,
         ):
             pass
+
+
+def test_file_snapshot_can_measure_identity_when_capture_did_not_hash(
+    tmp_path: Path,
+) -> None:
+    contents = b'captured without a checksum'
+    (tmp_path / 'take.bin').write_bytes(contents)
+    store = assets.AssetStore(tmp_path / 'cache', credential_scope='test')
+    entry = store.import_file(
+        tmp_path,
+        'take.bin',
+        maximum_bytes=1000,
+        source_key=assets.source_fingerprint({'path': 'take.bin'}, {}, None, {}),
+        source_kind=assets.SourceKind.local_file,
+    )
+    assert entry.object == _identity(contents)
+    with store.open_entry(entry.id) as file:
+        assert file.read() == contents

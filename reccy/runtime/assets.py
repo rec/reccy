@@ -476,7 +476,7 @@ class AssetStore:
         maximum_bytes: int,
         source_key: str,
         source_kind: SourceKind,
-        expected: ObjectIdentity,
+        expected: ObjectIdentity | None = None,
         media_kind: MediaKind = MediaKind.other,
         pin: bool = False,
     ) -> AssetEntry:
@@ -485,7 +485,7 @@ class AssetStore:
             raise ValueError('import_file requires a local or volume source')
         if type(maximum_bytes) is not int or maximum_bytes <= 0:
             raise ValueError('maximum_bytes must be a positive integer')
-        if expected.length > maximum_bytes:
+        if expected is not None and expected.length > maximum_bytes:
             raise AssetCacheError(f'Asset exceeds maximum_bytes={maximum_bytes}')
         with _open_file_beneath(root, relative_path) as file:
             return self.import_stream(
