@@ -1,13 +1,34 @@
-# Building documentation
+# Publishing documentation
 
 Run from the project root:
 
 ```sh
-uv run --extra docs python -m reccy.documentation
+uv run reccy docs
 ```
 
-The generated site starts at `site/index.html`. Builds fail on warnings. Generated
-files are ignored by Git. No server or application is started.
+This builds the site at `site/index.html` and pushes it to the repository's
+`gh-pages` branch. GitHub Pages then deploys that branch. The command requires
+`uv`, `git`, and an authenticated `gh`, with permission to push to `origin`.
+Builds fail on warnings, and failed builds are not pushed. Successful completion
+confirms the push was accepted; GitHub's deployment happens afterward.
+
+GitHub Pages must already be configured to publish the root of `gh-pages`.
+Otherwise the command fails. For a repository without a Pages site, run:
+
+```sh
+uv run reccy docs --init
+```
+
+Initialization creates a missing `doc/index.md`, adds `site/` to `.gitignore` if
+needed, builds and pushes the documentation, and enables GitHub Pages. Commit any
+new landing page or ignore-file changes before releasing. Existing Pages settings
+that use a different branch, directory, or workflow cause an error and are left
+untouched, including when `--init` is supplied.
+
+Generated HTML is committed only on `gh-pages`, keeping it out of source commits.
+Publishing never switches the current branch and does not force-push.
+No documentation builds are added to routine CI. `reccy release` publishes docs
+before continuing with a release and stops if documentation publication fails.
 
 Zensical renders the Markdown guides in `doc/`. mkdocstrings generates an API
 reference and navigation from the package's Python source files. Public classes,
@@ -33,14 +54,18 @@ The package directory is the `[project].name` from `pyproject.toml`, with hyphen
 replaced by underscores. `doc/index.md` is the site's Markdown landing page.
 `README.md` remains the repository introduction.
 
-For a sibling that already depends on reccy, add a documentation extra containing
-`reccy[docs]`. The same build command then works from that project's root. Keep
-the existing reccy source declaration when using an editable or Git dependency.
+Installing reccy, directly or as another project's dependency, installs the
+`reccy` executable in that Python environment. Existing consumers must update
+their reccy installation to receive the entry point. The same commands then work
+from each project's root using `uv run reccy`, or just `reccy` with its environment
+activated. No documentation extra is needed: `uv` fetches and caches the tools in
+isolated environments only when documentation is built or published.
+
 Project-specific guides stay in `doc/`; the shared API supplies the theme, search,
 API navigation and rendering settings. No per-project Zensical configuration is
-required.
+required. `--init` supplies the landing page when starting from scratch.
 
-Python callers can build another project explicitly:
+Python callers can build locally without publishing:
 
 ```python
 from pathlib import Path
@@ -50,9 +75,9 @@ from reccy.documentation import Documentation
 index = Documentation(root=Path('/path/to/project')).build()
 ```
 
-`configuration()` returns the Zensical configuration as a dictionary for callers
-that need to inspect it. Documentation dependencies are optional and are not
-installed for normal reccy consumers.
+`configuration()` returns the Zensical configuration as a dictionary.
+`publish(init=False)` builds and pushes the documentation, returning the Pages
+URL. Documentation tools are not installed into normal consumer environments.
 
 ## Language scope
 
