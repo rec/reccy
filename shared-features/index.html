@@ -1,0 +1,2519 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Shared local app utilities for recs, showco, tuney, and lyte">
+      
+      
+      
+        <link rel="canonical" href="https://rec.github.io/reccy/shared-features/">
+      
+      
+      
+        <link rel="prev" href="../releasing/">
+      
+      
+        <link rel="next" href="../testing-cli-help/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.70">
+    
+    
+      
+        <title>Shared infrastructure features - reccy</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../assets/stylesheets/modern/main.e442bf79.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-hidden="true"></label>
+    <div data-md-component="skip">
+      <a href="#__skip" class="md-skip">
+        Skip to content
+      </a>
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="./.." title="reccy" class="md-header__button md-logo" aria-label="reccy" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            reccy
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Shared infrastructure features
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="./.." title="reccy" class="md-nav__button md-logo" aria-label="reccy" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+
+    </a>
+    reccy
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="./.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  reccy
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../documentation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Publishing documentation
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../porting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Porting to current reccy
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../releasing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Releasing a project
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Shared infrastructure features
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Shared infrastructure features
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#verified-finite-asset-store" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Verified finite asset store
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bounded-asset-capture" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Bounded asset capture
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consumer-migration-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Consumer migration checklist
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#atomic-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Atomic output
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validated-configuration-edits" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Validated configuration edits
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#event-connection-completion" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Event connection completion
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#local-resource-claims" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Local resource claims
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#retry-scheduling" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Retry scheduling
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing-cli-help/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Regression testing CLI help
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  API Reference
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_7">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  API Reference
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/reccy/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code>reccy
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7_1" id="__nav_7_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_1_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_7_1">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code>reccy
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  cli
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/device/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  device
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/documentation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  documentation
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/entities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  entities
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  errors
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/paths/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  paths
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/pytest_plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  pytest_plugin
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/randomizer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  randomizer
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/reccy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  reccy
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  release
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_1_12" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/reccy/configuration/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code>configuration
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7_1_12" id="__nav_7_1_12_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        
+          <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_7_1_12_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_7_1_12">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code>configuration
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/configuration/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  settings
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/configuration/tyro/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  tyro
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/configuration/units/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  units
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/configuration/update/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  update
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/configuration/validators/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  validators
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_1_13" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/reccy/protocol/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code>protocol
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7_1_13" id="__nav_7_1_13_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        
+          <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_7_1_13_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_7_1_13">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code>protocol
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/protocol/ipc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  ipc
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/protocol/jsonl/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  jsonl
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/protocol/rpc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  rpc
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_1_14" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/reccy/runtime/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code>runtime
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7_1_14" id="__nav_7_1_14_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        
+          <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_7_1_14_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_7_1_14">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code>runtime
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/runtime/assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  assets
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/runtime/capture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  capture
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/runtime/claims/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  claims
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/runtime/file_assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  file_assets
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/runtime/files/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  files
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/runtime/git_assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  git_assets
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/runtime/http_assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  http_assets
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/runtime/http_current/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  http_current
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/runtime/http_freshness/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  http_freshness
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/runtime/logging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  logging
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/runtime/process/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  process
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/runtime/retry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  retry
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/runtime/subprocess/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  subprocess
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/runtime/value_assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  value_assets
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_1_15" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/reccy/services/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code>services
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7_1_15" id="__nav_7_1_15_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        
+          <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_7_1_15_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_7_1_15">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code>services
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/services/controller/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  controller
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/services/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  models
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/services/paths/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  paths
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/services/renderers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  renderers
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/services/runner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  runner
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/services/spec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  spec
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#verified-finite-asset-store" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Verified finite asset store
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bounded-asset-capture" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Bounded asset capture
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consumer-migration-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Consumer migration checklist
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#atomic-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Atomic output
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validated-configuration-edits" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Validated configuration edits
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#event-connection-completion" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Event connection completion
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#local-resource-claims" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Local resource claims
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#retry-scheduling" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Retry scheduling
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                <a id="__skip" tabindex="-1"></a>
+                
+                  
+
+
+<h1 id="shared-infrastructure-features">Shared infrastructure features<a class="headerlink" href="#shared-infrastructure-features" title="Permanent link">&para;</a></h1>
+<p>Consumer migrations are deferred. Implementations and tests here change only
+Reccy; no claim is made that sibling projects have adopted these APIs.</p>
+<h2 id="verified-finite-asset-store">Verified finite asset store<a class="headerlink" href="#verified-finite-asset-store" title="Permanent link">&para;</a></h2>
+<p><code>reccy.runtime.assets.AssetStore</code> is a private, host-owned filesystem store for
+finite opaque bytes. Construct it with a per-user directory and a host-issued
+credential scope ID; each scope has separate objects and metadata. Then use
+<code>import_bytes()</code> to verify SHA-256 and length, publish one immutable object, and
+create an immutable acquisition/materialization entry. The entry records a
+versioned source key and one of the eight source kinds without treating that key
+as proof that two source requests have equal bytes.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">store</span> <span class="o">=</span> <span class="n">AssetStore</span><span class="p">(</span><span class="n">cache_directory</span><span class="p">,</span> <span class="n">credential_scope</span><span class="o">=</span><span class="s1">'public'</span><span class="p">)</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">key</span> <span class="o">=</span> <span class="n">source_fingerprint</span><span class="p">(</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="p">{</span><span class="s1">'kind'</span><span class="p">:</span> <span class="s1">'relative_file'</span><span class="p">,</span> <span class="s1">'path'</span><span class="p">:</span> <span class="s1">'audio/take.wav'</span><span class="p">},</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="p">{</span><span class="s1">'package'</span><span class="p">:</span> <span class="s1">'session-42'</span><span class="p">},</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">expected_identity</span><span class="p">,</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="p">{},</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="p">)</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">entry</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">import_bytes</span><span class="p">(</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">contents</span><span class="p">,</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">source_key</span><span class="o">=</span><span class="n">key</span><span class="p">,</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">category</span><span class="o">=</span><span class="n">AssetCategory</span><span class="o">.</span><span class="n">acquired</span><span class="p">,</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">source_kind</span><span class="o">=</span><span class="n">SourceKind</span><span class="o">.</span><span class="n">local_file</span><span class="p">,</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="p">)</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="k">with</span> <span class="n">store</span><span class="o">.</span><span class="n">open_entry</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">id</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="n">use</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+</span></code></pre></div>
+<p>Existing objects are rehashed before reuse. A wrong declared identity raises
+<code>AssetIdentityMismatch</code>; a missing or changed object raises
+<code>AssetCorruptionError</code>. <code>open_entry()</code> creates a durable lease before returning
+a handle and removes it when the context exits. Named references and immutable
+pins are explicit retention roots: moving a reference does not retarget an
+existing pin.</p>
+<p><code>source_fingerprint(location, context, expected, representation)</code> computes a
+versioned key from resolved JSON request facts. It preserves integer/float,
+Boolean/null, Unicode, ordering within arrays, and original URL spelling while
+ignoring object-key order. Package identity, volume ID, effective provider
+arguments, and media representation settings belong in the caller-supplied
+facts when relevant. If a secret affects lookup, supply it as <code>lookup_secret</code>
+with a stable host-private <code>fingerprint_key</code> of at least 32 bytes; only a keyed
+digest enters the request key. Never place raw credentials, cookies, signed URL
+parameters, or secret arguments in the public facts or persisted metadata.
+The host resolves credentials and the scope independently; a matching key does
+not authorize access to another scope. Stored source keys must be <code>v1:</code> followed
+by a lowercase SHA-256 digest; raw source descriptions are rejected.</p>
+<p><code>import_stream()</code> reads a finite source in chunks into staging, with a required
+maximum byte count. An oversized body, interrupted read, or wrong expected
+identity never publishes an entry. <code>import_file()</code> uses that path to copy a
+relative file beneath a host-supplied package or volume root into an independent
+snapshot. It rejects traversal, symlinks, and nonregular files. The host still
+maps volume IDs to approved roots and authorizes access before calling it.</p>
+<p>For a source the host trusts to remain immutable throughout use,
+<code>open_verified_file(root, path, expected, trusted_immutable=True)</code> verifies and
+returns the same open file handle without caching a copy. A mutable source must
+use <code>import_file()</code> instead. Reccy cannot make in-place changes by another
+process impossible after a direct read is verified.</p>
+<p>After the host authorizes an immutable asset request, <code>open_expected(identity)</code>
+finds verified retained bytes in that credential scope without contacting the
+original source. It leases the selected entry before reading. A missing entry
+raises <code>AssetCacheMiss</code>; an existing but corrupt object raises
+<code>AssetCorruptionError</code>. Content identity is not authorization, so hosts must
+check request authority before this lookup.</p>
+<p><code>git_assets.import_local_git_file()</code> reads a full-commit, path-selected regular
+blob from a host-approved local Git repository into the bounded store. It does
+not check out files or run filters, hooks, or lazy remote fetches. Symlinks,
+submodules, and unresolved Git LFS pointers are rejected. The returned Git blob
+ID is transport evidence and remains distinct from the entry's file SHA-256.
+Remote fetching and transport-cache limits remain host work.</p>
+<p><code>http_assets.open_https_asset()</code> resolves a declared immutable HTTPS object.
+The host authorizes the initial URL and each redirect and supplies credentials
+and a private fingerprint key. A retained object in the same credential scope
+is opened offline by SHA-256 and length. Otherwise the adapter bounds encoded
+and decoded transfer, handles identity and gzip bodies, and checks the declared
+content identity before publication. Cross-origin redirects drop Authorization,
+Cookie, and Proxy-Authorization headers. <code>no-store</code> and <code>Vary: *</code> responses are
+verified in bounded memory for the current use and are not persisted. HTTP
+freshness, conditional validation, and mutable current-URL imports remain
+separate future work; this adapter never treats a changed URL body as a score
+update.
+<code>reccy.runtime.http_freshness.response_freshness()</code> calculates explicit
+private-cache lifetime and corrected age from response and request headers.
+It grants no heuristic or stale reuse. <code>reccy.runtime.http_current</code>
+uses it for current-URL imports. <code>open_current_https_asset()</code> returns the
+verified content identity and a leased byte stream. It stores only selected
+response metadata under an opaque request key, and conservatively keys all
+request headers so differing <code>Vary</code> variants cannot collide. Fresh bodies are
+reused; stale bodies use ETag or Last-Modified validation when available, or
+fetch an unconditional replacement. A 304 with no stored body causes an
+unconditional fetch. <code>no-store</code> and <code>Vary: *</code> bodies are transient. One
+acquisition at a time may update each request key, and an incomplete body is
+not published.</p>
+<p><code>RetentionRule</code> and <code>RetentionMatch</code> provide pure, additive rule evaluation for
+finite entries. A rule either <code>protect</code>s an entry from every collection mode or
+<code>retain</code>s it until its deadline, which pressure collection may override.
+<code>RetentionNewest(count=N, group_by="source" | "all")</code> retains the newest N
+matching entries in each source group or across all matches. It may be combined
+with a duration: either condition retains the entry. Equal creation times are
+ordered by entry ID. A newest rule cannot combine with <code>retain="forever"</code>,
+which would make its ranking ineffective. <code>explain_retention()</code> reports each
+matching newest rule's rank, including entries outside the retained count.
+Download-only rules may use <code>retain="while_fresh"</code>. The store reads the scoped
+current-URL response metadata and retains an entry for ordinary collection
+only while that response is fresh. Pressure collection may evict it, and a
+missing or stale response record grants no retention.
+<code>explain_retention()</code> reports applicable rules and roots, <code>plan_collection()</code> is
+read-only, and <code>collect()</code> rechecks roots under the store-wide metadata claim
+before deleting manifests and then unreachable objects. Rules may select an
+asset category, source/media kind, source key, or tags. A missing rule leaves an
+unrooted entry eligible. URL/Git acquisition, HTTP freshness, providers and
+capture streams remain host-specific later stages of Ufor's asset-cache plan.
+<code>inspect_recovery()</code> reports staged files and objects with no entry manifest,
+including byte counts, without deleting them. It labels capture recovery
+records separately from raw staging files. A staged file might still have a
+live writer, so the report does not classify it as abandoned.
+<code>export_entry()</code> leases and verifies a finite object before atomically copying
+it to a host-approved destination. Package layout and destination authorization
+remain with the consuming host.
+<code>reccy.runtime.file_assets</code> resolves host-measured volume IDs to current roots.
+The optional display name is diagnostic only; a different ID never matches by
+name. <code>open_file_asset()</code> reads a trusted immutable file directly through its
+verified handle, or copies a mutable file into the verified store before use.
+The host remains responsible for selecting and authorizing package and volume
+roots.
+<code>reccy.runtime.value_assets.open_deterministic_asset()</code> caches a host-declared
+finite provider result by an opaque source key. It remembers the first content
+identity even after collection. Regeneration with different bytes invalidates
+the mapping and reports <code>AssetValueConflict</code>; a later call cannot silently
+replace it. The host must construct the key from all effective inputs, versions,
+and output settings, and encode the provider's result to bytes.
+An optional <code>AssetCapacity</code> bounds distinct stored-object bytes, total staging
+bytes, and the minimum free-space margin for admissions. Imports using a
+capacity serialize across cooperating processes and check staging growth before
+each write; an exceeded limit or <code>ENOSPC</code> raises <code>AssetInsufficientSpace</code>.
+Every process sharing a scope must use the same capacity. Automatic pressure
+collection, Git transport quotas, and capture-recovery reservations remain
+separate work.
+All imports now take the admission claim, including stores without a capacity
+limit, so recovery cannot mistake an active staging writer for abandoned work.
+<code>AssetStore.plan_recovery()</code> lists abandoned staging files, unreferenced objects,
+and stale asset or capture leases with their byte sizes. <code>recover()</code> rechecks
+under the admission, reader, and metadata claims before discarding them. Both
+raise <code>AssetRecoveryBusy</code> while a writer or leased reader is active. Published
+capture recovery records are retained until <code>CaptureStore.collect()</code> applies
+its retention rules.</p>
+<h2 id="bounded-asset-capture">Bounded asset capture<a class="headerlink" href="#bounded-asset-capture" title="Permanent link">&para;</a></h2>
+<p><code>reccy.runtime.capture.CaptureStore</code> builds immutable finite capture versions on
+an <code>AssetStore</code>. Every <code>CaptureSpec</code> has a maximum byte budget and exactly one
+frame limit, duration limit, or manual-stop mode. It also records resolved media
+facts and adapter/encoder versions. Callers select captures by immutable ID or a
+named reference; pinning a reference snapshots its current capture ID, so moving
+the reference cannot retarget the pin.</p>
+<p>For callback and client-buffer sources, <code>CaptureSession.queue_fragment()</code> copies
+borrowed storage into one preallocated bounded byte queue and does no filesystem
+I/O. <code>maximum_queue_bytes</code> is allocated when the session starts; the host is
+trusted to choose that budget, and reccy does not impose an additional cap.
+<code>drain()</code> performs object publication outside the producer call. Queue
+overflow either raises <code>CaptureQueueOverflow</code> or records an explicit native-frame
+gap according to <code>CaptureOverflowPolicy</code>; it never silently drops data. Stop the
+provider using its own protocol, then finalize with EOF, reached-bound, or clean
+stop. Finalization closes the queue first, including against an in-flight
+producer call.</p>
+<p>Abort writes incomplete recovery evidence without publishing a capture.
+<code>salvage()</code> is deliberately separate: it publishes only verified fragments,
+retains the failure reason in recovery evidence, and marks the manifest
+<code>salvaged_failure</code> rather than claiming the requested extent completed. Fragment
+entries are pinned as they are drained so a writer interruption cannot leave a
+published manifest pointing to collected bytes. Hosts remain responsible for
+encoding media and for exporting these generic native spans as Ufor recording
+fragments and gaps.</p>
+<p><code>CaptureStore.plan_collection()</code> explains eligible completed capture and recovery
+records under additive <code>CaptureRetentionRule</code> rules. Rules can select record kind
+and source key, retain or protect for a duration since completion, retain the
+newest records per source or globally, or retain/protect forever. Ordinary
+collection respects retention; pressure collection overrides retention but not
+protection. Named capture references, capture pins, and active record leases are
+roots in either mode. With no matching rule, an unrooted record is immediately
+eligible. Recovery completion time comes from its private record file timestamp.
+Asset collection also removes pin metadata once its expiry has passed.
+Use <code>open_record()</code> while selecting a record and opening its fragments so the
+record cannot expire between those operations. <code>collect()</code> removes eligible
+records and releases fragment pins only after all records using those fragments
+are gone. Follow it with <code>AssetStore.collect()</code> to reclaim eligible entry bytes.</p>
+<h2 id="consumer-migration-checklist">Consumer migration checklist<a class="headerlink" href="#consumer-migration-checklist" title="Permanent link">&para;</a></h2>
+<p>These five projects should read the relevant sections and adopt the listed APIs:</p>
+<table>
+<thead>
+<tr>
+<th>Project</th>
+<th>Features to adopt</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tuney</td>
+<td>Atomic output, validated configuration edits, local resource claims</td>
+</tr>
+<tr>
+<td>Streamo</td>
+<td>Atomic output, retry scheduling</td>
+</tr>
+<tr>
+<td>Recs</td>
+<td>Validated configuration edits, event connection completion, local resource claims</td>
+</tr>
+<tr>
+<td>Showco</td>
+<td>Event connection completion</td>
+</tr>
+<tr>
+<td>Lyte</td>
+<td>Retry scheduling</td>
+</tr>
+<tr>
+<td>Ufor hosts</td>
+<td>Verified finite asset store</td>
+</tr>
+</tbody>
+</table>
+<p>The Ufor format library remains free of cache I/O. A host resolving Ufor asset
+locations can adopt the verified finite asset store. Showco may also adopt retry
+scheduling later, but that is optional and outside the initial migration scope.</p>
+<h2 id="atomic-output">Atomic output<a class="headerlink" href="#atomic-output" title="Permanent link">&para;</a></h2>
+<p>Import <code>atomic_output</code> from <code>reccy.runtime.files</code>. It creates parent directories
+and yields a closed, initially empty temporary file beside the destination,
+preserving its suffix. Write through any encoder, closing its handles before
+leaving the context. A successful exit replaces the destination; failure leaves
+the old destination intact and removes the temporary file.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">with</span> <span class="n">atomic_output</span><span class="p">(</span><span class="n">destination</span><span class="p">)</span> <span class="k">as</span> <span class="n">temporary</span><span class="p">:</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="n">temporary</span><span class="o">.</span><span class="n">write_bytes</span><span class="p">(</span><span class="n">contents</span><span class="p">)</span>
+</span></code></pre></div>
+<p>Concurrent writes are last-replacement-wins. <code>sync=True</code> fsyncs the finished file
+before replacement; it does not fsync the directory or promise full power-loss
+durability. Existing text/JSON settings writers still default to syncing.
+This is neither a resource lock nor a multi-file transaction. Callers own content
+validation and any special permission policy.</p>
+<p>Tuney migration: replace the local <code>app.file_output.atomic_output</code> implementation
+and its imports with this function. Streamo migration: use it inside image/cursor
+publication, retaining image validation. Neither migration is implemented here.</p>
+<h2 id="validated-configuration-edits">Validated configuration edits<a class="headerlink" href="#validated-configuration-edits" title="Permanent link">&para;</a></h2>
+<p>Import <code>validated_update</code> from <code>reccy.configuration.update</code>:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">updated</span> <span class="o">=</span> <span class="n">validated_update</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="p">[</span><span class="s1">'timing'</span><span class="p">,</span> <span class="s1">'duration'</span><span class="p">],</span> <span class="s1">'250ms'</span><span class="p">)</span>
+</span></code></pre></div>
+<p>The result is a new model of the same type, fully revalidated with authored unit
+values preserved. The original is not mutated, including on failed validation.
+Paths are nonempty sequences of canonical model field names, never dotted strings,
+aliases, dictionary keys or list indices. Unknown or excluded fields and traversal
+through non-model values raise ValueError. Pydantic validation errors propagate.
+The function inherits the unit-dump restrictions on custom serializers/RootModel;
+revalidation explicitly uses field names, including for aliased models.</p>
+<p>Recs migration: retain the mutable-address allowlist and split the supported
+address into components before calling this helper. Tuney migration: use the
+returned model for a single-field edit, retaining undo, cache invalidation,
+hardware side effects and UI refresh in Tuney. Preset merging is not implemented
+by this function. Consumer adoption remains deferred.</p>
+<h2 id="event-connection-completion">Event connection completion<a class="headerlink" href="#event-connection-completion" title="Permanent link">&para;</a></h2>
+<p><code>rpc.EventClient.wait_closed(timeout)</code> returns whether the transport has closed.
+It returns False before startup or while connected unless the timeout permits
+waiting for closure. <code>terminal_reason</code> is initially None, then one
+<code>rpc.EventCloseReason</code>: local_close, peer_eof, protocol_error, callback_error,
+transport_error or timeout. The first terminal cause wins and repeated close
+does not overwrite it. Startup failures also notify waiters and still raise.</p>
+<p>Callback exceptions still reach <code>threading.excepthook</code>; there is no reconnect,
+command replay or implicit retry. Local close wakes owners after transport cleanup
+but does not join a callback already executing. Applications must coordinate their
+callback-owned resources separately. Use a fresh EventClient for reconnection.</p>
+<p>Showco migration: use completion to wake its waveform reconnect loop, retaining
+subscription activation, stop handling and retry policy. Recs watch migration:
+stop waiting when the connection ends even without a final status event. Neither
+migration is implemented. Initial snapshot/event ordering remains unchanged and
+is not an atomic handoff guarantee.</p>
+<h2 id="local-resource-claims">Local resource claims<a class="headerlink" href="#local-resource-claims" title="Permanent link">&para;</a></h2>
+<p>Import <code>ResourceClaim</code> and <code>ResourceClaimConflict</code> from <code>reccy.runtime.claims</code>.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">with</span> <span class="n">ResourceClaim</span><span class="p">(</span><span class="n">lock_path</span><span class="p">):</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="n">save_settings</span><span class="p">()</span>
+</span></code></pre></div>
+<p>Construction does not acquire. By default, <code>acquire()</code> is nonblocking and returns the claim;
+<code>release()</code> is idempotent. Entering a context acquires and exiting releases, even
+after an exception. Acquiring the same held object again raises RuntimeError.
+Contention raises ResourceClaimConflict; file-open permission and other I/O errors
+propagate separately. Parent directories are created; new lock files use mode
+0600, subject to platform permissions. Existing contents are neither interpreted
+nor changed, so there are no invalid/stale PID records to recover.</p>
+<p>The default timeout is zero. <code>ResourceClaim(path, timeout=seconds)</code> waits up to a
+finite, nonnegative number of seconds for normal contention, then raises
+<code>ResourceClaimConflict</code>. Asset and capture metadata operations use a five-second
+timeout; ordinary instance claims remain nonblocking unless callers opt in.</p>
+<p>POSIX uses flock; Windows locks byte zero with msvcrt's nonblocking lock. Closing
+the descriptor releases it; process exit also releases it. Keep the object alive
+and explicitly release it. Do not fork while holding claims: inherited descriptors
+may retain locks. Methods on one claim object require caller serialization.</p>
+<p>The lock file is deliberately never deleted. Every cooperating writer must use
+the same stable path on a local filesystem. Never unlink/replace it or use
+<code>atomic_output()</code> on it: replacing it creates a different lock object on POSIX.
+Release cannot remove or unlock a replacement file, but cannot stop another
+process replacing the path either. Use an application-owned directory; this is
+cooperative ownership, not protection against hostile filesystem changes or a
+distributed lock. It does not lock the separate settings/output file itself.</p>
+<p>Tuney migration: replace its PID-marker instance claim, retaining GUI messages.
+Recs migration: use a dedicated stable lock path for settings ownership, retaining
+instance discovery separately. Stop old consumers before migration: PID-file
+claims and OS locks do not coordinate. Migrations are deferred. Tests exercise
+separate-process contention, exit/crash release, contents preservation and errors
+on macOS; native Windows validation remains outstanding.</p>
+<h2 id="retry-scheduling">Retry scheduling<a class="headerlink" href="#retry-scheduling" title="Permanent link">&para;</a></h2>
+<p>Import <code>RetryPolicy</code>, <code>RetrySchedule</code> and <code>RetryStopReason</code> from
+<code>reccy.runtime.retry</code>. The first attempt is immediately eligible. <code>attempts</code>
+counts total attempts, including the first; None means unlimited. <code>delay</code> is the
+first failure's wait, <code>backoff</code> defaults to 1 (fixed delay), <code>backoff_after</code> selects
+the failed attempt after which later delays multiply, and <code>max_delay</code> caps every
+delay (default 60 seconds). Timing must be finite and nonnegative; backoff is at
+least 1. Supply a monotonic clock for deterministic tests and an optional absolute
+deadline in that same clock domain.</p>
+<p><code>begin_attempt()</code> returns True only when an attempt may start, and counts it.
+After a retryable failure, call <code>failed()</code>. <code>seconds_until_attempt()</code> returns a
+nonnegative delay, or None when stopped. <code>stop_reason</code> distinguishes cancellation,
+deadline and exhaustion. After success, <code>reset()</code> clears the cycle, including
+cancellation, but preserves the absolute deadline. A successful operation returning
+None is not confused with failure: the schedule never executes operations.</p>
+<p>Only one attempt may be active per schedule; finish it with failed/reset before
+asking for another. Methods require caller serialization. <code>cancel()</code> blocks future
+attempts but does not interrupt an active operation or wake a caller-owned wait.
+Consumers using a stop event should use its interruptible wait, then cancel the
+schedule when signalled. No sleeping, threads, exception handling or implicit
+retries are performed by this API. Operations still need their own timeouts.</p>
+<p>Lyte migration: use the schedule inside its synchronous retry loop, keeping
+exception selection, logging and stop-event waiting. Explicitly choose a delay cap
+when migrating its formerly uncapped backoff. Streamo migration: call
+<code>begin_attempt()</code> from update loops, use failed/reset for recovery, and retain
+device/process ownership locally. Use separate schedules for distinct recovery
+policies. Do not migrate hardware safety decisions into Reccy. Neither consumer
+migration is implemented here.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog" role="status" aria-atomic="true">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      
+        
+        
+      <script id="__config" type="application/json">{"annotate":null,"base":"..","features":["navigation.indexes","content.code.copy"],"redirect":null,"search":"../assets/javascripts/workers/search.c47bb847.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","clipboard.error":"Could not copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.a2388154.min.js"></script>
+      
+    
+  </body>
+</html>
