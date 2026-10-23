@@ -2,13 +2,13 @@
 
 import json
 import subprocess
-import sys
 import tomllib
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-import tyro
 from pydantic import BaseModel
+
+from .errors import ReccyError
 
 
 class Documentation(BaseModel, frozen=True):
@@ -56,11 +56,11 @@ class Documentation(BaseModel, frozen=True):
             },
         }
 
-    def build(self) -> Path:
+    def build(self, site_url: str = '') -> Path:
         """Build a static site and return its index path; warnings fail the build.
 
-        Install reccy's ``docs`` extra in the calling project's environment.
-        Only the temporary configuration and generated site are written.
+        uv installs and caches the documentation tools in an isolated environment.
+        The generated site is written to site/.
         """
         root = self.root.resolve()
         with NamedTemporaryFile(
@@ -70,13 +70,18 @@ class Documentation(BaseModel, frozen=True):
             dir=root,
             delete_on_close=False,
         ) as config:
-            json.dump(self.configuration(), config)
+            settings = self.configuration()
+            settings['site_url'] = site_url
+            json.dump(settings, config)
             config.close()
             subprocess.run(
                 [
-                    sys.executable,
-                    '-m',
-                    'zensical',
+                    'uv',
+                    'tool',
+                    'run',
+                    '--with',
+                    'mkdocstrings-python>=2.0.9',
+                    'zensical>=0.0.70',
                     'build',
                     '--strict',
                     '--config-file',
@@ -87,6 +92,124 @@ class Documentation(BaseModel, frozen=True):
             )
         return root / 'site' / 'index.html'
 
+    def publish(self, init: bool = False) -> str:
+        """Build and push to origin's gh-pages branch, then return the site URL.
 
-if __name__ == '__main__':
-    tyro.cli(Documentation).build()
+        Pages must already use gh-pages at its root. With init=True, a missing
+        Pages site is configured after the first successful documentation push.
+        Other publishing configurations are left untouched and cause an error.
+        """
+        root = self.root.resolve()
+        remote = subprocess.check_output(
+            ['git', 'remote', 'get-url', 'origin'], cwd=root, text=True
+        ).strip()
+        repository = subprocess.check_output(
+            [
+                'gh',
+                'repo',
+                'view',
+                remote,
+                '--json',
+                'nameWithOwner',
+                '--jq',
+                '.nameWithOwner',
+            ],
+            cwd=root,
+            text=True,
+        ).strip()
+        endpoint = f'repos/{repository}/pages'
+        result = subprocess.run(
+            ['gh', 'api', endpoint], cwd=root, capture_output=True, text=True
+        )
+        missing = result.returncode != 0 and '(HTTP 404)' in result.stderr
+        if missing:
+            if not init:
+                raise ReccyError(
+                    'GitHub Pages is not configured; run reccy docs --init'
+                )
+            owner, name = repository.split('/')
+            path = '' if name.lower() == f'{owner.lower()}.github.io' else f'{name}/'
+            url = f'https://{owner}.github.io/{path}'
+        else:
+            if result.returncode:
+                raise ReccyError(result.stderr.strip())
+            site = json.loads(result.stdout)
+            if site.get('build_type') != 'legacy' or site.get('source') != {
+                'branch': 'gh-pages',
+                'path': '/',
+            }:
+                raise ReccyError('GitHub Pages must publish from gh-pages at /')
+            url = site['html_url']
+
+        if init:
+            landing = root / 'doc' / 'index.md'
+            if not landing.exists():
+                landing.parent.mkdir(parents=True, exist_ok=True)
+                settings = self.configuration()
+                landing.write_text(
+                    f'# {settings["site_name"]}\n\n'
+                    f'{settings["site_description"]}\n\n'
+                    'The API Reference is generated from the Python source code.\n'
+                )
+            ignored = subprocess.run(
+                ['git', 'check-ignore', '--quiet', '--no-index', 'site/index.html'],
+                cwd=root,
+            )
+            if ignored.returncode == 1:
+                ignore = root / '.gitignore'
+                text = ignore.read_text() if ignore.exists() else ''
+                ignore.write_text(f'{text.rstrip()}\n/site/\n')
+            elif ignored.returncode:
+                ignored.check_returncode()
+
+        index = self.build(site_url=url)
+        branch = subprocess.check_output(
+            ['git', 'ls-remote', '--heads', 'origin', 'refs/heads/gh-pages'],
+            cwd=root,
+            text=True,
+        )
+        if branch:
+            subprocess.run(
+                [
+                    'git',
+                    'fetch',
+                    'origin',
+                    'refs/heads/gh-pages:refs/remotes/origin/gh-pages',
+                ],
+                cwd=root,
+                check=True,
+            )
+        subprocess.run(
+            [
+                'uv',
+                'tool',
+                'run',
+                'ghp-import',
+                '--no-jekyll',
+                '--push',
+                str(index.parent),
+            ],
+            cwd=root,
+            check=True,
+        )
+        if missing:
+            response = subprocess.check_output(
+                [
+                    'gh',
+                    'api',
+                    '--method',
+                    'POST',
+                    endpoint,
+                    '-f',
+                    'build_type=legacy',
+                    '-f',
+                    'source[branch]=gh-pages',
+                    '-f',
+                    'source[path]=/',
+                ],
+                cwd=root,
+                text=True,
+            )
+            url = json.loads(response)['html_url']
+        print(f'Documentation pushed: {url}')
+        return url

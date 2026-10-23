@@ -32,10 +32,14 @@ and retry scheduling, including migration notes for consumer projects.
 
 ## Documentation
 
-`uv run --extra docs python -m reccy.documentation` builds the Markdown guides
-and generated Python API reference at `site/index.html` using Zensical and
-mkdocstrings. See the [documentation guide](doc/documentation.md) for the shared
-API and project layout used by sibling projects.
+`uv run reccy docs` builds the Markdown guides and generated Python API reference
+and pushes them to GitHub Pages. Run `uv run reccy docs --init` for initial setup.
+See the [documentation guide](doc/documentation.md) for the shared API and layout.
+
+`uv run reccy release [patch|minor|major]` publishes documentation first, then
+verifies and releases the project. See the [release guide](doc/releasing.md).
+Installing reccy as a dependency also installs this CLI in the consumer's Python
+environment.
 
 ## Tests
 

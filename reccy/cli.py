@@ -1,10 +1,34 @@
 import subprocess
 import sys
 from collections.abc import Callable, Mapping
+from typing import Annotated
 
-from pydantic import ValidationError
+import tyro
+from pydantic import BaseModel, ValidationError
 
+from .documentation import Documentation
 from .errors import ReccyError
+from .release import ReleaseCommand, release
+
+
+class DocsCommand(BaseModel, frozen=True):
+    """Build documentation and push it to GitHub Pages."""
+
+    init: bool = False
+    """Initialize GitHub Pages if the repository does not have a Pages site."""
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Run the installed reccy docs or release command for the current project."""
+    command = tyro.cli(
+        Annotated[DocsCommand, tyro.conf.subcommand(name='docs')]
+        | Annotated[ReleaseCommand, tyro.conf.subcommand(name='release')],
+        args=argv,
+        prog='reccy',
+    )
+    if isinstance(command, DocsCommand):
+        return run_main(lambda: _publish_docs(command))
+    return run_main(lambda: release(command))
 
 
 def route_command(
@@ -42,3 +66,8 @@ def run_main(action: Callable[[], int]) -> int:
 
 def _usage(prog: str, commands: Mapping[str, object]) -> str:
     return f'Usage: {prog} {{{",".join(commands)}}} ...'
+
+
+def _publish_docs(command: DocsCommand) -> int:
+    Documentation().publish(init=command.init)
+    return 0
