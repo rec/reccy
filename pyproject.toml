@@ -19,6 +19,12 @@ classifiers = [
     "Programming Language :: Python :: 3.15",
 ]
 
+[project.optional-dependencies]
+docs = [
+    "mkdocstrings-python>=2.0.9",
+    "zensical>=0.0.70",
+]
+
 [dependency-groups]
 dev = [
     "pytest",
