@@ -12,6 +12,19 @@ This builds the site at `site/index.html` and pushes it to the repository's
 Builds fail on warnings, and failed builds are not pushed. Successful completion
 confirms the push was accepted; GitHub's deployment happens afterward.
 
+When the working tree is clean and the current commit has already been published,
+the command skips generation and publication. The source commit is recorded in
+the `gh-pages` commit message. Publications with uncommitted changes do not record
+a source commit, so they cannot cause a later clean checkout to be skipped.
+
+To rebuild regardless, including after documentation-tool updates, run:
+
+```sh
+uv run reccy docs --force
+```
+
+`-f` is the short form of `--force`, and can also be combined with `--init`.
+
 GitHub Pages must already be configured to publish the root of `gh-pages`.
 Otherwise the command fails. For a repository without a Pages site, run:
 
@@ -76,8 +89,8 @@ index = Documentation(root=Path('/path/to/project')).build()
 ```
 
 `configuration()` returns the Zensical configuration as a dictionary.
-`publish(init=False)` builds and pushes the documentation, returning the Pages
-URL. Documentation tools are not installed into normal consumer environments.
+`publish(init=False, force=False)` publishes documentation as needed, returning
+the Pages URL. Documentation tools are not installed into normal consumer environments.
 
 ## Language scope
 
