@@ -17,6 +17,9 @@ class DocsCommand(BaseModel, frozen=True):
     init: bool = False
     """Initialize GitHub Pages if the repository does not have a Pages site."""
 
+    force: Annotated[bool, tyro.conf.arg(aliases=['-f'])] = False
+    """Rebuild and publish even if the current source commit is already published."""
+
 
 def main(argv: list[str] | None = None) -> int:
     """Run the installed reccy docs or release command for the current project."""
@@ -69,5 +72,5 @@ def _usage(prog: str, commands: Mapping[str, object]) -> str:
 
 
 def _publish_docs(command: DocsCommand) -> int:
-    Documentation().publish(init=command.init)
+    Documentation().publish(init=command.init, force=command.force)
     return 0

@@ -92,12 +92,13 @@ class Documentation(BaseModel, frozen=True):
             )
         return root / 'site' / 'index.html'
 
-    def publish(self, init: bool = False) -> str:
+    def publish(self, init: bool = False, force: bool = False) -> str:
         """Build and push to origin's gh-pages branch, then return the site URL.
 
         Pages must already use gh-pages at its root. With init=True, a missing
         Pages site is configured after the first successful documentation push.
         Other publishing configurations are left untouched and cause an error.
+        A clean source commit already published is skipped unless force=True.
         """
         root = self.root.resolve()
         remote = subprocess.check_output(
@@ -154,7 +155,6 @@ class Documentation(BaseModel, frozen=True):
             elif ignored.returncode:
                 ignored.check_returncode()
 
-        index = self.build(site_url=url)
         branch = subprocess.check_output(
             ['git', 'ls-remote', '--heads', 'origin', 'refs/heads/gh-pages'],
             cwd=root,
@@ -171,6 +171,38 @@ class Documentation(BaseModel, frozen=True):
                 cwd=root,
                 check=True,
             )
+        dirty = subprocess.check_output(
+            ['git', 'status', '--porcelain'], cwd=root, text=True
+        ).strip()
+        source = (
+            None
+            if dirty
+            else subprocess.check_output(
+                ['git', 'rev-parse', 'HEAD'], cwd=root, text=True
+            ).strip()
+        )
+        if branch and source and not missing and not force:
+            published = subprocess.check_output(
+                [
+                    'git',
+                    'log',
+                    '-1',
+                    '--format=%(trailers:key=Source-Commit,valueonly)',
+                    'refs/remotes/origin/gh-pages',
+                ],
+                cwd=root,
+                text=True,
+            ).strip()
+            if published == source:
+                print(f'Documentation already published: {url}')
+                return url
+
+        index = self.build(site_url=url)
+        message = 'Publish documentation'
+        if source:
+            message += f'\n\nSource-Commit: {source}'
+        else:
+            message += ' (uncommitted changes)'
         subprocess.run(
             [
                 'uv',
@@ -179,6 +211,8 @@ class Documentation(BaseModel, frozen=True):
                 'ghp-import',
                 '--no-jekyll',
                 '--push',
+                '--message',
+                message,
                 str(index.parent),
             ],
             cwd=root,

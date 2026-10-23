@@ -25,20 +25,31 @@ def test_help_does_not_modify_the_project(
 
 
 @pytest.mark.parametrize('init', [False, True])
+@pytest.mark.parametrize('force_flag', [None, '-f', '--force'])
 def test_docs_passes_explicit_initialization(
     init: bool,
+    force_flag: str | None,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    calls: list[bool] = []
+    calls: list[tuple[bool, bool]] = []
 
-    def publish(self: Documentation, init: bool = False) -> str:
-        calls.append(init)
+    def publish(self: Documentation, init: bool = False, force: bool = False) -> str:
+        calls.append((init, force))
         return 'https://example.github.io/project/'
 
     monkeypatch.setattr(Documentation, 'publish', publish)
 
-    assert cli.main(['docs', *(['--init'] if init else [])]) == 0
-    assert calls == [init]
+    assert (
+        cli.main(
+            [
+                'docs',
+                *(['--init'] if init else []),
+                *([force_flag] if force_flag else []),
+            ]
+        )
+        == 0
+    )
+    assert calls == [(init, force_flag is not None)]
 
 
 @pytest.mark.parametrize('part', ['patch', 'minor', 'major'])
