@@ -131,15 +131,7 @@ class Documentation(BaseModel, frozen=True):
             path = '' if name.lower() == f'{owner.lower()}.github.io' else f'{name}/'
             url = f'https://{owner}.github.io/{path}'
         else:
-            if result.returncode:
-                raise ReccyError(result.stderr.strip())
-            site = json.loads(result.stdout)
-            if site.get('build_type') != 'legacy' or site.get('source') != {
-                'branch': 'gh-pages',
-                'path': '/',
-            }:
-                raise ReccyError('GitHub Pages must publish from gh-pages at /')
-            url = site['html_url']
+            url = _pages_url(result)
 
         if init:
             landing = root / 'doc' / 'index.md'
@@ -193,7 +185,7 @@ class Documentation(BaseModel, frozen=True):
             check=True,
         )
         if missing:
-            response = subprocess.check_output(
+            result = subprocess.run(
                 [
                     'gh',
                     'api',
@@ -209,7 +201,24 @@ class Documentation(BaseModel, frozen=True):
                 ],
                 cwd=root,
                 text=True,
+                capture_output=True,
             )
-            url = json.loads(response)['html_url']
+            if result.returncode and '(HTTP 409)' in result.stderr:
+                result = subprocess.run(
+                    ['gh', 'api', endpoint], cwd=root, text=True, capture_output=True
+                )
+            url = _pages_url(result)
         print(f'Documentation pushed: {url}')
         return url
+
+
+def _pages_url(result: subprocess.CompletedProcess[str]) -> str:
+    if result.returncode:
+        raise ReccyError(result.stderr.strip())
+    site = json.loads(result.stdout)
+    if site.get('build_type') != 'legacy' or site.get('source') != {
+        'branch': 'gh-pages',
+        'path': '/',
+    }:
+        raise ReccyError('GitHub Pages must publish from gh-pages at /')
+    return site['html_url']
