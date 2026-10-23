@@ -30,6 +30,13 @@ See [shared infrastructure features](doc/shared-features.md) for atomic output,
 validated configuration edits, event connection completion, local resource claims
 and retry scheduling, including migration notes for consumer projects.
 
+## Documentation
+
+`uv run --extra docs python -m reccy.documentation` builds the Markdown guides
+and generated Python API reference at `site/index.html` using Zensical and
+mkdocstrings. See the [documentation guide](doc/documentation.md) for the shared
+API and project layout used by sibling projects.
+
 ## Tests
 
 `uv run pytest` runs the unit-test suite with three work-stealing workers. Use
