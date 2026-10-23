@@ -2000,9 +2000,17 @@
 <code>uv</code>, <code>git</code>, and an authenticated <code>gh</code>, with permission to push to <code>origin</code>.
 Builds fail on warnings, and failed builds are not pushed. Successful completion
 confirms the push was accepted; GitHub's deployment happens afterward.</p>
+<p>When the working tree is clean and the current commit has already been published,
+the command skips generation and publication. The source commit is recorded in
+the <code>gh-pages</code> commit message. Publications with uncommitted changes do not record
+a source commit, so they cannot cause a later clean checkout to be skipped.</p>
+<p>To rebuild regardless, including after documentation-tool updates, run:</p>
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>uv<span class="w"> </span>run<span class="w"> </span>reccy<span class="w"> </span>docs<span class="w"> </span>--force
+</span></code></pre></div>
+<p><code>-f</code> is the short form of <code>--force</code>, and can also be combined with <code>--init</code>.</p>
 <p>GitHub Pages must already be configured to publish the root of <code>gh-pages</code>.
 Otherwise the command fails. For a repository without a Pages site, run:</p>
-<div class="language-sh highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>uv<span class="w"> </span>run<span class="w"> </span>reccy<span class="w"> </span>docs<span class="w"> </span>--init
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>uv<span class="w"> </span>run<span class="w"> </span>reccy<span class="w"> </span>docs<span class="w"> </span>--init
 </span></code></pre></div>
 <p>Initialization creates a missing <code>doc/index.md</code>, adds <code>site/</code> to <code>.gitignore</code> if
 needed, builds and pushes the documentation, and enables GitHub Pages. Commit any
@@ -2021,12 +2029,12 @@ application modules, so it does not require their runtime or hardware setup.
 Docstrings supply the explanations; generation does not infer behavior.</p>
 <h2 id="shared-project-layout">Shared project layout<a class="headerlink" href="#shared-project-layout" title="Permanent link">&para;</a></h2>
 <p>The shared API is <code>reccy.documentation.Documentation</code>. Projects use this layout:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>pyproject.toml
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>README.md
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>package_name/
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>doc/
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    index.md
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    other-guides.md
+<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>pyproject.toml
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>README.md
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>package_name/
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>doc/
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    index.md
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    other-guides.md
 </span></code></pre></div>
 <p>The package directory is the <code>[project].name</code> from <code>pyproject.toml</code>, with hyphens
 replaced by underscores. <code>doc/index.md</code> is the site's Markdown landing page.
@@ -2041,15 +2049,15 @@ isolated environments only when documentation is built or published.</p>
 API navigation and rendering settings. No per-project Zensical configuration is
 required. <code>--init</code> supplies the landing page when starting from scratch.</p>
 <p>Python callers can build locally without publishing:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">reccy.documentation</span><span class="w"> </span><span class="kn">import</span> <span class="n">Documentation</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">index</span> <span class="o">=</span> <span class="n">Documentation</span><span class="p">(</span><span class="n">root</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="s1">'/path/to/project'</span><span class="p">))</span><span class="o">.</span><span class="n">build</span><span class="p">()</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">reccy.documentation</span><span class="w"> </span><span class="kn">import</span> <span class="n">Documentation</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="n">index</span> <span class="o">=</span> <span class="n">Documentation</span><span class="p">(</span><span class="n">root</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="s1">'/path/to/project'</span><span class="p">))</span><span class="o">.</span><span class="n">build</span><span class="p">()</span>
 </span></code></pre></div>
 <p><code>configuration()</code> returns the Zensical configuration as a dictionary.
-<code>publish(init=False)</code> builds and pushes the documentation, returning the Pages
-URL. Documentation tools are not installed into normal consumer environments.</p>
+<code>publish(init=False, force=False)</code> publishes documentation as needed, returning
+the Pages URL. Documentation tools are not installed into normal consumer environments.</p>
 <h2 id="language-scope">Language scope<a class="headerlink" href="#language-scope" title="Permanent link">&para;</a></h2>
 <p>This API generates Python references. Markdown guides can describe Rust or C++,
 but this setup does not extract their APIs. Rust API references still need
