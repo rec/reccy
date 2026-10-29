@@ -10,6 +10,7 @@ dependencies = [
     "pint>=0.24.4",
     "pydantic>=2.13.4",
     "strenum",
+    "tomlkit>=0.15.2",
     "tyro>=1.0.13",
 ]
 classifiers = [
