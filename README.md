@@ -117,6 +117,17 @@ Windows it also overrides APPDATA/LOCALAPPDATA; those environment variables are
 used only when home is omitted. These paths do not change the service-manager
 account: installation still targets the current user.
 
+## Settings persistence
+
+`reccy.configuration.settings.save(path, model)` writes JSON for `.json` paths and
+TOML for `.toml` paths, using atomic replacement. `read(path)` returns decoded data;
+`load(path, Model)` validates it as a Pydantic model and returns `None` for a missing
+file. These functions reject unsupported or missing suffixes. TOML writes reject
+values such as `None` that TOML cannot represent.
+
+The explicitly JSON-only `write_json_model()` helper retains support for arbitrary
+suffixes, including internal `.owner` files.
+
 ## Unit-aware configuration dumps
 
 Authored quantities use Pint expressions, with exact rational magnitudes during
