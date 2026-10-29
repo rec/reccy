@@ -128,6 +128,11 @@ values such as `None` that TOML cannot represent.
 The explicitly JSON-only `write_json_model()` helper retains support for arbitrary
 suffixes, including internal `.owner` files.
 
+`save()` and `write_json_model()` omit empty dictionary entries recursively by
+default, including dictionaries emptied by that filtering. Empty dictionaries in
+lists retain their positions. Both writers leave the input model unchanged;
+pass `write_empty_dicts=True` to retain all empty dictionaries.
+
 ## Unit-aware configuration dumps
 
 Authored quantities use Pint expressions, with exact rational magnitudes during

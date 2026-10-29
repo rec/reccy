@@ -18,6 +18,67 @@ class Preferences(BaseModel, frozen=True):
     nested: dict[str, int] = {'count': 3}
 
 
+@pytest.mark.parametrize('writer', ['save-json', 'save-toml', 'write-json'])
+@pytest.mark.parametrize('write_empty_dicts', [False, True])
+def test_empty_dictionary_filtering_preserves_list_positions_and_input(
+    tmp_path: Path, writer: str, write_empty_dicts: bool
+) -> None:
+    class Dictionaries(BaseModel, frozen=True):
+        empty: dict[str, object] = {}
+        nested: dict[str, object] = {'child': {'empty': {}}}
+        retained: dict[str, object] = {'empty': {}, 'value': 7}
+        rows: list[dict[str, object]] = [{}, {'empty': {}}, {'value': 1}, {}]
+        lists: list[list[dict[str, object]]] = [[{}], []]
+        empty_list: list[str] = []
+        zero: int = 0
+        false: bool = False
+        text: str = ''
+
+    value = Dictionaries()
+    original = value.model_copy(deep=True)
+    path = tmp_path / ('settings.toml' if writer == 'save-toml' else 'settings.json')
+
+    if writer == 'write-json':
+        settings.write_json_model(path, value, write_empty_dicts=write_empty_dicts)
+    else:
+        settings.save(path, value, write_empty_dicts=write_empty_dicts)
+
+    actual = settings.read(path)
+    assert isinstance(actual, dict)
+    assert value == original
+    assert ('empty' in actual) is write_empty_dicts
+    assert ('nested' in actual) is write_empty_dicts
+    assert actual['retained'] == (
+        {'empty': {}, 'value': 7} if write_empty_dicts else {'value': 7}
+    )
+    assert actual['rows'] == (
+        [{}, {'empty': {}}, {'value': 1}, {}]
+        if write_empty_dicts
+        else [{}, {}, {'value': 1}, {}]
+    )
+    assert actual['lists'] == [[{}], []]
+    assert actual['empty_list'] == []
+    assert actual['zero'] == 0
+    assert actual['false'] is False
+    assert actual['text'] == ''
+
+
+@pytest.mark.parametrize('writer', ['save-json', 'save-toml', 'write-json'])
+def test_writers_omit_empty_dictionary_entries_by_default(
+    tmp_path: Path, writer: str
+) -> None:
+    class Empty(BaseModel, frozen=True):
+        value: dict[str, object] = {}
+
+    path = tmp_path / ('settings.toml' if writer == 'save-toml' else 'settings.json')
+    if writer == 'write-json':
+        settings.write_json_model(path, Empty())
+    else:
+        settings.save(path, Empty())
+
+    assert settings.read(path) == {}
+
+
 @pytest.mark.parametrize('suffix', ['.json', '.toml'])
 def test_settings_round_trip_in_the_selected_format(
     tmp_path: Path, suffix: str
