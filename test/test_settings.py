@@ -106,10 +106,13 @@ def test_settings_reject_unsupported_suffixes_before_io(
 
     with pytest.raises(ValueError, match=r'\.json or \.toml'):
         settings.read(path)
-    with pytest.raises(ValueError, match=r'\.json or \.toml'):
+    with pytest.raises(ReccyError, match=r'\.json or \.toml') as loaded:
         settings.load(path, Preferences)
-    with pytest.raises(ValueError, match=r'\.json or \.toml'):
+    with pytest.raises(ReccyError, match=r'\.json or \.toml') as saved:
         settings.save(path, Preferences())
+
+    assert isinstance(loaded.value.__cause__, ValueError)
+    assert isinstance(saved.value.__cause__, ValueError)
 
     if exists:
         assert path.read_text() == 'original'
@@ -118,12 +121,14 @@ def test_settings_reject_unsupported_suffixes_before_io(
 
 
 @pytest.mark.parametrize('suffix', ['.json', '.toml'])
-def test_missing_settings_are_optional_but_read_requires_a_file(
+def test_missing_settings_raise_with_the_original_cause(
     tmp_path: Path, suffix: str
 ) -> None:
     path = tmp_path / f'settings{suffix}'
 
-    assert settings.load(path, Preferences) is None
+    with pytest.raises(ReccyError, match='Could not load settings') as raised:
+        settings.load(path, Preferences)
+    assert isinstance(raised.value.__cause__, FileNotFoundError)
     with pytest.raises(FileNotFoundError):
         settings.read(path)
 
@@ -156,9 +161,10 @@ def test_toml_rejects_null_without_replacing_existing_settings(tmp_path: Path) -
     path = tmp_path / 'settings.toml'
     path.write_text('original')
 
-    with pytest.raises(TypeError):
+    with pytest.raises(ReccyError, match='Could not save settings') as raised:
         settings.save(path, Nullable())
 
+    assert isinstance(raised.value.__cause__, TypeError)
     assert path.read_text() == 'original'
 
 

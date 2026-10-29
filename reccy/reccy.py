@@ -88,7 +88,7 @@ class Reccy(BaseModel, frozen=True):
             return f'{self.control_endpoint}-events'
         return self.home / '.local/state' / self.name / 'events.sock'
 
-    def load_settings(self) -> BaseModel | None:
+    def load_settings(self) -> BaseModel:
         if self.settings_model is None:
             raise ReccyError('settings_model is required to load settings')
         return settings.load(self.settings_path, self.settings_model)

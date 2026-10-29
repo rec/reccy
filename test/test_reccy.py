@@ -9,6 +9,7 @@ import pytest
 from pydantic import BaseModel
 
 from reccy.configuration import settings
+from reccy.errors import ReccyError
 from reccy.protocol import ipc, rpc
 from reccy.reccy import MutableAttribute, Reccy, ReccyStatus
 from reccy.runtime import files
@@ -124,10 +125,11 @@ def test_service_status_reads_configured_model_with_errors(
     assert [e.message for e in status.errors] == ['disk full']
 
 
-def test_settings_are_optional_and_saved_atomically(tmp_path: Path) -> None:
+def test_settings_require_a_file_and_are_saved_atomically(tmp_path: Path) -> None:
     application = Application(home=tmp_path)
 
-    assert application.load_settings() is None
+    with pytest.raises(ReccyError, match='Could not load settings'):
+        application.load_settings()
     application.save_settings(Settings(enabled=True))
 
     assert application.load_settings() == Settings(enabled=True)

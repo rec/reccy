@@ -121,9 +121,11 @@ account: installation still targets the current user.
 
 `reccy.configuration.settings.save(path, model)` writes JSON for `.json` paths and
 TOML for `.toml` paths, using atomic replacement. `read(path)` returns decoded data;
-`load(path, Model)` validates it as a Pydantic model and returns `None` for a missing
-file. These functions reject unsupported or missing suffixes. TOML writes reject
-values such as `None` that TOML cannot represent.
+`load(path, Model)` validates it as a Pydantic model. `load()` and `save()` wrap
+errors in `ReccyError` with the source path and original exception as the cause;
+missing files are errors too. `read()` propagates its underlying errors directly.
+These functions reject unsupported or missing suffixes. TOML writes reject values
+such as `None` that TOML cannot represent.
 
 The explicitly JSON-only `write_json_model()` helper retains support for arbitrary
 suffixes, including internal `.owner` files.

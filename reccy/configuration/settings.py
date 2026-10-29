@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import TypeVar, cast
 
 import tomlkit
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 
 from ..errors import ReccyError
 from ..runtime.files import atomic_output
@@ -14,17 +14,10 @@ from ..runtime.files import atomic_output
 Settings = TypeVar('Settings', bound=BaseModel)
 
 
-def load(path: Path, model: type[Settings]) -> Settings | None:
+def load(path: Path, model: type[Settings]) -> Settings:
     try:
         return model.model_validate(read(path))
-    except FileNotFoundError:
-        return None
-    except (
-        OSError,
-        ValidationError,
-        json.JSONDecodeError,
-        tomllib.TOMLDecodeError,
-    ) as error:
+    except Exception as error:
         raise ReccyError(f'Could not load settings from {path}: {error}') from error
 
 
@@ -55,7 +48,7 @@ def save(path: Path, value: BaseModel, *, write_empty_dicts: bool = False) -> No
                 write_text_atomically(path, tomlkit.dumps(data))
             case _:
                 raise ValueError(f'Settings path must end in .json or .toml: {path}')
-    except OSError as error:
+    except Exception as error:
         raise ReccyError(f'Could not save settings to {path}: {error}') from error
 
 
