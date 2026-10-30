@@ -69,7 +69,19 @@ replaced by underscores. `doc/index.md` is the site's Markdown landing page.
 
 Installing reccy, directly or as another project's dependency, installs the
 `reccy` executable in that Python environment. Existing consumers must update
-their reccy installation to receive the entry point. The same commands then work
+their reccy installation to receive the entry point. For a project already
+tracking reccy's Git `main` branch, refresh its locked revision with:
+
+```sh
+uv sync --upgrade-package reccy
+```
+
+`uv add --dev reccy` can reuse an older revision already in `uv.lock`, including
+one installed transitively. A `main` source declaration does not automatically
+advance that locked revision. If `uv run reccy` reports that the executable does
+not exist, refresh the dependency before retrying.
+
+The same commands then work
 from each project's root using `uv run reccy`, or just `reccy` with its environment
 activated. No documentation extra is needed: `uv` fetches and caches the tools in
 isolated environments only when documentation is built or published.
