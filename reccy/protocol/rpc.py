@@ -8,12 +8,14 @@ from collections.abc import Callable, Iterator
 from enum import StrEnum, auto
 from pathlib import Path
 from typing import Literal
+from uuid import uuid4
 
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
+from ..errors import ReccyError
 from . import ipc
 
-VERSION = 1
+VERSION = 2
 HANDSHAKE_TIMEOUT = 1.0
 MAX_CONCURRENT_REQUESTS = 16
 MAX_EVENT_CONNECTIONS = 16
@@ -46,53 +48,112 @@ class Subscribe(BaseModel):
 MESSAGE = TypeAdapter(ipc.Hello | ipc.Error | Request | Event | Subscribe)
 
 
+class RemoteError(ReccyError):
+    """A structured server rejection, distinct from a transport failure."""
+
+    def __init__(self, error: ipc.Error) -> None:
+        self.error = error
+        super().__init__(error.message)
+
+
+class TransportError(ConnectionError):
+    def __init__(self, message: str, outcome: ipc.Outcome) -> None:
+        self.outcome = outcome
+        super().__init__(message)
+
+
+class RequestTimeout(TimeoutError):
+    def __init__(self, message: str, outcome: ipc.Outcome) -> None:
+        self.outcome = outcome
+        super().__init__(message)
+
+
 class Client:
     def __init__(
-        self, endpoint: Path | str, *, role: str = 'client', timeout: float = 1.0
+        self,
+        endpoint: Path | str,
+        *,
+        role: str = 'client',
+        timeout: float = REQUEST_TIMEOUT + 1.0,
     ) -> None:
         self.endpoint = endpoint
         self.role = role
         self.timeout = timeout
 
     def call(self, command: str, **params: object) -> str | dict[str, object]:
-        connection = ipc.client_connection(self.endpoint)
+        deadline = time.monotonic() + self.timeout
+        outcome = ipc.Outcome.not_started
+        try:
+            connection = ipc.client_connection(self.endpoint)
+        except OSError as error:
+            raise TransportError(str(error), outcome) from error
         expired = threading.Event()
 
         def close_for_timeout() -> None:
             expired.set()
             connection.close()
 
-        timer = threading.Timer(self.timeout, close_for_timeout)
+        timer = threading.Timer(
+            max(0.0, deadline - time.monotonic()), close_for_timeout
+        )
         timer.start()
         try:
             lines = connection.read_lines()
             _hello(connection, self.role, lines)
             request = Request(command=command, params=params)
+            outcome = ipc.Outcome.unknown
             if not connection.write(ipc.message_json(request)):
                 raise BrokenPipeError('Could not send RPC request')
             for line in lines:
                 if expired.is_set():
-                    raise TimeoutError(f'RPC request timed out after {self.timeout}s')
-                try:
-                    error = ipc.Error.model_validate_json(line)
-                except ValidationError:
-                    return TypeAdapter(str | dict[str, object]).validate_json(line)
-                raise ConnectionError(error.message)
+                    raise RequestTimeout(
+                        f'RPC request timed out after {self.timeout}s', outcome
+                    )
+                result = TypeAdapter(str | dict[str, object]).validate_json(line)
+                if isinstance(result, dict) and result.get('type') == 'error':
+                    raise RemoteError(ipc.Error.model_validate(result))
+                return result
             if expired.is_set():
-                raise TimeoutError(f'RPC request timed out after {self.timeout}s')
-            raise ConnectionError('RPC server closed the connection')
+                raise RequestTimeout(
+                    f'RPC request timed out after {self.timeout}s', outcome
+                )
+            raise TransportError('RPC server closed the connection', outcome)
         except (OSError, ValidationError, ValueError) as error:
             if expired.is_set():
-                raise TimeoutError(
-                    f'RPC request timed out after {self.timeout}s'
+                raise RequestTimeout(
+                    f'RPC request timed out after {self.timeout}s', outcome
                 ) from None
             if isinstance(error, (ValidationError, ValueError)):
-                raise ConnectionError('Invalid RPC response') from error
-            raise
+                raise TransportError('Invalid RPC response', outcome) from error
+            raise TransportError(str(error), outcome) from error
         finally:
             timer.cancel()
             timer.join()
             connection.close()
+
+
+def error_response(error: Exception) -> ipc.Error:
+    """Map an expected boundary failure or log an unexpected defect safely."""
+    if isinstance(error, RemoteError):
+        return error.error
+    if isinstance(error, ValidationError):
+        return ipc.Error(
+            type='error',
+            message=str(error),
+            code=ipc.ErrorCode.invalid_request,
+        )
+    if isinstance(error, FileNotFoundError):
+        return ipc.Error(type='error', message=str(error), code=ipc.ErrorCode.not_found)
+    if isinstance(error, (ReccyError, OSError)):
+        return ipc.Error(type='error', message=str(error))
+    reference = uuid4().hex
+    LOGGER.error('RPC handler failed [%s]', reference, exc_info=error)
+    return ipc.Error(
+        type='error',
+        code=ipc.ErrorCode.internal_error,
+        message='Internal RPC error',
+        correlation_id=reference,
+    )
 
 
 class EventCloseReason(StrEnum):
@@ -404,6 +465,13 @@ class Server:
                             return
                         self.cancellations[connection] = cancelled
 
+                    watcher = threading.Thread(
+                        target=_watch_disconnect,
+                        args=(lines, cancelled),
+                        daemon=True,
+                        name='RpcDisconnect',
+                    )
+                    watcher.start()
                     request_timer = threading.Timer(
                         self.request_timeout,
                         _expire_request,
@@ -411,11 +479,29 @@ class Server:
                     )
                     try:
                         request_timer.start()
-                        result = self.handle(message, cancelled)
-                    except (AttributeError, KeyError, TypeError, ValueError) as error:
-                        if not cancelled.is_set():
-                            _write_error(connection, f'RPC handler failed: {error}')
-                        return
+                        result = (
+                            ipc.Error(
+                                type='error',
+                                message='Request cancelled before execution',
+                                code=ipc.ErrorCode.cancelled,
+                                outcome=ipc.Outcome.not_started,
+                            )
+                            if cancelled.is_set()
+                            else self.handle(message, cancelled)
+                        )
+                    except (
+                        ReccyError,
+                        OSError,
+                        AssertionError,
+                        ImportError,
+                        AttributeError,
+                        LookupError,
+                        TypeError,
+                        ValueError,
+                        RuntimeError,
+                        ArithmeticError,
+                    ) as error:
+                        result = error_response(error)
                     finally:
                         request_timer.cancel()
                         with self.lock:
@@ -528,6 +614,16 @@ def _stop_event_queue(pending: queue.Queue[str | None]) -> None:
                 pass
 
 
+def _watch_disconnect(lines: Iterator[str], cancelled: threading.Event) -> None:
+    try:
+        # The one-request connection has no further legal client messages.
+        next(lines, None)
+    except (OSError, ValueError):
+        pass
+    finally:
+        cancelled.set()
+
+
 def _expire_request(cancelled: threading.Event, connection: ipc.Connection) -> None:
     cancelled.set()
     connection.close()
@@ -563,4 +659,13 @@ def _receive_hello(connection: ipc.Connection, role: str, lines: Iterator[str]) 
 
 def _write_error(connection: ipc.Connection, message: str) -> None:
     LOGGER.error('Invalid RPC message: %s', message)
-    connection.write(ipc.message_json(ipc.Error(type='error', message=message)))
+    connection.write(
+        ipc.message_json(
+            ipc.Error(
+                type='error',
+                message=message,
+                code=ipc.ErrorCode.invalid_request,
+                outcome=ipc.Outcome.not_started,
+            )
+        )
+    )

@@ -211,3 +211,18 @@ def test_failed_replacement_preserves_destination_and_removes_temporary_file(
         write_text_atomically(destination, 'new')
     assert destination.read_text() == 'original'
     assert list(tmp_path.iterdir()) == [destination]
+
+
+@pytest.mark.parametrize('suffix', ['.json', '.toml'])
+@pytest.mark.parametrize('sync', [False, True])
+def test_save_has_explicit_durability_policy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, suffix: str, sync: bool
+) -> None:
+    import os
+
+    calls: list[int] = []
+    monkeypatch.setattr(os, 'fsync', calls.append)
+    path = tmp_path / ('settings' + suffix)
+    settings.save(path, Preferences(), sync=sync)
+    assert bool(calls) is sync
+    assert settings.load(path, Preferences) == Preferences()

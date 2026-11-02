@@ -38,7 +38,7 @@ def test_rpc_deadline_includes_waiting_for_first_command(
         peer.settimeout(1)
         peer.connect(str(endpoints[endpoint_index]))
         with peer.makefile('rb') as lines:
-            peer.sendall(b'{"type":"hello","role":"client","version":1}\n')
+            peer.sendall(b'{"type":"hello","role":"client","version":2}\n')
             assert b'"hello"' in lines.readline()
             assert lines.readline() == b''
 
@@ -53,7 +53,7 @@ def test_rpc_rejects_oversized_input_without_waiting_for_newline(
         peer.connect(str(endpoints[endpoint_index]))
         with peer.makefile('rb') as lines:
             if after_hello:
-                peer.sendall(b'{"type":"hello","role":"client","version":1}\n')
+                peer.sendall(b'{"type":"hello","role":"client","version":2}\n')
                 assert b'"hello"' in lines.readline()
             peer.sendall(b'x' * 129)
             assert b'size limit' in lines.readline()
@@ -66,7 +66,7 @@ def test_event_capacity_counts_subscribed_connections(
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as first:
         first.settimeout(1)
         first.connect(str(endpoints[1]))
-        first.sendall(b'{"type":"hello","role":"client","version":1}\n')
+        first.sendall(b'{"type":"hello","role":"client","version":2}\n')
         assert b'"hello"' in first.recv(128)
         first.sendall(b'{"type":"subscribe"}\n')
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as second:
@@ -122,7 +122,7 @@ def test_pipe_server_attempts_error_reply_after_oversized_frame(
         role='test',
     )
     with receiver, sender:
-        sender.send_bytes(b'{"type":"hello","role":"client","version":1}\n')
+        sender.send_bytes(b'{"type":"hello","role":"client","version":2}\n')
         sender.send_bytes(b'x' * 129)
         assert server.request_slots.acquire(blocking=False)
         server._serve_control(ipc.WindowsPipeConnection(receiver))

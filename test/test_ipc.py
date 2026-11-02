@@ -150,7 +150,7 @@ def test_rpc_timeout_wakes_real_socket_reader(monkeypatch: pytest.MonkeyPatch) -
     connection = ipc.UnixSocketConnection(local)
     monkeypatch.setattr(ipc, 'client_connection', lambda endpoint: connection)
     with peer:
-        peer.sendall(b'{"type":"hello","role":"test","version":1}\n')
+        peer.sendall(b'{"type":"hello","role":"test","version":2}\n')
         watchdog = threading.Timer(1, peer.shutdown, args=(socket.SHUT_RDWR,))
         watchdog.start()
         try:
@@ -417,7 +417,11 @@ def test_protocol_listener_requires_hello() -> None:
     listener.read()
 
     assert connection.sent == [
-        '{"type":"error","message":"GUI hello required before other messages"}\n'
+        (
+            '{"type":"error","message":"GUI hello required before other m'
+            'essages","code":"rejected","outcome":"unknown","details":{},'
+            '"correlation_id":null}\n'
+        )
     ]
     assert connection.closed
     assert messages == []
@@ -461,8 +465,9 @@ def test_protocol_listener_rejects_unsupported_hello() -> None:
 
     assert connection.sent == [
         (
-            '{"type":"error","message":"GUI protocol version 2 is not supported; '
-            'daemon requires 1"}\n'
+            '{"type":"error","message":"GUI protocol version 2 is not sup'
+            'ported; daemon requires 1","code":"rejected","outcome":"unkn'
+            'own","details":{},"correlation_id":null}\n'
         )
     ]
     assert connection.closed
@@ -531,7 +536,14 @@ def test_protocol_client_sends_hello_and_reads_messages() -> None:
 def test_protocol_client_reports_error(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    connection = FakeConnection(['{"type":"error","message":"bad"}\n'])
+    connection = FakeConnection(
+        [
+            (
+                '{"type":"error","message":"bad","code":"rejected","outcome":'
+                '"unknown","details":{},"correlation_id":null}\n'
+            )
+        ]
+    )
     client = ipc.ProtocolClient(
         Path('/tmp/reccy.sock'),
         parse=parse_message,
@@ -620,7 +632,7 @@ def test_protocol_client_shutdown_requires_handshake_and_reports_failed_write() 
     client = ipc.ProtocolClient(
         Path('/unused.sock'),
         parse=parse_message,
-        version=1,
+        version=2,
         local_role='client',
         peer_role='server',
         on_message=lambda message: True,
@@ -686,7 +698,7 @@ def test_rpc_server_rejects_invalid_control_messages() -> None:
     )
     connection = FakeConnection(
         [
-            '{"type":"hello","role":"client","version":1}\n',
+            '{"type":"hello","role":"client","version":2}\n',
             '{"type":"event","name":"wrong"}\n',
         ]
     )
@@ -695,7 +707,11 @@ def test_rpc_server_rejects_invalid_control_messages() -> None:
     server._serve_control(connection)
 
     assert connection.closed
-    assert connection.sent[-1] == '{"type":"error","message":"RPC request required"}\n'
+    assert connection.sent[-1] == (
+        '{"type":"error","message":"RPC request required","code":"inv'
+        'alid_request","outcome":"not_started","details":{},"correlat'
+        'ion_id":null}\n'
+    )
 
 
 def test_rpc_server_rejects_oversized_control_messages() -> None:
@@ -707,7 +723,7 @@ def test_rpc_server_rejects_oversized_control_messages() -> None:
     )
     connection = FakeConnection(
         [
-            '{"type":"hello","role":"client","version":1}\n',
+            '{"type":"hello","role":"client","version":2}\n',
             'x' * (rpc.MAX_REQUEST_BYTES + 1),
         ]
     )
@@ -717,7 +733,9 @@ def test_rpc_server_rejects_oversized_control_messages() -> None:
 
     assert connection.closed
     assert connection.sent[-1] == (
-        '{"type":"error","message":"RPC request exceeds the size limit"}\n'
+        '{"type":"error","message":"RPC request exceeds the size limi'
+        't","code":"invalid_request","outcome":"not_started","details'
+        '":{},"correlation_id":null}\n'
     )
 
 
@@ -780,7 +798,7 @@ class BlockingConnection(FakeConnection):
     def __init__(self) -> None:
         super().__init__(
             [
-                '{"type":"hello","role":"test","version":1}\n',
+                '{"type":"hello","role":"test","version":2}\n',
             ]
         )
         self.closed_event = threading.Event()

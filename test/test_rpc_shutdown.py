@@ -62,7 +62,7 @@ def test_server_close_disconnects_clients_waiting_after_hello(
             with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as peer:
                 peer.settimeout(1)
                 peer.connect(str(events if event_endpoint else control))
-                peer.sendall(b'{"type":"hello","role":"client","version":1}\n')
+                peer.sendall(b'{"type":"hello","role":"client","version":2}\n')
                 assert b'"hello"' in peer.recv(128)
 
                 server.close()
@@ -96,7 +96,7 @@ def test_server_close_disconnects_request_while_handler_finishes() -> None:
             with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as peer:
                 peer.settimeout(1)
                 peer.connect(str(control))
-                peer.sendall(b'{"type":"hello","role":"client","version":1}\n')
+                peer.sendall(b'{"type":"hello","role":"client","version":2}\n')
                 assert b'"hello"' in peer.recv(128)
                 peer.sendall(ipc.message_json(rpc.Request(command='slow')).encode())
                 assert started.wait(0.5)
@@ -161,7 +161,7 @@ def test_server_close_waits_for_cooperative_handler() -> None:
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as peer:
             peer.settimeout(1)
             peer.connect(str(control))
-            peer.sendall(b'{"type":"hello","role":"client","version":1}\n')
+            peer.sendall(b'{"type":"hello","role":"client","version":2}\n')
             assert b'"hello"' in peer.recv(128)
             peer.sendall(ipc.message_json(rpc.Request(command='slow')).encode())
             assert started.wait(1)

@@ -96,7 +96,9 @@ def run_silent(
         raise
 
 
-def terminate(process: subprocess.Popen[bytes], *, timeout: float = 5) -> None:
+def terminate(
+    process: subprocess.Popen[bytes] | subprocess.Popen[str], *, timeout: float = 5
+) -> None:
     if process.poll() is not None:
         return
     process.terminate()

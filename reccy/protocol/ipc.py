@@ -6,6 +6,7 @@ import stat
 import sys
 import threading
 import typing
+from enum import StrEnum, auto
 from multiprocessing import connection
 from pathlib import Path
 
@@ -46,9 +47,29 @@ class Shutdown(BaseModel):
     type: typing.Literal['shutdown']
 
 
+class ErrorCode(StrEnum):
+    rejected = auto()
+    invalid_request = auto()
+    not_found = auto()
+    conflict = auto()
+    busy = auto()
+    cancelled = auto()
+    deadline_exceeded = auto()
+    internal_error = auto()
+
+
+class Outcome(StrEnum):
+    not_started = auto()
+    unknown = auto()
+
+
 class Error(BaseModel):
     type: typing.Literal['error']
     message: str
+    code: ErrorCode = ErrorCode.rejected
+    outcome: Outcome = Outcome.unknown
+    details: dict[str, object] = {}
+    correlation_id: str | None = None
 
 
 def server_backend(endpoint: str | Path) -> ServerBackend:

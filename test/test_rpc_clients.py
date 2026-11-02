@@ -60,7 +60,7 @@ def test_event_subscription_closes_after_invalid_hello(
 def test_event_reader_closes_after_malformed_event(
     connected_peer: socket.socket,
 ) -> None:
-    connected_peer.sendall(b'{"type":"hello","role":"test","version":1}\ninvalid\n')
+    connected_peer.sendall(b'{"type":"hello","role":"test","version":2}\ninvalid\n')
     client = rpc.EventClient(Path('/unused.sock'), lambda event: None)
     client.start()
 
@@ -76,7 +76,7 @@ def test_event_reader_closes_after_malformed_event(
 def test_event_reader_classifies_invalid_utf8_as_protocol_error(
     connected_peer: socket.socket,
 ) -> None:
-    connected_peer.sendall(b'{"type":"hello","role":"test","version":1}\n\xff\n')
+    connected_peer.sendall(b'{"type":"hello","role":"test","version":2}\n\xff\n')
     client = rpc.EventClient(Path('/unused.sock'), lambda event: None)
     client.start()
     assert client.wait_closed(1)
@@ -84,7 +84,7 @@ def test_event_reader_classifies_invalid_utf8_as_protocol_error(
 
 
 def test_rpc_call_reports_malformed_response(connected_peer: socket.socket) -> None:
-    connected_peer.sendall(b'{"type":"hello","role":"test","version":1}\n[]\n')
+    connected_peer.sendall(b'{"type":"hello","role":"test","version":2}\n[]\n')
     with pytest.raises(ConnectionError, match='Invalid RPC response'):
         rpc.Client(Path('/unused.sock')).call('status')
 
@@ -106,7 +106,7 @@ def test_event_reader_closes_after_callback_failure(
 
     monkeypatch.setattr(threading, 'excepthook', on_thread_error)
     connected_peer.sendall(
-        b'{"type":"hello","role":"test","version":1}\n{"type":"event","name":"test"}\n'
+        b'{"type":"hello","role":"test","version":2}\n{"type":"event","name":"test"}\n'
     )
     client = rpc.EventClient(Path('/unused.sock'), on_event)
     client.start()
@@ -125,7 +125,7 @@ def test_event_reader_closes_after_callback_failure(
 def test_event_connection_reports_terminal_reason(
     connected_peer: socket.socket, local_close: bool
 ) -> None:
-    connected_peer.sendall(b'{"type":"hello","role":"test","version":1}\n')
+    connected_peer.sendall(b'{"type":"hello","role":"test","version":2}\n')
     client = rpc.EventClient(Path('/unused.sock'), lambda event: None)
     assert not client.wait_closed(0)
     client.start()
@@ -156,3 +156,70 @@ def test_connection_failure_notifies_event_owner(
         client.start()
     assert client.wait_closed(0)
     assert client.terminal_reason == rpc.EventCloseReason.transport_error
+
+
+def test_rpc_rejection_preserves_code_and_execution_outcome(
+    connected_peer: socket.socket,
+) -> None:
+    connected_peer.sendall(
+        ipc.message_json(
+            ipc.Hello(type='hello', role='test', version=rpc.VERSION)
+        ).encode()
+        + ipc.message_json(
+            ipc.Error(
+                type='error',
+                message='changed',
+                code=ipc.ErrorCode.conflict,
+                outcome=ipc.Outcome.not_started,
+                details={'revision': 4},
+            )
+        ).encode()
+    )
+    with pytest.raises(rpc.RemoteError) as failure:
+        rpc.Client(Path('/unused.sock')).call('set')
+    assert failure.value.error.code == ipc.ErrorCode.conflict
+    assert failure.value.error.outcome == ipc.Outcome.not_started
+    assert failure.value.error.details == {'revision': 4}
+
+
+@pytest.mark.parametrize('hello', [False, True])
+def test_deadline_distinguishes_unsent_and_possible_execution(
+    connected_peer: socket.socket, hello: bool
+) -> None:
+    if hello:
+        connected_peer.sendall(
+            ipc.message_json(
+                ipc.Hello(type='hello', role='test', version=rpc.VERSION)
+            ).encode()
+        )
+    with pytest.raises(rpc.RequestTimeout) as failure:
+        rpc.Client(Path('/unused.sock'), timeout=0.02).call('set')
+    assert failure.value.outcome == (
+        ipc.Outcome.unknown if hello else ipc.Outcome.not_started
+    )
+
+
+def test_unexpected_error_is_correlated_without_exposing_details(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    error = rpc.error_response(AssertionError('private implementation detail'))
+    assert error.code == ipc.ErrorCode.internal_error
+    assert error.outcome == ipc.Outcome.unknown
+    assert error.correlation_id
+    assert error.correlation_id in caplog.text
+    assert 'private implementation detail' in caplog.text
+    assert 'private implementation detail' not in error.message
+
+
+def test_malformed_error_cannot_be_returned_as_success(
+    connected_peer: socket.socket,
+) -> None:
+    connected_peer.sendall(
+        ipc.message_json(
+            ipc.Hello(type='hello', role='test', version=rpc.VERSION)
+        ).encode()
+        + b'{"type":"error","message":"failed","code":"unsupported"}\n'
+    )
+    with pytest.raises(rpc.TransportError, match='Invalid RPC response') as failure:
+        rpc.Client(Path('/unused.sock')).call('set')
+    assert failure.value.outcome == ipc.Outcome.unknown

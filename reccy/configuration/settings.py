@@ -33,19 +33,25 @@ def read(path: Path) -> object:
             raise ValueError(f'Settings path must end in .json or .toml: {path}')
 
 
-def save(path: Path, value: BaseModel, *, write_empty_dicts: bool = False) -> None:
+def save(
+    path: Path, value: BaseModel, *, write_empty_dicts: bool = False, sync: bool = True
+) -> None:
     """Save a model, omitting empty dictionary entries unless requested."""
     try:
         match path.suffix:
             case '.json':
                 write_json_model(
-                    path, value, indent=2, write_empty_dicts=write_empty_dicts
+                    path,
+                    value,
+                    indent=2,
+                    write_empty_dicts=write_empty_dicts,
+                    sync=sync,
                 )
             case '.toml':
                 data = value.model_dump(mode='json')
                 if not write_empty_dicts:
                     data = cast(dict[str, object], _without_empty_dicts(data))
-                write_text_atomically(path, tomlkit.dumps(data))
+                write_text_atomically(path, tomlkit.dumps(data), sync=sync)
             case _:
                 raise ValueError(f'Settings path must end in .json or .toml: {path}')
     except Exception as error:

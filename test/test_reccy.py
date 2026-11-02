@@ -191,7 +191,7 @@ def test_reccy_handles_mutable_attribute_commands(socket_home: Path) -> None:
             'address': 'enabled',
             'value': False,
         }
-        with pytest.raises(ConnectionError, match='enabled must be a boolean'):
+        with pytest.raises(rpc.RemoteError, match='enabled must be a boolean'):
             client.call('set_attr', address='enabled', value='false')
     finally:
         application.close()

@@ -68,9 +68,15 @@ interrupt them.
 RPC handlers return raw strings or dictionaries for success, and `ipc.Error`
 for failure. The top-level dictionary discriminator `type="error"` is reserved
 for protocol errors and must not be used in successful results. Errors require
-a string `message`; clients raise `ConnectionError` with that message. Application
-data describing an error can use a different discriminator or a nested object.
-This contract does not require a response envelope or a wire-version change.
+a string `message`, stable `code`, and `outcome` (`not_started` or `unknown`).
+Clients raise `rpc.RemoteError`, carrying the wire model in `.error`. Transport
+failures raise `rpc.TransportError`; deadlines raise `rpc.RequestTimeout`, both
+carrying `.outcome`. Unknown means effects may have occurred, not that they did.
+Do not automatically retry mutations. Server-side `rpc.error_response` maps
+expected failures and logs unexpected defects with a correlation identifier.
+RPC version 2 requires coordinated server/client upgrades. The default client
+budget is 31 seconds including connection setup; the server handler budget is
+30 seconds. Applications can impose shorter operation-specific deadlines.
 
 `Reccy.start()` rejects an already-started application. `close()` is idempotent.
 RPC cleanup and `on_closed()` run even if startup, shutdown hooks, or status
@@ -254,3 +260,12 @@ the manager's `running` value is a separate observation.
   back to a display name, which is not guaranteed unique.
 - Control RPC has no request IDs or reply envelope; use raw results or
   `ipc.Error`. The unused `ipc.Reply` model has been removed.
+
+### Replaceable snapshots
+
+`settings.save(path, model, sync=False)` atomically replaces JSON/TOML snapshots
+without fsync. The default remains `sync=True` for durable user settings.
+`reccy.runtime.publication.LatestPublisher` moves optional publication off the
+owner's work loop, keeping one pending snapshot. `close(timeout)` returns false
+if its daemon writer is still blocked. Failures are logged and available through
+`error`. Use it for replaceable health/UI state, never durable events.
