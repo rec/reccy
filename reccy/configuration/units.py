@@ -148,7 +148,6 @@ def _registry() -> UnitRegistry:
     registry.define('musical_cent = [pitch_interval] = cent = cents')
     registry.define('semitone = 100 * musical_cent')
     registry.define('frame_per_second = frame / second = fps')
-    registry.define('pixel = [pixel] = px')
     registry.define('kilobyte = 1000 * byte = kB = KB')
     return registry
 
@@ -338,6 +337,11 @@ Bytes = Annotated[int, WrapValidator(partial(_unit_value, unit='byte'))]
 Megabytes = Annotated[int, WrapValidator(partial(_unit_value, unit='megabyte'))]
 
 UNIT_DEFINITIONS = {
+    # Reserve these aliases for configuration units before loading Pint.
+    'baud': 'baud = bit / second = Bd',
+    'foot_per_second': 'foot_per_second = foot / second',
+    'css_pixel': 'css_pixel = inch / 96',
+    'pixel': 'pixel = [pixel] = px = dot = pel = picture_element',
     'bit': 'bit = [information]',
     'radian': 'radian = [angle] = rad',
     'decibel': 'decibel = [log_gain] = dB',

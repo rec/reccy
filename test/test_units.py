@@ -290,3 +290,20 @@ def test_unit_validator_keeps_strict_integer_constraints() -> None:
     for v in ['1.5 frame', 2.0, True]:
         with pytest.raises(ValidationError):
             adapter.validate_python(v)
+
+
+def test_fresh_registry_has_unambiguous_units_without_redefinition_warnings(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    # Force initialization even when another test already populated the cache.
+    monkeypatch.setattr(units, '_registry', units._registry.__wrapped__)
+    with caplog.at_level('WARNING', logger='pint'):
+        assert units.magnitude('160 bit_per_second', 'bit_per_second') == 160
+        assert units.magnitude('30fps', 'frame_per_second') == 30
+        assert units.magnitude('1kpx', 'pixel') == 1000
+        assert units.magnitude('1baud', 'bit_per_second') == 1
+        assert units.magnitude('1 foot_per_second', 'foot / second') == 1
+        assert units.magnitude('96 css_pixel', 'inch') == 1
+        assert units.magnitude('1 dot', 'pixel') == 1
+    assert not [r for r in caplog.records if r.name.startswith('pint')]
