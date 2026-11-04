@@ -40,7 +40,17 @@ class Documentation(BaseModel, frozen=True):
             },
             'plugins': {
                 'search': {},
-                'api-autonav': {'modules': [package]},
+                'mkdocs-autoapi': {
+                    'autoapi_dir': package,
+                    'autoapi_root': 'reference',
+                    'autoapi_ignore': [
+                        '**/.*',
+                        '**/.*/**',
+                        '**/build/**',
+                        '**/test/**',
+                        '**/tests/**',
+                    ],
+                },
                 'mkdocstrings': {
                     'handlers': {
                         'python': {
@@ -74,7 +84,7 @@ class Documentation(BaseModel, frozen=True):
         ) as config:
             settings = self.configuration()
             settings['site_url'] = site_url
-            json.dump(settings, config)
+            json.dump(settings, config, ensure_ascii=False)
             config.close()
             subprocess.run(
                 [
@@ -239,10 +249,14 @@ class Documentation(BaseModel, frozen=True):
                 text=True,
                 capture_output=True,
             )
-            if result.returncode and '(HTTP 409)' in result.stderr:
-                result = subprocess.run(
-                    ['gh', 'api', endpoint], cwd=root, text=True, capture_output=True
-                )
+            if result.returncode and not any(
+                e in result.stderr
+                for e in ('(HTTP 409)', 'unexpected end of JSON input')
+            ):
+                raise ReccyError(result.stderr.strip())
+            result = subprocess.run(
+                ['gh', 'api', endpoint], cwd=root, text=True, capture_output=True
+            )
             url = _pages_url(result)
         print(f'Documentation pushed: {url}')
         return url
