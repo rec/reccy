@@ -86,7 +86,7 @@ def test_project_metadata_selects_the_package_not_the_checkout_name(
     assert config['site_name'] == 'example-app'
     assert config['site_description'] == 'Example documentation'
     assert config['docs_dir'] == 'doc'
-    assert config['site_dir'] == 'site'
+    assert config['site_dir'] == '.cache/reccy-docs/site'
     assert config['plugins']['api-autonav']['modules'] == ['example_app']
 
 

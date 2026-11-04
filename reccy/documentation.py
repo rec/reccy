@@ -10,6 +10,8 @@ from pydantic import BaseModel
 
 from .errors import ReccyError
 
+SITE_DIRECTORY = '.cache/reccy-docs/site'
+
 
 class Documentation(BaseModel, frozen=True):
     """Build documentation for a project with a same-named package and doc/."""
@@ -31,7 +33,7 @@ class Documentation(BaseModel, frozen=True):
             'site_name': project['name'],
             'site_description': project.get('description', ''),
             'docs_dir': 'doc',
-            'site_dir': 'site',
+            'site_dir': SITE_DIRECTORY,
             'theme': {
                 'name': 'material',
                 'features': ['navigation.indexes', 'content.code.copy'],
@@ -60,7 +62,7 @@ class Documentation(BaseModel, frozen=True):
         """Build a static site and return its index path; warnings fail the build.
 
         uv installs and caches the documentation tools in an isolated environment.
-        The generated site is written to site/.
+        The generated site is written to .cache/reccy-docs/site/.
         """
         root = self.root.resolve()
         with NamedTemporaryFile(
@@ -90,7 +92,7 @@ class Documentation(BaseModel, frozen=True):
                 cwd=root,
                 check=True,
             )
-        return root / 'site' / 'index.html'
+        return root / SITE_DIRECTORY / 'index.html'
 
     def publish(self, init: bool = False, force: bool = False) -> str:
         """Build and push to origin's gh-pages branch, then return the site URL.
@@ -145,13 +147,19 @@ class Documentation(BaseModel, frozen=True):
                     'The API Reference is generated from the Python source code.\n'
                 )
             ignored = subprocess.run(
-                ['git', 'check-ignore', '--quiet', '--no-index', 'site/index.html'],
+                [
+                    'git',
+                    'check-ignore',
+                    '--quiet',
+                    '--no-index',
+                    f'{SITE_DIRECTORY}/index.html',
+                ],
                 cwd=root,
             )
             if ignored.returncode == 1:
                 ignore = root / '.gitignore'
                 text = ignore.read_text() if ignore.exists() else ''
-                ignore.write_text(f'{text.rstrip()}\n/site/\n')
+                ignore.write_text(f'{text.rstrip()}\n/.cache/reccy-docs/\n')
             elif ignored.returncode:
                 ignored.check_returncode()
 

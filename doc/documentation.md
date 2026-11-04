@@ -6,7 +6,7 @@ Run from the project root:
 uv run reccy docs
 ```
 
-This builds the site at `site/index.html` and pushes it to the repository's
+This builds the site at `.cache/reccy-docs/site/index.html` and pushes it to the repository's
 `gh-pages` branch. GitHub Pages then deploys that branch. The command requires
 `uv`, `git`, and an authenticated `gh`, with permission to push to `origin`.
 Builds fail on warnings, and failed builds are not pushed. Successful completion
@@ -32,7 +32,7 @@ Otherwise the command fails. For a repository without a Pages site, run:
 uv run reccy docs --init
 ```
 
-Initialization creates a missing `doc/index.md`, adds `site/` to `.gitignore` if
+Initialization creates a missing `doc/index.md`, ignores `.cache/reccy-docs/` if
 needed, builds and pushes the documentation, and enables GitHub Pages. Commit any
 new landing page or ignore-file changes before releasing. Existing Pages settings
 that use a different branch, directory, or workflow cause an error and are left
