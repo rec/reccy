@@ -355,3 +355,31 @@ when migrating its formerly uncapped backoff. Streamo migration: call
 device/process ownership locally. Use separate schedules for distinct recovery
 policies. Do not migrate hardware safety decisions into Reccy. Neither consumer
 migration is implemented here.
+
+## Asset sets and finite packages
+
+`runtime.asset_sets.prepare_assets()` accepts public diagnostic labels mapped to
+host-authorized acquisition contexts. It opens every request, measures its finite
+bytes, aggregates ordinary failures by label and exception type, and retains all
+successful contexts until the consumer exits. Interruption propagates immediately.
+Failure messages omit underlying acquisition text, which may contain credentials.
+Hosts must supply safe labels, enumerate dependencies, and validate media facts.
+For cache-only preparation, authorize each request and supply
+`AssetStore.open_expected(identity)` contexts; preparation itself never fetches.
+
+`AssetStore.verified_path(entry_id)` verifies and leases an existing stored object
+for external path-based readers. Keep the context open until child readers exit.
+It does not materialize transient HTTP responses or infer a filename extension.
+The store remains private and immutable by host convention.
+
+`PackageManifest` maps confined relative paths to byte identities.
+`write_package()` copies bounded members to private staging and verifies them;
+`verify_package()` verifies all declared members, rejecting symlinks.
+`export_package()` stages and atomically publishes a complete new directory.
+Existing destinations are rejected, including empty directories, so failed
+publication cannot replace a previous package. Hosts that update packages should
+publish a new version and switch their own configuration only after verification.
+`publish_directory()` exposes the same exclusive rename for hosts with their own
+staging/resume protocol. These operations do not rewrite scores or transfer files
+between machines. A manifest verifies its declared members, not unrelated files
+that a host may keep beside them.

@@ -521,6 +521,16 @@ class AssetStore:
             yield file
 
     @contextmanager
+    def verified_path(self, entry_id: str) -> Iterator[Path]:
+        """Lease and verify a stored path until its external consumer has exited.
+
+        The host must keep this context open until all child readers stop. Only
+        persisted entries qualify; transient HTTP responses must stay transient.
+        """
+        with self.open_entry(entry_id):
+            yield self.object_path(self.entry(entry_id).object)
+
+    @contextmanager
     def open_expected(self, expected: ObjectIdentity) -> Iterator[BinaryIO]:
         """Open retained bytes by identity after the host authorizes the request."""
         with self._open_selected(expected=expected) as file:
