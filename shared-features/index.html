@@ -24,7 +24,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="zensical-0.0.70">
+      <meta name="generator" content="zensical-0.0.73">
     
     
       
@@ -35,7 +35,7 @@
       
         
       
-      <link rel="stylesheet" href="../assets/stylesheets/modern/main.e442bf79.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/modern/main.4ab2de0c.min.css">
       
       
 
@@ -91,9 +91,10 @@
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
 
     </a>
-    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+    <label class="md-header__button md-icon" for="__drawer">
       
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+      <span class="md-visually-hidden">Navigation</span>
     </label>
     <div class="md-header__title" data-md-component="header-title">
       <div class="md-header__ellipsis">
@@ -119,9 +120,10 @@
     
       
       
-        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+        <label class="md-header__button md-icon" for="__search">
           
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+          <span class="md-visually-hidden">Search</span>
         </label>
         <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
   <button type="button" class="md-search__button">
@@ -420,6 +422,17 @@
     <span class="md-ellipsis">
       <span class="md-typeset">
         Retry scheduling
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#asset-sets-and-finite-packages" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Asset sets and finite packages
       </span>
     </span>
   </a>
@@ -1282,6 +1295,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1328,6 +1345,33 @@
             </label>
             <ul class="md-nav__list" data-md-scrollfix>
               
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/runtime/asset_sets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  asset_sets
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
                 
               
                 
@@ -1615,6 +1659,33 @@
     
   
   process
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/reccy/runtime/publication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  publication
 
     
   </span>
@@ -2106,6 +2177,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#asset-sets-and-finite-packages" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Asset sets and finite packages
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2454,6 +2536,30 @@ when migrating its formerly uncapped backoff. Streamo migration: call
 device/process ownership locally. Use separate schedules for distinct recovery
 policies. Do not migrate hardware safety decisions into Reccy. Neither consumer
 migration is implemented here.</p>
+<h2 id="asset-sets-and-finite-packages">Asset sets and finite packages<a class="headerlink" href="#asset-sets-and-finite-packages" title="Permanent link">&para;</a></h2>
+<p><code>runtime.asset_sets.prepare_assets()</code> accepts public diagnostic labels mapped to
+host-authorized acquisition contexts. It opens every request, measures its finite
+bytes, aggregates ordinary failures by label and exception type, and retains all
+successful contexts until the consumer exits. Interruption propagates immediately.
+Failure messages omit underlying acquisition text, which may contain credentials.
+Hosts must supply safe labels, enumerate dependencies, and validate media facts.
+For cache-only preparation, authorize each request and supply
+<code>AssetStore.open_expected(identity)</code> contexts; preparation itself never fetches.</p>
+<p><code>AssetStore.verified_path(entry_id)</code> verifies and leases an existing stored object
+for external path-based readers. Keep the context open until child readers exit.
+It does not materialize transient HTTP responses or infer a filename extension.
+The store remains private and immutable by host convention.</p>
+<p><code>PackageManifest</code> maps confined relative paths to byte identities.
+<code>write_package()</code> copies bounded members to private staging and verifies them;
+<code>verify_package()</code> verifies all declared members, rejecting symlinks.
+<code>export_package()</code> stages and atomically publishes a complete new directory.
+Existing destinations are rejected, including empty directories, so failed
+publication cannot replace a previous package. Hosts that update packages should
+publish a new version and switch their own configuration only after verification.
+<code>publish_directory()</code> exposes the same exclusive rename for hosts with their own
+staging/resume protocol. These operations do not rewrite scores or transfer files
+between machines. A manifest verifies its declared members, not unrelated files
+that a host may keep beside them.</p>
 
 
 
@@ -2512,7 +2618,7 @@ migration is implemented here.</p>
       <script id="__config" type="application/json">{"annotate":null,"base":"..","features":["navigation.indexes","content.code.copy"],"redirect":null,"search":"../assets/javascripts/workers/search.c47bb847.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","clipboard.error":"Could not copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
     
     
-      <script src="../assets/javascripts/bundle.a2388154.min.js"></script>
+      <script src="../assets/javascripts/bundle.77dd0ce9.min.js"></script>
       
     
   </body>

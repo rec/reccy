@@ -24,7 +24,7 @@
       
       
       <link rel="icon" href="../../../../assets/images/favicon.png">
-      <meta name="generator" content="zensical-0.0.70">
+      <meta name="generator" content="zensical-0.0.73">
     
     
       
@@ -35,7 +35,7 @@
       
         
       
-      <link rel="stylesheet" href="../../../../assets/stylesheets/modern/main.e442bf79.min.css">
+      <link rel="stylesheet" href="../../../../assets/stylesheets/modern/main.4ab2de0c.min.css">
       
       
 
@@ -91,9 +91,10 @@
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
 
     </a>
-    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+    <label class="md-header__button md-icon" for="__drawer">
       
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+      <span class="md-visually-hidden">Navigation</span>
     </label>
     <div class="md-header__title" data-md-component="header-title">
       <div class="md-header__ellipsis">
@@ -119,9 +120,10 @@
     
       
       
-        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+        <label class="md-header__button md-icon" for="__search">
           
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+          <span class="md-visually-hidden">Search</span>
         </label>
         <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
   <button type="button" class="md-search__button">
@@ -1233,6 +1235,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1279,6 +1285,33 @@
             </label>
             <ul class="md-nav__list" data-md-scrollfix>
               
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../runtime/asset_sets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  asset_sets
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
                 
               
                 
@@ -1566,6 +1599,33 @@
     
   
   process
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../runtime/publication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  publication
 
     
   </span>
@@ -2065,41 +2125,41 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>reccy/configuration/tyro.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-11">11</a></span>
-<span class="normal"><a href="#__codelineno-0-12">12</a></span>
-<span class="normal"><a href="#__codelineno-0-13">13</a></span>
-<span class="normal"><a href="#__codelineno-0-14">14</a></span>
-<span class="normal"><a href="#__codelineno-0-15">15</a></span>
-<span class="normal"><a href="#__codelineno-0-16">16</a></span>
-<span class="normal"><a href="#__codelineno-0-17">17</a></span>
-<span class="normal"><a href="#__codelineno-0-18">18</a></span>
-<span class="normal"><a href="#__codelineno-0-19">19</a></span>
-<span class="normal"><a href="#__codelineno-0-20">20</a></span>
-<span class="normal"><a href="#__codelineno-0-21">21</a></span>
-<span class="normal"><a href="#__codelineno-0-22">22</a></span>
-<span class="normal"><a href="#__codelineno-0-23">23</a></span>
-<span class="normal"><a href="#__codelineno-0-24">24</a></span>
-<span class="normal"><a href="#__codelineno-0-25">25</a></span>
-<span class="normal"><a href="#__codelineno-0-26">26</a></span>
-<span class="normal"><a href="#__codelineno-0-27">27</a></span>
-<span class="normal"><a href="#__codelineno-0-28">28</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11"></a><span class="k">def</span><span class="w"> </span><span class="nf">unit_spec</span><span class="p">(</span><span class="n">annotation</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="n">metavar</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PrimitiveConstructorSpec</span><span class="p">:</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12"></a>    <span class="n">adapter</span> <span class="o">=</span> <span class="n">TypeAdapter</span><span class="p">(</span><span class="n">annotation</span><span class="p">)</span>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13"></a>
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">parse</span><span class="p">(</span><span class="n">args</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">object</span><span class="p">:</span>
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15"></a>        <span class="k">try</span><span class="p">:</span>
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16"></a>            <span class="k">return</span> <span class="n">adapter</span><span class="o">.</span><span class="n">validate_python</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17"></a>        <span class="k">except</span> <span class="n">ValidationError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
-</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">error</span><span class="p">))</span> <span class="kn">from</span><span class="w"> </span><span class="nn">error</span>
-</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19"></a>
-</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20"></a>    <span class="k">return</span> <span class="n">PrimitiveConstructorSpec</span><span class="p">(</span>
-</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21"></a>        <span class="n">nargs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22"></a>        <span class="n">metavar</span><span class="o">=</span><span class="n">metavar</span><span class="p">,</span>
-</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23"></a>        <span class="n">instance_from_str</span><span class="o">=</span><span class="n">parse</span><span class="p">,</span>
-</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24"></a>        <span class="n">is_instance</span><span class="o">=</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">)),</span>
-</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25"></a>        <span class="n">str_from_instance</span><span class="o">=</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="p">[</span>
-</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26"></a>            <span class="n">v</span><span class="o">.</span><span class="n">provenance</span><span class="o">.</span><span class="n">authored</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="s1">'provenance'</span><span class="p">)</span> <span class="k">else</span> <span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
-</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27"></a>        <span class="p">],</span>
-</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28"></a>    <span class="p">)</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#reccy.configuration.tyro.unit_spec--source--__codelineno-0-11">11</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.unit_spec--source--__codelineno-0-12">12</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.unit_spec--source--__codelineno-0-13">13</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.unit_spec--source--__codelineno-0-14">14</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.unit_spec--source--__codelineno-0-15">15</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.unit_spec--source--__codelineno-0-16">16</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.unit_spec--source--__codelineno-0-17">17</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.unit_spec--source--__codelineno-0-18">18</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.unit_spec--source--__codelineno-0-19">19</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.unit_spec--source--__codelineno-0-20">20</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.unit_spec--source--__codelineno-0-21">21</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.unit_spec--source--__codelineno-0-22">22</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.unit_spec--source--__codelineno-0-23">23</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.unit_spec--source--__codelineno-0-24">24</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.unit_spec--source--__codelineno-0-25">25</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.unit_spec--source--__codelineno-0-26">26</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.unit_spec--source--__codelineno-0-27">27</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.unit_spec--source--__codelineno-0-28">28</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="reccy.configuration.tyro.unit_spec--source--__span-0-11"><a id="reccy.configuration.tyro.unit_spec--source--__codelineno-0-11" name="reccy.configuration.tyro.unit_spec--source--__codelineno-0-11"></a><span class="k">def</span><span class="w"> </span><span class="nf">unit_spec</span><span class="p">(</span><span class="n">annotation</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="n">metavar</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PrimitiveConstructorSpec</span><span class="p">:</span>
+</span><span id="reccy.configuration.tyro.unit_spec--source--__span-0-12"><a id="reccy.configuration.tyro.unit_spec--source--__codelineno-0-12" name="reccy.configuration.tyro.unit_spec--source--__codelineno-0-12"></a>    <span class="n">adapter</span> <span class="o">=</span> <span class="n">TypeAdapter</span><span class="p">(</span><span class="n">annotation</span><span class="p">)</span>
+</span><span id="reccy.configuration.tyro.unit_spec--source--__span-0-13"><a id="reccy.configuration.tyro.unit_spec--source--__codelineno-0-13" name="reccy.configuration.tyro.unit_spec--source--__codelineno-0-13"></a>
+</span><span id="reccy.configuration.tyro.unit_spec--source--__span-0-14"><a id="reccy.configuration.tyro.unit_spec--source--__codelineno-0-14" name="reccy.configuration.tyro.unit_spec--source--__codelineno-0-14"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">parse</span><span class="p">(</span><span class="n">args</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">object</span><span class="p">:</span>
+</span><span id="reccy.configuration.tyro.unit_spec--source--__span-0-15"><a id="reccy.configuration.tyro.unit_spec--source--__codelineno-0-15" name="reccy.configuration.tyro.unit_spec--source--__codelineno-0-15"></a>        <span class="k">try</span><span class="p">:</span>
+</span><span id="reccy.configuration.tyro.unit_spec--source--__span-0-16"><a id="reccy.configuration.tyro.unit_spec--source--__codelineno-0-16" name="reccy.configuration.tyro.unit_spec--source--__codelineno-0-16"></a>            <span class="k">return</span> <span class="n">adapter</span><span class="o">.</span><span class="n">validate_python</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+</span><span id="reccy.configuration.tyro.unit_spec--source--__span-0-17"><a id="reccy.configuration.tyro.unit_spec--source--__codelineno-0-17" name="reccy.configuration.tyro.unit_spec--source--__codelineno-0-17"></a>        <span class="k">except</span> <span class="n">ValidationError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+</span><span id="reccy.configuration.tyro.unit_spec--source--__span-0-18"><a id="reccy.configuration.tyro.unit_spec--source--__codelineno-0-18" name="reccy.configuration.tyro.unit_spec--source--__codelineno-0-18"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">error</span><span class="p">))</span> <span class="kn">from</span><span class="w"> </span><span class="nn">error</span>
+</span><span id="reccy.configuration.tyro.unit_spec--source--__span-0-19"><a id="reccy.configuration.tyro.unit_spec--source--__codelineno-0-19" name="reccy.configuration.tyro.unit_spec--source--__codelineno-0-19"></a>
+</span><span id="reccy.configuration.tyro.unit_spec--source--__span-0-20"><a id="reccy.configuration.tyro.unit_spec--source--__codelineno-0-20" name="reccy.configuration.tyro.unit_spec--source--__codelineno-0-20"></a>    <span class="k">return</span> <span class="n">PrimitiveConstructorSpec</span><span class="p">(</span>
+</span><span id="reccy.configuration.tyro.unit_spec--source--__span-0-21"><a id="reccy.configuration.tyro.unit_spec--source--__codelineno-0-21" name="reccy.configuration.tyro.unit_spec--source--__codelineno-0-21"></a>        <span class="n">nargs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+</span><span id="reccy.configuration.tyro.unit_spec--source--__span-0-22"><a id="reccy.configuration.tyro.unit_spec--source--__codelineno-0-22" name="reccy.configuration.tyro.unit_spec--source--__codelineno-0-22"></a>        <span class="n">metavar</span><span class="o">=</span><span class="n">metavar</span><span class="p">,</span>
+</span><span id="reccy.configuration.tyro.unit_spec--source--__span-0-23"><a id="reccy.configuration.tyro.unit_spec--source--__codelineno-0-23" name="reccy.configuration.tyro.unit_spec--source--__codelineno-0-23"></a>        <span class="n">instance_from_str</span><span class="o">=</span><span class="n">parse</span><span class="p">,</span>
+</span><span id="reccy.configuration.tyro.unit_spec--source--__span-0-24"><a id="reccy.configuration.tyro.unit_spec--source--__codelineno-0-24" name="reccy.configuration.tyro.unit_spec--source--__codelineno-0-24"></a>        <span class="n">is_instance</span><span class="o">=</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">)),</span>
+</span><span id="reccy.configuration.tyro.unit_spec--source--__span-0-25"><a id="reccy.configuration.tyro.unit_spec--source--__codelineno-0-25" name="reccy.configuration.tyro.unit_spec--source--__codelineno-0-25"></a>        <span class="n">str_from_instance</span><span class="o">=</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="p">[</span>
+</span><span id="reccy.configuration.tyro.unit_spec--source--__span-0-26"><a id="reccy.configuration.tyro.unit_spec--source--__codelineno-0-26" name="reccy.configuration.tyro.unit_spec--source--__codelineno-0-26"></a>            <span class="n">v</span><span class="o">.</span><span class="n">provenance</span><span class="o">.</span><span class="n">authored</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="s1">'provenance'</span><span class="p">)</span> <span class="k">else</span> <span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+</span><span id="reccy.configuration.tyro.unit_spec--source--__span-0-27"><a id="reccy.configuration.tyro.unit_spec--source--__codelineno-0-27" name="reccy.configuration.tyro.unit_spec--source--__codelineno-0-27"></a>        <span class="p">],</span>
+</span><span id="reccy.configuration.tyro.unit_spec--source--__span-0-28"><a id="reccy.configuration.tyro.unit_spec--source--__codelineno-0-28" name="reccy.configuration.tyro.unit_spec--source--__codelineno-0-28"></a>    <span class="p">)</span>
 </span></code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2120,37 +2180,37 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>reccy/configuration/tyro.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-31">31</a></span>
-<span class="normal"><a href="#__codelineno-0-32">32</a></span>
-<span class="normal"><a href="#__codelineno-0-33">33</a></span>
-<span class="normal"><a href="#__codelineno-0-34">34</a></span>
-<span class="normal"><a href="#__codelineno-0-35">35</a></span>
-<span class="normal"><a href="#__codelineno-0-36">36</a></span>
-<span class="normal"><a href="#__codelineno-0-37">37</a></span>
-<span class="normal"><a href="#__codelineno-0-38">38</a></span>
-<span class="normal"><a href="#__codelineno-0-39">39</a></span>
-<span class="normal"><a href="#__codelineno-0-40">40</a></span>
-<span class="normal"><a href="#__codelineno-0-41">41</a></span>
-<span class="normal"><a href="#__codelineno-0-42">42</a></span>
-<span class="normal"><a href="#__codelineno-0-43">43</a></span>
-<span class="normal"><a href="#__codelineno-0-44">44</a></span>
-<span class="normal"><a href="#__codelineno-0-45">45</a></span>
-<span class="normal"><a href="#__codelineno-0-46">46</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31"></a><span class="k">def</span><span class="w"> </span><span class="nf">tyro_option</span><span class="p">(</span>
-</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32"></a>    <span class="n">alias</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33"></a>    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34"></a>    <span class="n">metavar</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35"></a>    <span class="n">constructor</span><span class="p">:</span> <span class="nb">type</span> <span class="o">|</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="n">help_behavior_hint</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">object</span><span class="p">:</span>
-</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="n">aliases</span> <span class="o">=</span> <span class="p">[</span><span class="n">alias</span><span class="p">]</span> <span class="k">if</span> <span class="n">alias</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
-</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="k">return</span> <span class="n">tyro</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">arg</span><span class="p">(</span>
-</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40"></a>        <span class="n">prefix_name</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41"></a>        <span class="n">aliases</span><span class="o">=</span><span class="n">aliases</span><span class="p">,</span>
-</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42"></a>        <span class="n">constructor</span><span class="o">=</span><span class="n">constructor</span><span class="p">,</span>
-</span><span id="__span-0-43"><a id="__codelineno-0-43" name="__codelineno-0-43"></a>        <span class="n">help_behavior_hint</span><span class="o">=</span><span class="n">help_behavior_hint</span><span class="p">,</span>
-</span><span id="__span-0-44"><a id="__codelineno-0-44" name="__codelineno-0-44"></a>        <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
-</span><span id="__span-0-45"><a id="__codelineno-0-45" name="__codelineno-0-45"></a>        <span class="n">metavar</span><span class="o">=</span><span class="n">metavar</span><span class="p">,</span>
-</span><span id="__span-0-46"><a id="__codelineno-0-46" name="__codelineno-0-46"></a>    <span class="p">)</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#reccy.configuration.tyro.tyro_option--source--__codelineno-0-31">31</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.tyro_option--source--__codelineno-0-32">32</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.tyro_option--source--__codelineno-0-33">33</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.tyro_option--source--__codelineno-0-34">34</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.tyro_option--source--__codelineno-0-35">35</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.tyro_option--source--__codelineno-0-36">36</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.tyro_option--source--__codelineno-0-37">37</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.tyro_option--source--__codelineno-0-38">38</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.tyro_option--source--__codelineno-0-39">39</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.tyro_option--source--__codelineno-0-40">40</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.tyro_option--source--__codelineno-0-41">41</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.tyro_option--source--__codelineno-0-42">42</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.tyro_option--source--__codelineno-0-43">43</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.tyro_option--source--__codelineno-0-44">44</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.tyro_option--source--__codelineno-0-45">45</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.tyro_option--source--__codelineno-0-46">46</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="reccy.configuration.tyro.tyro_option--source--__span-0-31"><a id="reccy.configuration.tyro.tyro_option--source--__codelineno-0-31" name="reccy.configuration.tyro.tyro_option--source--__codelineno-0-31"></a><span class="k">def</span><span class="w"> </span><span class="nf">tyro_option</span><span class="p">(</span>
+</span><span id="reccy.configuration.tyro.tyro_option--source--__span-0-32"><a id="reccy.configuration.tyro.tyro_option--source--__codelineno-0-32" name="reccy.configuration.tyro.tyro_option--source--__codelineno-0-32"></a>    <span class="n">alias</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="reccy.configuration.tyro.tyro_option--source--__span-0-33"><a id="reccy.configuration.tyro.tyro_option--source--__codelineno-0-33" name="reccy.configuration.tyro.tyro_option--source--__codelineno-0-33"></a>    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="reccy.configuration.tyro.tyro_option--source--__span-0-34"><a id="reccy.configuration.tyro.tyro_option--source--__codelineno-0-34" name="reccy.configuration.tyro.tyro_option--source--__codelineno-0-34"></a>    <span class="n">metavar</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="reccy.configuration.tyro.tyro_option--source--__span-0-35"><a id="reccy.configuration.tyro.tyro_option--source--__codelineno-0-35" name="reccy.configuration.tyro.tyro_option--source--__codelineno-0-35"></a>    <span class="n">constructor</span><span class="p">:</span> <span class="nb">type</span> <span class="o">|</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="reccy.configuration.tyro.tyro_option--source--__span-0-36"><a id="reccy.configuration.tyro.tyro_option--source--__codelineno-0-36" name="reccy.configuration.tyro.tyro_option--source--__codelineno-0-36"></a>    <span class="n">help_behavior_hint</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="reccy.configuration.tyro.tyro_option--source--__span-0-37"><a id="reccy.configuration.tyro.tyro_option--source--__codelineno-0-37" name="reccy.configuration.tyro.tyro_option--source--__codelineno-0-37"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">object</span><span class="p">:</span>
+</span><span id="reccy.configuration.tyro.tyro_option--source--__span-0-38"><a id="reccy.configuration.tyro.tyro_option--source--__codelineno-0-38" name="reccy.configuration.tyro.tyro_option--source--__codelineno-0-38"></a>    <span class="n">aliases</span> <span class="o">=</span> <span class="p">[</span><span class="n">alias</span><span class="p">]</span> <span class="k">if</span> <span class="n">alias</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+</span><span id="reccy.configuration.tyro.tyro_option--source--__span-0-39"><a id="reccy.configuration.tyro.tyro_option--source--__codelineno-0-39" name="reccy.configuration.tyro.tyro_option--source--__codelineno-0-39"></a>    <span class="k">return</span> <span class="n">tyro</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">arg</span><span class="p">(</span>
+</span><span id="reccy.configuration.tyro.tyro_option--source--__span-0-40"><a id="reccy.configuration.tyro.tyro_option--source--__codelineno-0-40" name="reccy.configuration.tyro.tyro_option--source--__codelineno-0-40"></a>        <span class="n">prefix_name</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+</span><span id="reccy.configuration.tyro.tyro_option--source--__span-0-41"><a id="reccy.configuration.tyro.tyro_option--source--__codelineno-0-41" name="reccy.configuration.tyro.tyro_option--source--__codelineno-0-41"></a>        <span class="n">aliases</span><span class="o">=</span><span class="n">aliases</span><span class="p">,</span>
+</span><span id="reccy.configuration.tyro.tyro_option--source--__span-0-42"><a id="reccy.configuration.tyro.tyro_option--source--__codelineno-0-42" name="reccy.configuration.tyro.tyro_option--source--__codelineno-0-42"></a>        <span class="n">constructor</span><span class="o">=</span><span class="n">constructor</span><span class="p">,</span>
+</span><span id="reccy.configuration.tyro.tyro_option--source--__span-0-43"><a id="reccy.configuration.tyro.tyro_option--source--__codelineno-0-43" name="reccy.configuration.tyro.tyro_option--source--__codelineno-0-43"></a>        <span class="n">help_behavior_hint</span><span class="o">=</span><span class="n">help_behavior_hint</span><span class="p">,</span>
+</span><span id="reccy.configuration.tyro.tyro_option--source--__span-0-44"><a id="reccy.configuration.tyro.tyro_option--source--__codelineno-0-44" name="reccy.configuration.tyro.tyro_option--source--__codelineno-0-44"></a>        <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+</span><span id="reccy.configuration.tyro.tyro_option--source--__span-0-45"><a id="reccy.configuration.tyro.tyro_option--source--__codelineno-0-45" name="reccy.configuration.tyro.tyro_option--source--__codelineno-0-45"></a>        <span class="n">metavar</span><span class="o">=</span><span class="n">metavar</span><span class="p">,</span>
+</span><span id="reccy.configuration.tyro.tyro_option--source--__span-0-46"><a id="reccy.configuration.tyro.tyro_option--source--__codelineno-0-46" name="reccy.configuration.tyro.tyro_option--source--__codelineno-0-46"></a>    <span class="p">)</span>
 </span></code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2173,53 +2233,53 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>reccy/configuration/tyro.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-49">49</a></span>
-<span class="normal"><a href="#__codelineno-0-50">50</a></span>
-<span class="normal"><a href="#__codelineno-0-51">51</a></span>
-<span class="normal"><a href="#__codelineno-0-52">52</a></span>
-<span class="normal"><a href="#__codelineno-0-53">53</a></span>
-<span class="normal"><a href="#__codelineno-0-54">54</a></span>
-<span class="normal"><a href="#__codelineno-0-55">55</a></span>
-<span class="normal"><a href="#__codelineno-0-56">56</a></span>
-<span class="normal"><a href="#__codelineno-0-57">57</a></span>
-<span class="normal"><a href="#__codelineno-0-58">58</a></span>
-<span class="normal"><a href="#__codelineno-0-59">59</a></span>
-<span class="normal"><a href="#__codelineno-0-60">60</a></span>
-<span class="normal"><a href="#__codelineno-0-61">61</a></span>
-<span class="normal"><a href="#__codelineno-0-62">62</a></span>
-<span class="normal"><a href="#__codelineno-0-63">63</a></span>
-<span class="normal"><a href="#__codelineno-0-64">64</a></span>
-<span class="normal"><a href="#__codelineno-0-65">65</a></span>
-<span class="normal"><a href="#__codelineno-0-66">66</a></span>
-<span class="normal"><a href="#__codelineno-0-67">67</a></span>
-<span class="normal"><a href="#__codelineno-0-68">68</a></span>
-<span class="normal"><a href="#__codelineno-0-69">69</a></span>
-<span class="normal"><a href="#__codelineno-0-70">70</a></span>
-<span class="normal"><a href="#__codelineno-0-71">71</a></span>
-<span class="normal"><a href="#__codelineno-0-72">72</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-49"><a id="__codelineno-0-49" name="__codelineno-0-49"></a><span class="k">def</span><span class="w"> </span><span class="nf">named_choice_spec</span><span class="p">(</span>
-</span><span id="__span-0-50"><a id="__codelineno-0-50" name="__codelineno-0-50"></a>    <span class="n">values</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">_T</span><span class="p">],</span> <span class="n">metavar</span><span class="p">:</span> <span class="nb">str</span>
-</span><span id="__span-0-51"><a id="__codelineno-0-51" name="__codelineno-0-51"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PrimitiveConstructorSpec</span><span class="p">[</span><span class="n">_T</span><span class="p">]:</span>
-</span><span id="__span-0-52"><a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="w">    </span><span class="sd">"""Parse exact names; format equivalent values using the first matching name."""</span>
-</span><span id="__span-0-53"><a id="__codelineno-0-53" name="__codelineno-0-53"></a>
-</span><span id="__span-0-54"><a id="__codelineno-0-54" name="__codelineno-0-54"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">parse</span><span class="p">(</span><span class="n">args</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">_T</span><span class="p">:</span>
-</span><span id="__span-0-55"><a id="__codelineno-0-55" name="__codelineno-0-55"></a>        <span class="k">try</span><span class="p">:</span>
-</span><span id="__span-0-56"><a id="__codelineno-0-56" name="__codelineno-0-56"></a>            <span class="k">return</span> <span class="n">values</span><span class="p">[</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
-</span><span id="__span-0-57"><a id="__codelineno-0-57" name="__codelineno-0-57"></a>        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
-</span><span id="__span-0-58"><a id="__codelineno-0-58" name="__codelineno-0-58"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Cannot understand </span><span class="si">{</span><span class="n">metavar</span><span class="si">}</span><span class="s1">="</span><span class="si">{</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s1">"'</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
-</span><span id="__span-0-59"><a id="__codelineno-0-59" name="__codelineno-0-59"></a>
-</span><span id="__span-0-60"><a id="__codelineno-0-60" name="__codelineno-0-60"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">format_value</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">_T</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-</span><span id="__span-0-61"><a id="__codelineno-0-61" name="__codelineno-0-61"></a>        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">values</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-</span><span id="__span-0-62"><a id="__codelineno-0-62" name="__codelineno-0-62"></a>            <span class="k">if</span> <span class="n">item</span> <span class="o">==</span> <span class="n">value</span><span class="p">:</span>
-</span><span id="__span-0-63"><a id="__codelineno-0-63" name="__codelineno-0-63"></a>                <span class="k">return</span> <span class="p">[</span><span class="n">name</span><span class="p">]</span>
-</span><span id="__span-0-64"><a id="__codelineno-0-64" name="__codelineno-0-64"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">'No </span><span class="si">{</span><span class="n">metavar</span><span class="si">}</span><span class="s1"> name for </span><span class="si">{</span><span class="n">value</span><span class="si">!r}</span><span class="s1">'</span><span class="p">)</span>
-</span><span id="__span-0-65"><a id="__codelineno-0-65" name="__codelineno-0-65"></a>
-</span><span id="__span-0-66"><a id="__codelineno-0-66" name="__codelineno-0-66"></a>    <span class="k">return</span> <span class="n">PrimitiveConstructorSpec</span><span class="p">(</span>
-</span><span id="__span-0-67"><a id="__codelineno-0-67" name="__codelineno-0-67"></a>        <span class="n">nargs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-</span><span id="__span-0-68"><a id="__codelineno-0-68" name="__codelineno-0-68"></a>        <span class="n">metavar</span><span class="o">=</span><span class="n">metavar</span><span class="p">,</span>
-</span><span id="__span-0-69"><a id="__codelineno-0-69" name="__codelineno-0-69"></a>        <span class="n">instance_from_str</span><span class="o">=</span><span class="n">parse</span><span class="p">,</span>
-</span><span id="__span-0-70"><a id="__codelineno-0-70" name="__codelineno-0-70"></a>        <span class="n">is_instance</span><span class="o">=</span><span class="k">lambda</span> <span class="n">value</span><span class="p">:</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">values</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span>
-</span><span id="__span-0-71"><a id="__codelineno-0-71" name="__codelineno-0-71"></a>        <span class="n">str_from_instance</span><span class="o">=</span><span class="n">format_value</span><span class="p">,</span>
-</span><span id="__span-0-72"><a id="__codelineno-0-72" name="__codelineno-0-72"></a>    <span class="p">)</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-49">49</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-50">50</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-51">51</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-52">52</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-53">53</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-54">54</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-55">55</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-56">56</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-57">57</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-58">58</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-59">59</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-60">60</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-61">61</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-62">62</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-63">63</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-64">64</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-65">65</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-66">66</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-67">67</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-68">68</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-69">69</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-70">70</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-71">71</a></span>
+<span class="normal"><a href="#reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-72">72</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="reccy.configuration.tyro.named_choice_spec--source--__span-0-49"><a id="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-49" name="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-49"></a><span class="k">def</span><span class="w"> </span><span class="nf">named_choice_spec</span><span class="p">(</span>
+</span><span id="reccy.configuration.tyro.named_choice_spec--source--__span-0-50"><a id="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-50" name="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-50"></a>    <span class="n">values</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">_T</span><span class="p">],</span> <span class="n">metavar</span><span class="p">:</span> <span class="nb">str</span>
+</span><span id="reccy.configuration.tyro.named_choice_spec--source--__span-0-51"><a id="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-51" name="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-51"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PrimitiveConstructorSpec</span><span class="p">[</span><span class="n">_T</span><span class="p">]:</span>
+</span><span id="reccy.configuration.tyro.named_choice_spec--source--__span-0-52"><a id="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-52" name="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-52"></a><span class="w">    </span><span class="sd">"""Parse exact names; format equivalent values using the first matching name."""</span>
+</span><span id="reccy.configuration.tyro.named_choice_spec--source--__span-0-53"><a id="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-53" name="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-53"></a>
+</span><span id="reccy.configuration.tyro.named_choice_spec--source--__span-0-54"><a id="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-54" name="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-54"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">parse</span><span class="p">(</span><span class="n">args</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">_T</span><span class="p">:</span>
+</span><span id="reccy.configuration.tyro.named_choice_spec--source--__span-0-55"><a id="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-55" name="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-55"></a>        <span class="k">try</span><span class="p">:</span>
+</span><span id="reccy.configuration.tyro.named_choice_spec--source--__span-0-56"><a id="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-56" name="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-56"></a>            <span class="k">return</span> <span class="n">values</span><span class="p">[</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+</span><span id="reccy.configuration.tyro.named_choice_spec--source--__span-0-57"><a id="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-57" name="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-57"></a>        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+</span><span id="reccy.configuration.tyro.named_choice_spec--source--__span-0-58"><a id="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-58" name="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-58"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Cannot understand </span><span class="si">{</span><span class="n">metavar</span><span class="si">}</span><span class="s1">="</span><span class="si">{</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s1">"'</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
+</span><span id="reccy.configuration.tyro.named_choice_spec--source--__span-0-59"><a id="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-59" name="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-59"></a>
+</span><span id="reccy.configuration.tyro.named_choice_spec--source--__span-0-60"><a id="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-60" name="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-60"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">format_value</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">_T</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+</span><span id="reccy.configuration.tyro.named_choice_spec--source--__span-0-61"><a id="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-61" name="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-61"></a>        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">values</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+</span><span id="reccy.configuration.tyro.named_choice_spec--source--__span-0-62"><a id="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-62" name="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-62"></a>            <span class="k">if</span> <span class="n">item</span> <span class="o">==</span> <span class="n">value</span><span class="p">:</span>
+</span><span id="reccy.configuration.tyro.named_choice_spec--source--__span-0-63"><a id="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-63" name="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-63"></a>                <span class="k">return</span> <span class="p">[</span><span class="n">name</span><span class="p">]</span>
+</span><span id="reccy.configuration.tyro.named_choice_spec--source--__span-0-64"><a id="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-64" name="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-64"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">'No </span><span class="si">{</span><span class="n">metavar</span><span class="si">}</span><span class="s1"> name for </span><span class="si">{</span><span class="n">value</span><span class="si">!r}</span><span class="s1">'</span><span class="p">)</span>
+</span><span id="reccy.configuration.tyro.named_choice_spec--source--__span-0-65"><a id="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-65" name="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-65"></a>
+</span><span id="reccy.configuration.tyro.named_choice_spec--source--__span-0-66"><a id="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-66" name="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-66"></a>    <span class="k">return</span> <span class="n">PrimitiveConstructorSpec</span><span class="p">(</span>
+</span><span id="reccy.configuration.tyro.named_choice_spec--source--__span-0-67"><a id="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-67" name="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-67"></a>        <span class="n">nargs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+</span><span id="reccy.configuration.tyro.named_choice_spec--source--__span-0-68"><a id="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-68" name="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-68"></a>        <span class="n">metavar</span><span class="o">=</span><span class="n">metavar</span><span class="p">,</span>
+</span><span id="reccy.configuration.tyro.named_choice_spec--source--__span-0-69"><a id="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-69" name="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-69"></a>        <span class="n">instance_from_str</span><span class="o">=</span><span class="n">parse</span><span class="p">,</span>
+</span><span id="reccy.configuration.tyro.named_choice_spec--source--__span-0-70"><a id="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-70" name="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-70"></a>        <span class="n">is_instance</span><span class="o">=</span><span class="k">lambda</span> <span class="n">value</span><span class="p">:</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">values</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span>
+</span><span id="reccy.configuration.tyro.named_choice_spec--source--__span-0-71"><a id="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-71" name="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-71"></a>        <span class="n">str_from_instance</span><span class="o">=</span><span class="n">format_value</span><span class="p">,</span>
+</span><span id="reccy.configuration.tyro.named_choice_spec--source--__span-0-72"><a id="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-72" name="reccy.configuration.tyro.named_choice_spec--source--__codelineno-0-72"></a>    <span class="p">)</span>
 </span></code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2294,7 +2354,7 @@
       <script id="__config" type="application/json">{"annotate":null,"base":"../../../..","features":["navigation.indexes","content.code.copy"],"redirect":null,"search":"../../../../assets/javascripts/workers/search.c47bb847.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","clipboard.error":"Could not copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
     
     
-      <script src="../../../../assets/javascripts/bundle.a2388154.min.js"></script>
+      <script src="../../../../assets/javascripts/bundle.77dd0ce9.min.js"></script>
       
     
   </body>

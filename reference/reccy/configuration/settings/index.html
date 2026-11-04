@@ -24,7 +24,7 @@
       
       
       <link rel="icon" href="../../../../assets/images/favicon.png">
-      <meta name="generator" content="zensical-0.0.70">
+      <meta name="generator" content="zensical-0.0.73">
     
     
       
@@ -35,7 +35,7 @@
       
         
       
-      <link rel="stylesheet" href="../../../../assets/stylesheets/modern/main.e442bf79.min.css">
+      <link rel="stylesheet" href="../../../../assets/stylesheets/modern/main.4ab2de0c.min.css">
       
       
 
@@ -91,9 +91,10 @@
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
 
     </a>
-    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+    <label class="md-header__button md-icon" for="__drawer">
       
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+      <span class="md-visually-hidden">Navigation</span>
     </label>
     <div class="md-header__title" data-md-component="header-title">
       <div class="md-header__ellipsis">
@@ -119,9 +120,10 @@
     
       
       
-        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+        <label class="md-header__button md-icon" for="__search">
           
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+          <span class="md-visually-hidden">Search</span>
         </label>
         <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
   <button type="button" class="md-search__button">
@@ -899,6 +901,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#reccy.configuration.settings.read" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        read
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#reccy.configuration.settings.save" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -1255,6 +1268,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1301,6 +1318,33 @@
             </label>
             <ul class="md-nav__list" data-md-scrollfix>
               
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../runtime/asset_sets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  asset_sets
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
                 
               
                 
@@ -1588,6 +1632,33 @@
     
   
   process
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../runtime/publication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  publication
 
     
   </span>
@@ -2014,6 +2085,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#reccy.configuration.settings.read" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        read
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#reccy.configuration.settings.save" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -2119,7 +2201,7 @@
 
 
 <h2 id="reccy.configuration.settings.load" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">load</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Settings</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Settings</span> <span class="o">|</span> <span class="kc">None</span></code>
+            <code class="highlight language-python"><span class="n">load</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Settings</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Settings</span></code>
 
 <a href="#reccy.configuration.settings.load" class="headerlink" title="Permanent link">&para;</a></h2>
 
@@ -2129,19 +2211,56 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>reccy/configuration/settings.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-14">14</a></span>
-<span class="normal"><a href="#__codelineno-0-15">15</a></span>
-<span class="normal"><a href="#__codelineno-0-16">16</a></span>
-<span class="normal"><a href="#__codelineno-0-17">17</a></span>
-<span class="normal"><a href="#__codelineno-0-18">18</a></span>
-<span class="normal"><a href="#__codelineno-0-19">19</a></span>
-<span class="normal"><a href="#__codelineno-0-20">20</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14"></a><span class="k">def</span><span class="w"> </span><span class="nf">load</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Settings</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Settings</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16"></a>        <span class="k">return</span> <span class="kc">None</span>
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17"></a>    <span class="k">try</span><span class="p">:</span>
-</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18"></a>        <span class="k">return</span> <span class="n">model</span><span class="o">.</span><span class="n">model_validate_json</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">read_text</span><span class="p">())</span>
-</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19"></a>    <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="n">ValidationError</span><span class="p">)</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
-</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20"></a>        <span class="k">raise</span> <span class="n">ReccyError</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Could not load settings from </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">error</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">error</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#reccy.configuration.settings.load--source--__codelineno-0-17">17</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.load--source--__codelineno-0-18">18</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.load--source--__codelineno-0-19">19</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.load--source--__codelineno-0-20">20</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.load--source--__codelineno-0-21">21</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="reccy.configuration.settings.load--source--__span-0-17"><a id="reccy.configuration.settings.load--source--__codelineno-0-17" name="reccy.configuration.settings.load--source--__codelineno-0-17"></a><span class="k">def</span><span class="w"> </span><span class="nf">load</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Settings</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Settings</span><span class="p">:</span>
+</span><span id="reccy.configuration.settings.load--source--__span-0-18"><a id="reccy.configuration.settings.load--source--__codelineno-0-18" name="reccy.configuration.settings.load--source--__codelineno-0-18"></a>    <span class="k">try</span><span class="p">:</span>
+</span><span id="reccy.configuration.settings.load--source--__span-0-19"><a id="reccy.configuration.settings.load--source--__codelineno-0-19" name="reccy.configuration.settings.load--source--__codelineno-0-19"></a>        <span class="k">return</span> <span class="n">model</span><span class="o">.</span><span class="n">model_validate</span><span class="p">(</span><span class="n">read</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
+</span><span id="reccy.configuration.settings.load--source--__span-0-20"><a id="reccy.configuration.settings.load--source--__codelineno-0-20" name="reccy.configuration.settings.load--source--__codelineno-0-20"></a>    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+</span><span id="reccy.configuration.settings.load--source--__span-0-21"><a id="reccy.configuration.settings.load--source--__codelineno-0-21" name="reccy.configuration.settings.load--source--__codelineno-0-21"></a>        <span class="k">raise</span> <span class="n">ReccyError</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Could not load settings from </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">error</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">error</span>
+</span></code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="reccy.configuration.settings.read" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">read</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">object</span></code>
+
+<a href="#reccy.configuration.settings.read" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Read JSON or TOML data; reject unsupported or missing suffixes.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>reccy/configuration/settings.py</code></summary>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#reccy.configuration.settings.read--source--__codelineno-0-24">24</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.read--source--__codelineno-0-25">25</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.read--source--__codelineno-0-26">26</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.read--source--__codelineno-0-27">27</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.read--source--__codelineno-0-28">28</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.read--source--__codelineno-0-29">29</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.read--source--__codelineno-0-30">30</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.read--source--__codelineno-0-31">31</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.read--source--__codelineno-0-32">32</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.read--source--__codelineno-0-33">33</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="reccy.configuration.settings.read--source--__span-0-24"><a id="reccy.configuration.settings.read--source--__codelineno-0-24" name="reccy.configuration.settings.read--source--__codelineno-0-24"></a><span class="k">def</span><span class="w"> </span><span class="nf">read</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">object</span><span class="p">:</span>
+</span><span id="reccy.configuration.settings.read--source--__span-0-25"><a id="reccy.configuration.settings.read--source--__codelineno-0-25" name="reccy.configuration.settings.read--source--__codelineno-0-25"></a><span class="w">    </span><span class="sd">"""Read JSON or TOML data; reject unsupported or missing suffixes."""</span>
+</span><span id="reccy.configuration.settings.read--source--__span-0-26"><a id="reccy.configuration.settings.read--source--__codelineno-0-26" name="reccy.configuration.settings.read--source--__codelineno-0-26"></a>    <span class="k">match</span> <span class="n">path</span><span class="o">.</span><span class="n">suffix</span><span class="p">:</span>
+</span><span id="reccy.configuration.settings.read--source--__span-0-27"><a id="reccy.configuration.settings.read--source--__codelineno-0-27" name="reccy.configuration.settings.read--source--__codelineno-0-27"></a>        <span class="k">case</span> <span class="s1">'.json'</span><span class="p">:</span>
+</span><span id="reccy.configuration.settings.read--source--__span-0-28"><a id="reccy.configuration.settings.read--source--__codelineno-0-28" name="reccy.configuration.settings.read--source--__codelineno-0-28"></a>            <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">read_text</span><span class="p">())</span>
+</span><span id="reccy.configuration.settings.read--source--__span-0-29"><a id="reccy.configuration.settings.read--source--__codelineno-0-29" name="reccy.configuration.settings.read--source--__codelineno-0-29"></a>        <span class="k">case</span> <span class="s1">'.toml'</span><span class="p">:</span>
+</span><span id="reccy.configuration.settings.read--source--__span-0-30"><a id="reccy.configuration.settings.read--source--__codelineno-0-30" name="reccy.configuration.settings.read--source--__codelineno-0-30"></a>            <span class="k">with</span> <span class="n">path</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s1">'rb'</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+</span><span id="reccy.configuration.settings.read--source--__span-0-31"><a id="reccy.configuration.settings.read--source--__codelineno-0-31" name="reccy.configuration.settings.read--source--__codelineno-0-31"></a>                <span class="k">return</span> <span class="n">tomllib</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+</span><span id="reccy.configuration.settings.read--source--__span-0-32"><a id="reccy.configuration.settings.read--source--__codelineno-0-32" name="reccy.configuration.settings.read--source--__codelineno-0-32"></a>        <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
+</span><span id="reccy.configuration.settings.read--source--__span-0-33"><a id="reccy.configuration.settings.read--source--__codelineno-0-33" name="reccy.configuration.settings.read--source--__codelineno-0-33"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Settings path must end in .json or .toml: </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
 </span></code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2152,25 +2271,63 @@
 
 
 <h2 id="reccy.configuration.settings.save" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">save</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">BaseModel</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span></code>
+            <code class="highlight language-python"><span class="n">save</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">BaseModel</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">write_empty_dicts</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">sync</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span></code>
 
 <a href="#reccy.configuration.settings.save" class="headerlink" title="Permanent link">&para;</a></h2>
 
 
     <div class="doc doc-contents ">
 
+        <p>Save a model, omitting empty dictionary entries unless requested.</p>
+
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>reccy/configuration/settings.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-23">23</a></span>
-<span class="normal"><a href="#__codelineno-0-24">24</a></span>
-<span class="normal"><a href="#__codelineno-0-25">25</a></span>
-<span class="normal"><a href="#__codelineno-0-26">26</a></span>
-<span class="normal"><a href="#__codelineno-0-27">27</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23"></a><span class="k">def</span><span class="w"> </span><span class="nf">save</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">BaseModel</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24"></a>    <span class="k">try</span><span class="p">:</span>
-</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25"></a>        <span class="n">write_json_model</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26"></a>    <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
-</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27"></a>        <span class="k">raise</span> <span class="n">ReccyError</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Could not save settings to </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">error</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">error</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#reccy.configuration.settings.save--source--__codelineno-0-36">36</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.save--source--__codelineno-0-37">37</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.save--source--__codelineno-0-38">38</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.save--source--__codelineno-0-39">39</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.save--source--__codelineno-0-40">40</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.save--source--__codelineno-0-41">41</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.save--source--__codelineno-0-42">42</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.save--source--__codelineno-0-43">43</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.save--source--__codelineno-0-44">44</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.save--source--__codelineno-0-45">45</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.save--source--__codelineno-0-46">46</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.save--source--__codelineno-0-47">47</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.save--source--__codelineno-0-48">48</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.save--source--__codelineno-0-49">49</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.save--source--__codelineno-0-50">50</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.save--source--__codelineno-0-51">51</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.save--source--__codelineno-0-52">52</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.save--source--__codelineno-0-53">53</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.save--source--__codelineno-0-54">54</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.save--source--__codelineno-0-55">55</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.save--source--__codelineno-0-56">56</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.save--source--__codelineno-0-57">57</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.save--source--__codelineno-0-58">58</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="reccy.configuration.settings.save--source--__span-0-36"><a id="reccy.configuration.settings.save--source--__codelineno-0-36" name="reccy.configuration.settings.save--source--__codelineno-0-36"></a><span class="k">def</span><span class="w"> </span><span class="nf">save</span><span class="p">(</span>
+</span><span id="reccy.configuration.settings.save--source--__span-0-37"><a id="reccy.configuration.settings.save--source--__codelineno-0-37" name="reccy.configuration.settings.save--source--__codelineno-0-37"></a>    <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">BaseModel</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">write_empty_dicts</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">sync</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+</span><span id="reccy.configuration.settings.save--source--__span-0-38"><a id="reccy.configuration.settings.save--source--__codelineno-0-38" name="reccy.configuration.settings.save--source--__codelineno-0-38"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="reccy.configuration.settings.save--source--__span-0-39"><a id="reccy.configuration.settings.save--source--__codelineno-0-39" name="reccy.configuration.settings.save--source--__codelineno-0-39"></a><span class="w">    </span><span class="sd">"""Save a model, omitting empty dictionary entries unless requested."""</span>
+</span><span id="reccy.configuration.settings.save--source--__span-0-40"><a id="reccy.configuration.settings.save--source--__codelineno-0-40" name="reccy.configuration.settings.save--source--__codelineno-0-40"></a>    <span class="k">try</span><span class="p">:</span>
+</span><span id="reccy.configuration.settings.save--source--__span-0-41"><a id="reccy.configuration.settings.save--source--__codelineno-0-41" name="reccy.configuration.settings.save--source--__codelineno-0-41"></a>        <span class="k">match</span> <span class="n">path</span><span class="o">.</span><span class="n">suffix</span><span class="p">:</span>
+</span><span id="reccy.configuration.settings.save--source--__span-0-42"><a id="reccy.configuration.settings.save--source--__codelineno-0-42" name="reccy.configuration.settings.save--source--__codelineno-0-42"></a>            <span class="k">case</span> <span class="s1">'.json'</span><span class="p">:</span>
+</span><span id="reccy.configuration.settings.save--source--__span-0-43"><a id="reccy.configuration.settings.save--source--__codelineno-0-43" name="reccy.configuration.settings.save--source--__codelineno-0-43"></a>                <span class="n">write_json_model</span><span class="p">(</span>
+</span><span id="reccy.configuration.settings.save--source--__span-0-44"><a id="reccy.configuration.settings.save--source--__codelineno-0-44" name="reccy.configuration.settings.save--source--__codelineno-0-44"></a>                    <span class="n">path</span><span class="p">,</span>
+</span><span id="reccy.configuration.settings.save--source--__span-0-45"><a id="reccy.configuration.settings.save--source--__codelineno-0-45" name="reccy.configuration.settings.save--source--__codelineno-0-45"></a>                    <span class="n">value</span><span class="p">,</span>
+</span><span id="reccy.configuration.settings.save--source--__span-0-46"><a id="reccy.configuration.settings.save--source--__codelineno-0-46" name="reccy.configuration.settings.save--source--__codelineno-0-46"></a>                    <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+</span><span id="reccy.configuration.settings.save--source--__span-0-47"><a id="reccy.configuration.settings.save--source--__codelineno-0-47" name="reccy.configuration.settings.save--source--__codelineno-0-47"></a>                    <span class="n">write_empty_dicts</span><span class="o">=</span><span class="n">write_empty_dicts</span><span class="p">,</span>
+</span><span id="reccy.configuration.settings.save--source--__span-0-48"><a id="reccy.configuration.settings.save--source--__codelineno-0-48" name="reccy.configuration.settings.save--source--__codelineno-0-48"></a>                    <span class="n">sync</span><span class="o">=</span><span class="n">sync</span><span class="p">,</span>
+</span><span id="reccy.configuration.settings.save--source--__span-0-49"><a id="reccy.configuration.settings.save--source--__codelineno-0-49" name="reccy.configuration.settings.save--source--__codelineno-0-49"></a>                <span class="p">)</span>
+</span><span id="reccy.configuration.settings.save--source--__span-0-50"><a id="reccy.configuration.settings.save--source--__codelineno-0-50" name="reccy.configuration.settings.save--source--__codelineno-0-50"></a>            <span class="k">case</span> <span class="s1">'.toml'</span><span class="p">:</span>
+</span><span id="reccy.configuration.settings.save--source--__span-0-51"><a id="reccy.configuration.settings.save--source--__codelineno-0-51" name="reccy.configuration.settings.save--source--__codelineno-0-51"></a>                <span class="n">data</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">model_dump</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s1">'json'</span><span class="p">)</span>
+</span><span id="reccy.configuration.settings.save--source--__span-0-52"><a id="reccy.configuration.settings.save--source--__codelineno-0-52" name="reccy.configuration.settings.save--source--__codelineno-0-52"></a>                <span class="k">if</span> <span class="ow">not</span> <span class="n">write_empty_dicts</span><span class="p">:</span>
+</span><span id="reccy.configuration.settings.save--source--__span-0-53"><a id="reccy.configuration.settings.save--source--__codelineno-0-53" name="reccy.configuration.settings.save--source--__codelineno-0-53"></a>                    <span class="n">data</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">],</span> <span class="n">_without_empty_dicts</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+</span><span id="reccy.configuration.settings.save--source--__span-0-54"><a id="reccy.configuration.settings.save--source--__codelineno-0-54" name="reccy.configuration.settings.save--source--__codelineno-0-54"></a>                <span class="n">write_text_atomically</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">tomlkit</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">data</span><span class="p">),</span> <span class="n">sync</span><span class="o">=</span><span class="n">sync</span><span class="p">)</span>
+</span><span id="reccy.configuration.settings.save--source--__span-0-55"><a id="reccy.configuration.settings.save--source--__codelineno-0-55" name="reccy.configuration.settings.save--source--__codelineno-0-55"></a>            <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
+</span><span id="reccy.configuration.settings.save--source--__span-0-56"><a id="reccy.configuration.settings.save--source--__codelineno-0-56" name="reccy.configuration.settings.save--source--__codelineno-0-56"></a>                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Settings path must end in .json or .toml: </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
+</span><span id="reccy.configuration.settings.save--source--__span-0-57"><a id="reccy.configuration.settings.save--source--__codelineno-0-57" name="reccy.configuration.settings.save--source--__codelineno-0-57"></a>    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+</span><span id="reccy.configuration.settings.save--source--__span-0-58"><a id="reccy.configuration.settings.save--source--__codelineno-0-58" name="reccy.configuration.settings.save--source--__codelineno-0-58"></a>        <span class="k">raise</span> <span class="n">ReccyError</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Could not save settings to </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">error</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">error</span>
 </span></code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2181,23 +2338,53 @@
 
 
 <h2 id="reccy.configuration.settings.write_json_model" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">write_json_model</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">BaseModel</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">indent</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sync</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span></code>
+            <code class="highlight language-python"><span class="n">write_json_model</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">BaseModel</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">indent</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sync</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">write_empty_dicts</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span></code>
 
 <a href="#reccy.configuration.settings.write_json_model" class="headerlink" title="Permanent link">&para;</a></h2>
 
 
     <div class="doc doc-contents ">
 
+        <p>Write JSON, optionally retaining empty dictionary entries.</p>
+
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>reccy/configuration/settings.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-30">30</a></span>
-<span class="normal"><a href="#__codelineno-0-31">31</a></span>
-<span class="normal"><a href="#__codelineno-0-32">32</a></span>
-<span class="normal"><a href="#__codelineno-0-33">33</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30"></a><span class="k">def</span><span class="w"> </span><span class="nf">write_json_model</span><span class="p">(</span>
-</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31"></a>    <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">BaseModel</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">indent</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sync</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
-</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33"></a>    <span class="n">write_text_atomically</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">value</span><span class="o">.</span><span class="n">model_dump_json</span><span class="p">(</span><span class="n">indent</span><span class="o">=</span><span class="n">indent</span><span class="p">)</span> <span class="o">+</span> <span class="s1">'</span><span class="se">\n</span><span class="s1">'</span><span class="p">,</span> <span class="n">sync</span><span class="o">=</span><span class="n">sync</span><span class="p">)</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#reccy.configuration.settings.write_json_model--source--__codelineno-0-61">61</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.write_json_model--source--__codelineno-0-62">62</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.write_json_model--source--__codelineno-0-63">63</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.write_json_model--source--__codelineno-0-64">64</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.write_json_model--source--__codelineno-0-65">65</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.write_json_model--source--__codelineno-0-66">66</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.write_json_model--source--__codelineno-0-67">67</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.write_json_model--source--__codelineno-0-68">68</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.write_json_model--source--__codelineno-0-69">69</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.write_json_model--source--__codelineno-0-70">70</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.write_json_model--source--__codelineno-0-71">71</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.write_json_model--source--__codelineno-0-72">72</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.write_json_model--source--__codelineno-0-73">73</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.write_json_model--source--__codelineno-0-74">74</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.write_json_model--source--__codelineno-0-75">75</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.write_json_model--source--__codelineno-0-76">76</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.write_json_model--source--__codelineno-0-77">77</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.write_json_model--source--__codelineno-0-78">78</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="reccy.configuration.settings.write_json_model--source--__span-0-61"><a id="reccy.configuration.settings.write_json_model--source--__codelineno-0-61" name="reccy.configuration.settings.write_json_model--source--__codelineno-0-61"></a><span class="k">def</span><span class="w"> </span><span class="nf">write_json_model</span><span class="p">(</span>
+</span><span id="reccy.configuration.settings.write_json_model--source--__span-0-62"><a id="reccy.configuration.settings.write_json_model--source--__codelineno-0-62" name="reccy.configuration.settings.write_json_model--source--__codelineno-0-62"></a>    <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+</span><span id="reccy.configuration.settings.write_json_model--source--__span-0-63"><a id="reccy.configuration.settings.write_json_model--source--__codelineno-0-63" name="reccy.configuration.settings.write_json_model--source--__codelineno-0-63"></a>    <span class="n">value</span><span class="p">:</span> <span class="n">BaseModel</span><span class="p">,</span>
+</span><span id="reccy.configuration.settings.write_json_model--source--__span-0-64"><a id="reccy.configuration.settings.write_json_model--source--__codelineno-0-64" name="reccy.configuration.settings.write_json_model--source--__codelineno-0-64"></a>    <span class="o">*</span><span class="p">,</span>
+</span><span id="reccy.configuration.settings.write_json_model--source--__span-0-65"><a id="reccy.configuration.settings.write_json_model--source--__codelineno-0-65" name="reccy.configuration.settings.write_json_model--source--__codelineno-0-65"></a>    <span class="n">indent</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="reccy.configuration.settings.write_json_model--source--__span-0-66"><a id="reccy.configuration.settings.write_json_model--source--__codelineno-0-66" name="reccy.configuration.settings.write_json_model--source--__codelineno-0-66"></a>    <span class="n">sync</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+</span><span id="reccy.configuration.settings.write_json_model--source--__span-0-67"><a id="reccy.configuration.settings.write_json_model--source--__codelineno-0-67" name="reccy.configuration.settings.write_json_model--source--__codelineno-0-67"></a>    <span class="n">write_empty_dicts</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span id="reccy.configuration.settings.write_json_model--source--__span-0-68"><a id="reccy.configuration.settings.write_json_model--source--__codelineno-0-68" name="reccy.configuration.settings.write_json_model--source--__codelineno-0-68"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="reccy.configuration.settings.write_json_model--source--__span-0-69"><a id="reccy.configuration.settings.write_json_model--source--__codelineno-0-69" name="reccy.configuration.settings.write_json_model--source--__codelineno-0-69"></a><span class="w">    </span><span class="sd">"""Write JSON, optionally retaining empty dictionary entries."""</span>
+</span><span id="reccy.configuration.settings.write_json_model--source--__span-0-70"><a id="reccy.configuration.settings.write_json_model--source--__codelineno-0-70" name="reccy.configuration.settings.write_json_model--source--__codelineno-0-70"></a>    <span class="n">content</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">model_dump_json</span><span class="p">(</span><span class="n">indent</span><span class="o">=</span><span class="n">indent</span><span class="p">)</span>
+</span><span id="reccy.configuration.settings.write_json_model--source--__span-0-71"><a id="reccy.configuration.settings.write_json_model--source--__codelineno-0-71" name="reccy.configuration.settings.write_json_model--source--__codelineno-0-71"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">write_empty_dicts</span><span class="p">:</span>
+</span><span id="reccy.configuration.settings.write_json_model--source--__span-0-72"><a id="reccy.configuration.settings.write_json_model--source--__codelineno-0-72" name="reccy.configuration.settings.write_json_model--source--__codelineno-0-72"></a>        <span class="n">content</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span>
+</span><span id="reccy.configuration.settings.write_json_model--source--__span-0-73"><a id="reccy.configuration.settings.write_json_model--source--__codelineno-0-73" name="reccy.configuration.settings.write_json_model--source--__codelineno-0-73"></a>            <span class="n">_without_empty_dicts</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">content</span><span class="p">)),</span>
+</span><span id="reccy.configuration.settings.write_json_model--source--__span-0-74"><a id="reccy.configuration.settings.write_json_model--source--__codelineno-0-74" name="reccy.configuration.settings.write_json_model--source--__codelineno-0-74"></a>            <span class="n">indent</span><span class="o">=</span><span class="n">indent</span><span class="p">,</span>
+</span><span id="reccy.configuration.settings.write_json_model--source--__span-0-75"><a id="reccy.configuration.settings.write_json_model--source--__codelineno-0-75" name="reccy.configuration.settings.write_json_model--source--__codelineno-0-75"></a>            <span class="n">ensure_ascii</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+</span><span id="reccy.configuration.settings.write_json_model--source--__span-0-76"><a id="reccy.configuration.settings.write_json_model--source--__codelineno-0-76" name="reccy.configuration.settings.write_json_model--source--__codelineno-0-76"></a>            <span class="n">separators</span><span class="o">=</span><span class="p">(</span><span class="s1">','</span><span class="p">,</span> <span class="s1">':'</span><span class="p">)</span> <span class="k">if</span> <span class="n">indent</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="reccy.configuration.settings.write_json_model--source--__span-0-77"><a id="reccy.configuration.settings.write_json_model--source--__codelineno-0-77" name="reccy.configuration.settings.write_json_model--source--__codelineno-0-77"></a>        <span class="p">)</span>
+</span><span id="reccy.configuration.settings.write_json_model--source--__span-0-78"><a id="reccy.configuration.settings.write_json_model--source--__codelineno-0-78" name="reccy.configuration.settings.write_json_model--source--__codelineno-0-78"></a>    <span class="n">write_text_atomically</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">content</span> <span class="o">+</span> <span class="s1">'</span><span class="se">\n</span><span class="s1">'</span><span class="p">,</span> <span class="n">sync</span><span class="o">=</span><span class="n">sync</span><span class="p">)</span>
 </span></code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2220,13 +2407,13 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>reccy/configuration/settings.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-36">36</a></span>
-<span class="normal"><a href="#__codelineno-0-37">37</a></span>
-<span class="normal"><a href="#__codelineno-0-38">38</a></span>
-<span class="normal"><a href="#__codelineno-0-39">39</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36"></a><span class="k">def</span><span class="w"> </span><span class="nf">write_text_atomically</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">content</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">sync</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37"></a><span class="w">    </span><span class="sd">"""Publish one complete write; concurrent writers use last-replacement-wins."""</span>
-</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="k">with</span> <span class="n">atomic_output</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">sync</span><span class="o">=</span><span class="n">sync</span><span class="p">)</span> <span class="k">as</span> <span class="n">temporary</span><span class="p">:</span>
-</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39"></a>        <span class="n">temporary</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#reccy.configuration.settings.write_text_atomically--source--__codelineno-0-81">81</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.write_text_atomically--source--__codelineno-0-82">82</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.write_text_atomically--source--__codelineno-0-83">83</a></span>
+<span class="normal"><a href="#reccy.configuration.settings.write_text_atomically--source--__codelineno-0-84">84</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="reccy.configuration.settings.write_text_atomically--source--__span-0-81"><a id="reccy.configuration.settings.write_text_atomically--source--__codelineno-0-81" name="reccy.configuration.settings.write_text_atomically--source--__codelineno-0-81"></a><span class="k">def</span><span class="w"> </span><span class="nf">write_text_atomically</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">content</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">sync</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="reccy.configuration.settings.write_text_atomically--source--__span-0-82"><a id="reccy.configuration.settings.write_text_atomically--source--__codelineno-0-82" name="reccy.configuration.settings.write_text_atomically--source--__codelineno-0-82"></a><span class="w">    </span><span class="sd">"""Publish one complete write; concurrent writers use last-replacement-wins."""</span>
+</span><span id="reccy.configuration.settings.write_text_atomically--source--__span-0-83"><a id="reccy.configuration.settings.write_text_atomically--source--__codelineno-0-83" name="reccy.configuration.settings.write_text_atomically--source--__codelineno-0-83"></a>    <span class="k">with</span> <span class="n">atomic_output</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">sync</span><span class="o">=</span><span class="n">sync</span><span class="p">)</span> <span class="k">as</span> <span class="n">temporary</span><span class="p">:</span>
+</span><span id="reccy.configuration.settings.write_text_atomically--source--__span-0-84"><a id="reccy.configuration.settings.write_text_atomically--source--__codelineno-0-84" name="reccy.configuration.settings.write_text_atomically--source--__codelineno-0-84"></a>        <span class="n">temporary</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
 </span></code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2301,7 +2488,7 @@
       <script id="__config" type="application/json">{"annotate":null,"base":"../../../..","features":["navigation.indexes","content.code.copy"],"redirect":null,"search":"../../../../assets/javascripts/workers/search.c47bb847.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","clipboard.error":"Could not copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
     
     
-      <script src="../../../../assets/javascripts/bundle.a2388154.min.js"></script>
+      <script src="../../../../assets/javascripts/bundle.77dd0ce9.min.js"></script>
       
     
   </body>

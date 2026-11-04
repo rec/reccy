@@ -76,6 +76,9 @@
         <loc>https://rec.github.io/reccy/reference/reccy/runtime/</loc>
       </url>
       <url>
+        <loc>https://rec.github.io/reccy/reference/reccy/runtime/asset_sets/</loc>
+      </url>
+      <url>
         <loc>https://rec.github.io/reccy/reference/reccy/runtime/assets/</loc>
       </url>
       <url>
@@ -107,6 +110,9 @@
       </url>
       <url>
         <loc>https://rec.github.io/reccy/reference/reccy/runtime/process/</loc>
+      </url>
+      <url>
+        <loc>https://rec.github.io/reccy/reference/reccy/runtime/publication/</loc>
       </url>
       <url>
         <loc>https://rec.github.io/reccy/reference/reccy/runtime/retry/</loc>
