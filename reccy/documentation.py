@@ -103,19 +103,13 @@ class Documentation(BaseModel, frozen=True):
         A clean source commit already published is skipped unless force=True.
         """
         root = self.root.resolve()
-        remote = subprocess.check_output(
-            ['git', 'remote', 'get-url', 'origin'], cwd=root, text=True
-        ).strip()
         repository = subprocess.check_output(
             [
                 'gh',
-                'repo',
-                'view',
-                remote,
-                '--json',
-                'nameWithOwner',
+                'api',
+                'repos/{owner}/{repo}',
                 '--jq',
-                '.nameWithOwner',
+                '.full_name',
             ],
             cwd=root,
             text=True,
