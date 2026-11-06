@@ -26,6 +26,7 @@ reccy = "reccy.cli:main"
 [dependency-groups]
 dev = [
     "pytest",
+    "pytest-regressions>=2.11.0",
     "pytest-xdist",
     "pyupgrade>=3.21.2",
     "ruff",
