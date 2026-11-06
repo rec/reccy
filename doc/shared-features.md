@@ -239,6 +239,37 @@ Tuney migration: replace the local `app.file_output.atomic_output` implementatio
 and its imports with this function. Streamo migration: use it inside image/cursor
 publication, retaining image validation. Neither migration is implemented here.
 
+## Sample TOML configurations
+
+`write_sample_config` generates a complete configuration from a Pydantic model
+type, preserving field defaults and filling required fields recursively:
+
+```python
+from pathlib import Path
+
+from reccy.configuration.sample_config import write_sample_config
+
+write_sample_config(Settings, Path('sample.toml'))
+```
+
+Required strings become `"sample"`, integers and floats become `0`, and booleans
+become `false`. Nested Pydantic models are filled recursively. Other classes must
+have a constructor that takes no arguments and a TOML-compatible serialized
+value. Required containers start empty. Unions use their first non-`None` member;
+defaults of `None` are replaced using the same rules because TOML has no null.
+
+Field docstrings, source comments beside or immediately before fields, and
+Pydantic field descriptions become TOML comments, including inside
+nested models, model lists, and model dictionaries. Source comments and field
+docstrings require the original Python source to be available; descriptions still
+work for dynamically created models. Class docstrings are omitted. Blank lines
+separate documented parameters and tables, with each comment kept beside its
+parameter. Consecutive undocumented parameters stay together.
+
+Pydantic validates the generated values. Unsupported types, required recursive
+models, and constraints that reject the sample values raise errors. Generation
+finishes before the file is written, preserving an existing file on failure.
+
 ## Validated configuration edits
 
 Import `validated_update` from `reccy.configuration.update`:

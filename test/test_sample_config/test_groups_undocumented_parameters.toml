@@ -1,0 +1,12 @@
+[metadata]
+
+title = "sample"
+description = "sample"
+
+# Twitch category name; YouTube or Kick numeric category ID.
+category = "sample"
+
+tags = []
+language = "sample"
+privacy = "unlisted"
+scheduled_start = "2026-08-12T20:00:00Z"

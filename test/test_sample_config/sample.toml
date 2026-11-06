@@ -1,0 +1,50 @@
+# Name recorded in the metadata of every frame.
+observer = "sample"
+
+# Local date used to group frames from a single observing night.
+session_date = "2026-08-12"
+
+# Directory for raw frames, relative to the process working directory.
+output_directory = "observations/perseids"
+
+# Leave false for an unattended session so the display does not spoil dark vision.
+preview_enabled = false
+
+# Paths to dark and flat calibration frames; leave empty to store raw data only.
+calibration_files = []
+
+# Settings for the imaging sensor; apply these before running any sequences.
+[camera]
+
+# Seconds to expose each frame; increase for faint objects or narrow filters.
+exposure_seconds = 2.5
+
+# Keep the sensor below ambient temperature to reduce thermal noise.
+cooling_enabled = true
+
+# Output width and height in pixels, after any sensor binning.
+resolution = [1920, 1080]
+
+# Run these capture sequences in order, changing filters between sequences.
+[[sequences]]
+
+# Installed filter-wheel label to select before starting this sequence.
+filter_name = "hydrogen-alpha"
+
+# Number of exposures to stack; rejected frames still count toward this limit.
+frames = 120
+
+# Shift the telescope between frames by this many pixels to average hot pixels.
+dither_pixels = 3.0
+
+# Named sky positions available to the scheduler; coordinates use epoch J2000.
+[targets.north-america-nebula]
+
+# Target position eastward along the celestial equator, in hours from 0 to 24.
+right_ascension_hours = 20.97
+
+# Target position north or south of the celestial equator, from -90 to 90.
+declination_degrees = 44.33
+
+# Metadata attached to every frame, such as a project or instrument ID.
+[labels]
