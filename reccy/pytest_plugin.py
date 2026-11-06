@@ -1,8 +1,12 @@
 import sys
 from collections.abc import Callable, Iterable
+from pathlib import Path
 from typing import Protocol
 
 import pytest
+from pydantic import BaseModel
+
+from .configuration.sample_config import write_sample_config
 
 
 class CliHelp(Protocol):
@@ -15,7 +19,13 @@ class CliHelp(Protocol):
 
 
 class FileRegression(Protocol):
-    def check(self, contents: str) -> None: ...
+    def check(
+        self, contents: str, *, extension: str = '.txt', fullpath: Path | None = None
+    ) -> None: ...
+
+
+class SampleConfigRegression(Protocol):
+    def __call__(self, model: type[BaseModel], *, path: Path | None = None) -> str: ...
 
 
 @pytest.fixture
@@ -32,6 +42,30 @@ def cli_help(
         file_regression.check(
             _help_text(program, invoke, capsys, monkeypatch, subcommands)
         )
+
+    return check
+
+
+@pytest.fixture
+def sample_config_regression(
+    tmp_path: Path, file_regression: FileRegression, request: pytest.FixtureRequest
+) -> SampleConfigRegression:
+    """Compare sample TOML at path, defaulting to the nearest project doc/ directory."""
+
+    def check(model: type[BaseModel], *, path: Path | None = None) -> str:
+        if path is None:
+            for parent in request.path.parents:
+                if (parent / '.git').is_dir() or (parent / 'doc').is_dir():
+                    path = parent / 'doc' / 'sample-config.toml'
+                    break
+            else:
+                raise ValueError(f'No .git/ or doc/ directory above {request.path}')
+        generated = tmp_path / 'sample.toml'
+        write_sample_config(model, generated)
+        text = generated.read_text()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        file_regression.check(text, fullpath=path)
+        return text
 
     return check
 

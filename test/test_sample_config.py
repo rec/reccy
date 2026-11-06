@@ -1,11 +1,17 @@
 import tomllib
 from datetime import UTC, date, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 from pydantic import BaseModel, Field, ValidationError, create_model
 
 from reccy.configuration.sample_config import write_sample_config
+
+if TYPE_CHECKING:
+    from reccy.pytest_plugin import SampleConfigRegression
+
+pytest_plugins = ['reccy.pytest_plugin']
 
 
 class Connection(BaseModel, frozen=True):
@@ -75,12 +81,10 @@ class ObservatoryConfig(BaseModel, frozen=True):
     """Metadata attached to every frame, such as a project or instrument ID."""
 
 
-def test_writes_recursive_sample_values_and_source_comments(tmp_path: Path) -> None:
-    path = tmp_path / 'sample.toml'
-    write_sample_config(ObservatoryConfig, path)
-    text = path.read_text()
-    expected = Path(__file__).with_suffix('') / 'sample.toml'
-    assert text == expected.read_text()
+def test_writes_recursive_sample_values_and_source_comments(
+    sample_config_regression: 'SampleConfigRegression',
+) -> None:
+    text = sample_config_regression(ObservatoryConfig)
     data = tomllib.loads(text)
 
     assert data == {
@@ -126,7 +130,9 @@ def test_groups_undocumented_parameters(
     class Settings(BaseModel, frozen=True):
         metadata: Metadata = Metadata()
 
-    sample_config_regression(Settings)
+    sample_config_regression(
+        Settings, path=Path(__file__).parents[1] / 'doc' / 'sample-metadata.toml'
+    )
 
 
 def test_only_parameter_documentation_is_included(tmp_path: Path) -> None:
