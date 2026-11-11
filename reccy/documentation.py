@@ -8,6 +8,7 @@ from tempfile import NamedTemporaryFile
 
 from pydantic import BaseModel
 
+from .documentation_pages import check_pages
 from .errors import ReccyError
 
 SITE_DIRECTORY = '.cache/reccy-docs/site'
@@ -75,10 +76,11 @@ class Documentation(BaseModel, frozen=True):
         }
 
     def build(self, site_url: str = '') -> Path:
-        """Build a static site and return its index path; warnings fail the build.
+        """Build and check a static site, returning its index path.
 
         uv installs and caches the documentation tools in an isolated environment.
         The generated site is written to .cache/reccy-docs/site/.
+        Warnings, broken page links, and empty pages fail the build.
         """
         root = self.root.resolve()
         with NamedTemporaryFile(
@@ -108,7 +110,11 @@ class Documentation(BaseModel, frozen=True):
                 cwd=root,
                 check=True,
             )
-        return root / SITE_DIRECTORY / 'index.html'
+        index = root / SITE_DIRECTORY / 'index.html'
+        check_pages(
+            index, site_url, use_directory_urls=bool(settings['use_directory_urls'])
+        )
+        return index
 
     def publish(self, init: bool = False, force: bool = False) -> str:
         """Build and push to origin's gh-pages branch, then return the site URL.

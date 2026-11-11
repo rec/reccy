@@ -126,3 +126,47 @@ def test_project_documentation_settings_are_applied(
     assert config['plugins']['mkdocstrings']['handlers']['python']['options'][
         'extensions'
     ] == ['scripts/griffe_example.py']
+
+
+@pytest.mark.parametrize('valid', [False, True])
+def test_build_checks_generated_pages_before_returning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, valid: bool
+) -> None:
+    (tmp_path / 'pyproject.toml').write_text('[project]\nname = "example"\n')
+    index = tmp_path / '.cache' / 'reccy-docs' / 'site' / 'index.html'
+    index.parent.mkdir(parents=True)
+    index.write_text(
+        '<article><p>Guide.</p><a href="/example/client.html">Client</a></article>'
+        if valid
+        else '<article><h1>Empty</h1></article>'
+    )
+    (index.parent / 'client.html').write_text('<article><p>Client API.</p></article>')
+    monkeypatch.setattr(subprocess, 'run', Mock())
+
+    if valid:
+        assert (
+            Documentation(root=tmp_path).build('https://rec.github.io/example/')
+            == index
+        )
+    else:
+        with pytest.raises(ValueError, match='Blank documentation page'):
+            Documentation(root=tmp_path).build()
+
+
+def test_build_checks_the_configured_url_style(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / 'pyproject.toml').write_text(
+        '[project]\nname = "example"\n'
+        '[tool.reccy.documentation]\nuse_directory_urls = false\n'
+    )
+    root = tmp_path / '.cache' / 'reccy-docs' / 'site'
+    (root / 'guide').mkdir(parents=True)
+    (root / 'index.html').write_text(
+        '<article><p>Guide.</p><a href="guide/">Guide</a></article>'
+    )
+    (root / 'guide' / 'index.html').write_text('<article><p>Guide.</p></article>')
+    monkeypatch.setattr(subprocess, 'run', Mock())
+
+    with pytest.raises(ValueError, match='Directory documentation link'):
+        Documentation(root=tmp_path).build()

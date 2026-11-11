@@ -9,7 +9,8 @@ uv run reccy docs
 This builds the site at `.cache/reccy-docs/site/index.html` and pushes it to the repository's
 `gh-pages` branch. GitHub Pages then deploys that branch. The command requires
 `uv`, `git`, and an authenticated `gh`, with permission to push to `origin`.
-Builds fail on warnings, and failed builds are not pushed. Successful completion
+Builds fail on warnings, broken internal page links, or pages without article
+content or links to child documentation. Failed builds are not pushed. Successful completion
 confirms the push was accepted; GitHub's deployment happens afterward.
 
 When the working tree is clean and the current commit has already been published,
@@ -99,6 +100,14 @@ from reccy.documentation import Documentation
 
 index = Documentation(root=Path('/path/to/project')).build()
 ```
+
+Every build checks the generated HTML before returning, including builds made
+through `publish()`. Links are resolved as hosted URLs using the site's URL prefix;
+directory links are accepted only with `use_directory_urls = true`. Heading-only
+indexes can link to child pages without needing an artificial description.
+Script and style text do not count as article content. The checker follows pages
+reachable from the landing page, without fetching external URLs or checking assets,
+fragment targets, or CSS/JavaScript visibility. It does not replace browser review.
 
 `configuration()` returns the Zensical configuration as a dictionary.
 `publish(init=False, force=False)` publishes documentation as needed, returning
