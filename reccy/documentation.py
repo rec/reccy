@@ -81,8 +81,10 @@ class Documentation(BaseModel, frozen=True):
         uv installs and caches the documentation tools in an isolated environment.
         The generated site is written to .cache/reccy-docs/site/.
         Warnings, broken page links, and empty pages fail the build.
+        Missing landing pages and the generated-site ignore rule are initialized.
         """
         root = self.root.resolve()
+        self._initialize()
         with NamedTemporaryFile(
             mode='w',
             prefix='reccy-docs-',
@@ -116,11 +118,10 @@ class Documentation(BaseModel, frozen=True):
         )
         return index
 
-    def publish(self, init: bool = False, force: bool = False) -> str:
+    def publish(self, force: bool = False) -> str:
         """Build and push to origin's gh-pages branch, then return the site URL.
 
-        Pages must already use gh-pages at its root. With init=True, a missing
-        Pages site is configured after the first successful documentation push.
+        A missing Pages site is configured after the first successful push.
         Other publishing configurations are left untouched and cause an error.
         A clean source commit already published is skipped unless force=True.
         """
@@ -142,42 +143,13 @@ class Documentation(BaseModel, frozen=True):
         )
         missing = result.returncode != 0 and '(HTTP 404)' in result.stderr
         if missing:
-            if not init:
-                raise ReccyError(
-                    'GitHub Pages is not configured; run reccy docs --init'
-                )
             owner, name = repository.split('/')
             path = '' if name.lower() == f'{owner.lower()}.github.io' else f'{name}/'
             url = f'https://{owner}.github.io/{path}'
         else:
             url = _pages_url(result)
 
-        if init:
-            landing = root / 'doc' / 'index.md'
-            if not landing.exists():
-                landing.parent.mkdir(parents=True, exist_ok=True)
-                settings = self.configuration()
-                landing.write_text(
-                    f'# {settings["site_name"]}\n\n'
-                    f'{settings["site_description"]}\n\n'
-                    'The API Reference is generated from the Python source code.\n'
-                )
-            ignored = subprocess.run(
-                [
-                    'git',
-                    'check-ignore',
-                    '--quiet',
-                    '--no-index',
-                    f'{SITE_DIRECTORY}/index.html',
-                ],
-                cwd=root,
-            )
-            if ignored.returncode == 1:
-                ignore = root / '.gitignore'
-                text = ignore.read_text() if ignore.exists() else ''
-                ignore.write_text(f'{text.rstrip()}\n/.cache/reccy-docs/\n')
-            elif ignored.returncode:
-                ignored.check_returncode()
+        self._initialize()
 
         branch = subprocess.check_output(
             ['git', 'ls-remote', '--heads', 'origin', 'refs/heads/gh-pages'],
@@ -272,6 +244,23 @@ class Documentation(BaseModel, frozen=True):
             url = _pages_url(result)
         print(f'Documentation pushed: {url}')
         return url
+
+    def _initialize(self) -> None:
+        root = self.root.resolve()
+        landing = root / 'doc' / 'index.md'
+        if not landing.exists():
+            settings = self.configuration()
+            landing.parent.mkdir(parents=True, exist_ok=True)
+            landing.write_text(
+                f'# {settings["site_name"]}\n\n'
+                f'{settings["site_description"]}\n\n'
+                'The API Reference is generated from the Python source code.\n'
+            )
+        ignore = root / '.gitignore'
+        text = ignore.read_text() if ignore.exists() else ''
+        if '/.cache/reccy-docs/' not in text.splitlines():
+            separator = '\n' if text and not text.endswith('\n') else ''
+            ignore.write_text(f'{text}{separator}/.cache/reccy-docs/\n')
 
 
 def _pages_url(result: subprocess.CompletedProcess[str]) -> str:

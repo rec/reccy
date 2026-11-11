@@ -33,7 +33,8 @@ and retry scheduling, including migration notes for consumer projects.
 ## Documentation
 
 `uv run reccy docs` builds the Markdown guides and generated Python API reference
-and pushes them to GitHub Pages. Run `uv run reccy docs --init` for initial setup.
+and pushes them to GitHub Pages, initializing missing documentation files and Pages
+settings automatically. Use `uv run reccy docs --build-only` to build locally.
 See the [documentation guide](doc/documentation.md) for the shared API and layout.
 
 `uv run reccy release [patch|minor|major]` publishes documentation first, then

@@ -34,8 +34,8 @@ uv run reccy release minor --publish
 This also runs `uv build` and `uv publish` after creating the GitHub release and
 clearing `dist/`. Package-registry credentials must already be configured.
 
-Documentation publication is required. If Pages is missing, run
-`reccy docs --init` separately and commit any initialization files before retrying
-the release. Any documentation build, push, or Pages-setup error stops the command
-before version changes, release commits, tags, or GitHub releases. GitHub's Pages
+Documentation publication is required and initializes missing Pages settings
+automatically. For a new project, run `reccy docs` and commit any new landing page
+or ignore-file changes before releasing. Any documentation build, push, or Pages-setup
+error stops the command before version changes, release commits, tags, or GitHub releases. GitHub's Pages
 deployment runs asynchronously after the documentation push.

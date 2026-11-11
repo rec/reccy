@@ -24,20 +24,15 @@ To rebuild regardless, including after documentation-tool updates, run:
 uv run reccy docs --force
 ```
 
-`-f` is the short form of `--force`, and can also be combined with `--init`.
+`-f` is the short form of `--force`.
 
-GitHub Pages must already be configured to publish the root of `gh-pages`.
-Otherwise the command fails. For a repository without a Pages site, run:
-
-```sh
-uv run reccy docs --init
-```
-
-Initialization creates a missing `doc/index.md`, ignores `.cache/reccy-docs/` if
-needed, builds and pushes the documentation, and enables GitHub Pages. Commit any
-new landing page or ignore-file changes before releasing. Existing Pages settings
-that use a different branch, directory, or workflow cause an error and are left
-untouched, including when `--init` is supplied.
+Setup is automatic. A missing `doc/index.md` is created from the project metadata,
+and `/.cache/reccy-docs/` is added to `.gitignore` if the rule is absent. Existing
+landing pages are preserved. If GitHub Pages is missing, publication configures it
+to serve the root of `gh-pages` after the first successful documentation push.
+Existing Pages settings that use a different branch, directory, or workflow cause
+an error and are left untouched. Commit new landing page or ignore-file changes
+before releasing.
 
 Generated HTML is committed only on `gh-pages`, keeping it out of source commits.
 Publishing never switches the current branch and does not force-push.
@@ -51,8 +46,8 @@ uv run reccy docs --build-only
 ```
 
 This always rebuilds, prints the generated index path, and does not call `git` or
-`gh`. It does not require a remote or a configured GitHub Pages site. `--init`
-and `--force` apply only to publishing and have no effect with `--build-only`.
+`gh`. It creates missing local documentation files without requiring a remote or
+a configured GitHub Pages site. `--force` has no effect with `--build-only`.
 
 Zensical renders the Markdown guides in `doc/`. mkdocstrings generates an API
 reference and navigation from the package's Python source files. Public classes,
@@ -99,7 +94,7 @@ isolated environments only when documentation is built or published.
 
 Project-specific guides stay in `doc/`; the shared API supplies the theme, search,
 API navigation and rendering settings. No per-project Zensical configuration is
-required. `--init` supplies the landing page when starting from scratch.
+required. Builds supply the landing page when starting from scratch.
 
 Python callers can build locally without publishing:
 
@@ -122,7 +117,7 @@ reachable from the landing page, without fetching external URLs or checking asse
 fragment targets, or CSS/JavaScript visibility. It does not replace browser review.
 
 `configuration()` returns the Zensical configuration as a dictionary.
-`publish(init=False, force=False)` publishes documentation as needed, returning
+`publish(force=False)` publishes documentation as needed, returning
 the Pages URL. Documentation tools are not installed into normal consumer environments.
 
 ## Language scope

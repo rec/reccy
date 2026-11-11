@@ -25,17 +25,15 @@ def test_help_does_not_modify_the_project(
     assert not capsys.readouterr().err
 
 
-@pytest.mark.parametrize('init', [False, True])
 @pytest.mark.parametrize('force_flag', [None, '-f', '--force'])
-def test_docs_passes_explicit_initialization(
-    init: bool,
+def test_docs_passes_force_to_publication(
     force_flag: str | None,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    calls: list[tuple[bool, bool]] = []
+    calls: list[bool] = []
 
-    def publish(self: Documentation, init: bool = False, force: bool = False) -> str:
-        calls.append((init, force))
+    def publish(self: Documentation, force: bool = False) -> str:
+        calls.append(force)
         return 'https://example.github.io/project/'
 
     monkeypatch.setattr(Documentation, 'publish', publish)
@@ -44,13 +42,12 @@ def test_docs_passes_explicit_initialization(
         cli.main(
             [
                 'docs',
-                *(['--init'] if init else []),
                 *([force_flag] if force_flag else []),
             ]
         )
         == 0
     )
-    assert calls == [(init, force_flag is not None)]
+    assert calls == [force_flag is not None]
 
 
 def test_docs_build_only_builds_without_publishing(

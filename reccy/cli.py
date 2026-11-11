@@ -14,9 +14,6 @@ from .release import ReleaseCommand, release
 class DocsCommand(BaseModel, frozen=True):
     """Build and check documentation, publishing to GitHub Pages by default."""
 
-    init: bool = False
-    """Initialize GitHub Pages if the repository does not have a Pages site."""
-
     force: Annotated[bool, tyro.conf.arg(aliases=['-f'])] = False
     """Rebuild and publish even if the current source commit is already published."""
 
@@ -79,5 +76,5 @@ def _build_docs(command: DocsCommand) -> int:
         index = Documentation().build()
         print(f'Built and checked documentation: {index}')
     else:
-        Documentation().publish(init=command.init, force=command.force)
+        Documentation().publish(force=command.force)
     return 0
