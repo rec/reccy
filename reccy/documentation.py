@@ -29,12 +29,16 @@ class Documentation(BaseModel, frozen=True):
         with (root / 'pyproject.toml').open('rb') as file:
             metadata = tomllib.load(file)
         project = metadata['project']
+        documentation = (
+            metadata.get('tool', {}).get('reccy', {}).get('documentation', {})
+        )
         package = project['name'].replace('-', '_')
         return {
             'site_name': project['name'],
             'site_description': project.get('description', ''),
             'docs_dir': 'doc',
             'site_dir': SITE_DIRECTORY,
+            'use_directory_urls': documentation.get('use_directory_urls', True),
             'theme': {
                 'name': 'material',
                 'features': ['navigation.indexes', 'content.code.copy'],
@@ -57,10 +61,7 @@ class Documentation(BaseModel, frozen=True):
                         'python': {
                             'paths': [str(root)],
                             'options': {
-                                'extensions': metadata.get('tool', {})
-                                .get('reccy', {})
-                                .get('documentation', {})
-                                .get('extensions', []),
+                                'extensions': documentation.get('extensions', []),
                                 'allow_inspection': False,
                                 'show_if_no_docstring': True,
                                 'show_signature_annotations': True,

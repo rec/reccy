@@ -124,3 +124,7 @@ uv's isolated documentation environment, where Griffe is already available.
 Keep project-specific extension code in version control. It can describe generated
 APIs without importing application modules or adding documentation dependencies
 to the runtime package.
+
+For a site that can be opened directly from disk, add
+`use_directory_urls = false` to that same table. Generated navigation then links
+to explicit HTML files. The default remains directory-style URLs for web hosting.

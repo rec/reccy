@@ -110,16 +110,19 @@ def test_relative_root_resolves_source_paths(
     )
 
 
-def test_project_griffe_extensions_are_passed_to_the_python_handler(
+def test_project_documentation_settings_are_applied(
     tmp_path: Path,
 ) -> None:
     (tmp_path / 'pyproject.toml').write_text(
         '[project]\nname = "example"\n'
-        '[tool.reccy.documentation]\nextensions = ["scripts/griffe_example.py"]\n'
+        '[tool.reccy.documentation]\n'
+        'use_directory_urls = false\n'
+        'extensions = ["scripts/griffe_example.py"]\n'
     )
 
     config = Documentation(root=tmp_path).configuration()
 
+    assert config['use_directory_urls'] is False
     assert config['plugins']['mkdocstrings']['handlers']['python']['options'][
         'extensions'
     ] == ['scripts/griffe_example.py']
