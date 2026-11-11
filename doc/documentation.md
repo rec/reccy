@@ -103,8 +103,10 @@ index = Documentation(root=Path('/path/to/project')).build()
 
 Every build checks the generated HTML before returning, including builds made
 through `publish()`. Links are resolved as hosted URLs using the site's URL prefix;
-directory links are accepted only with `use_directory_urls = true`. Heading-only
-indexes can link to child pages without needing an artificial description.
+directory links are accepted only with `use_directory_urls = true`. With that
+setting off, root-relative page links are also rejected because they resolve from
+the filesystem root under `file://`; use relative links to explicit HTML files.
+Heading-only indexes can link to child pages without needing an artificial description.
 Script and style text do not count as article content. The checker follows pages
 reachable from the landing page, without fetching external URLs or checking assets,
 fragment targets, or CSS/JavaScript visibility. It does not replace browser review.

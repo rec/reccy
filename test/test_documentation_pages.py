@@ -5,7 +5,10 @@ import pytest
 from reccy.documentation_pages import check_pages
 
 
-def test_checks_reachable_pages_without_fetching_external_urls(tmp_path: Path) -> None:
+@pytest.mark.parametrize('use_directory_urls', [False, True])
+def test_checks_reachable_pages_without_fetching_external_urls(
+    tmp_path: Path, use_directory_urls: bool
+) -> None:
     index = tmp_path / 'index.html'
     index.write_text(
         '<article><p>Usage guide.</p><a href="client.html">Client</a>'
@@ -18,7 +21,7 @@ def test_checks_reachable_pages_without_fetching_external_urls(tmp_path: Path) -
     )
     (tmp_path / 'unreachable.html').write_text('<article><h1>Unused</h1></article>')
 
-    assert check_pages(index) == 2
+    assert check_pages(index, use_directory_urls=use_directory_urls) == 2
 
 
 @pytest.mark.parametrize('hidden', ['', '<script>run()</script>', '<style>p{}</style>'])
@@ -82,6 +85,21 @@ def test_directory_links_follow_the_configured_url_style(
     else:
         with pytest.raises(ValueError, match='Directory documentation link'):
             check_pages(index, use_directory_urls=False)
+
+
+@pytest.mark.parametrize('site_url', ['', 'https://rec.github.io/example/'])
+def test_rejects_root_relative_page_links_for_local_file_browsing(
+    tmp_path: Path, site_url: str
+) -> None:
+    index = tmp_path / 'index.html'
+    prefix = '/example' if site_url else ''
+    index.write_text(
+        f'<article><p>Guide.</p><a href="{prefix}/guide.html">Guide</a></article>'
+    )
+    (tmp_path / 'guide.html').write_text('<article><p>Guide.</p></article>')
+
+    with pytest.raises(ValueError, match='Root-relative documentation link'):
+        check_pages(index, site_url=site_url, use_directory_urls=False)
 
 
 @pytest.mark.parametrize('name', ['index.html', 'package.html'])

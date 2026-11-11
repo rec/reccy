@@ -11,8 +11,10 @@ def check_pages(
     """Check reachable HTML pages for broken links and missing article content.
 
     Resolve links as a hosted site, including site_url's path prefix. External
-    URLs, assets, and fragment targets are not checked. Heading-only indexes are
-    allowed when they link to child pages. This does not evaluate CSS or scripts.
+    URLs, assets, and fragment targets are not checked. With directory URLs off,
+    root-relative page links are rejected because they fail under file://.
+    Heading-only indexes are allowed when they link to child pages.
+    This does not evaluate CSS or scripts.
     Return the number of pages checked.
     """
     root = index.resolve().parent
@@ -40,6 +42,13 @@ def check_pages(
             path = unquote(url.path)
             if Path(path).suffix not in ('', '.html'):
                 continue
+            if (
+                not use_directory_urls
+                and not source.scheme
+                and not source.netloc
+                and source.path.startswith('/')
+            ):
+                raise ValueError(f'Root-relative documentation link in {page}: {link}')
             target = (root / path.removeprefix(prefix)).resolve()
             if not path.startswith(prefix) or not target.is_relative_to(root):
                 raise ValueError(f'Broken documentation link in {page}: {link}')
