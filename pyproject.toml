@@ -3,7 +3,7 @@ name = "reccy"
 version = "0.2.0"
 description = "Shared local app utilities for recs, showco, tuney, and lyte"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 license = "MIT"
 authors = [{ name = "Tom Ritchford", email = "tom@swirly.com" }]
 dependencies = [
@@ -15,6 +15,7 @@ dependencies = [
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: 3.15",
