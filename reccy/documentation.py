@@ -27,7 +27,8 @@ class Documentation(BaseModel, frozen=True):
         """
         root = self.root.resolve()
         with (root / 'pyproject.toml').open('rb') as file:
-            project = tomllib.load(file)['project']
+            metadata = tomllib.load(file)
+        project = metadata['project']
         package = project['name'].replace('-', '_')
         return {
             'site_name': project['name'],
@@ -56,6 +57,10 @@ class Documentation(BaseModel, frozen=True):
                         'python': {
                             'paths': [str(root)],
                             'options': {
+                                'extensions': metadata.get('tool', {})
+                                .get('reccy', {})
+                                .get('documentation', {})
+                                .get('extensions', []),
                                 'allow_inspection': False,
                                 'show_if_no_docstring': True,
                                 'show_signature_annotations': True,

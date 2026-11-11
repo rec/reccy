@@ -109,3 +109,18 @@ the Pages URL. Documentation tools are not installed into normal consumer enviro
 This API generates Python references. Markdown guides can describe Rust or C++,
 but this setup does not extract their APIs. Rust API references still need
 rustdoc; C++ API references need a suitable extractor such as Doxygen.
+
+## Project-specific API extensions
+
+Projects can enable Griffe extensions in `pyproject.toml`:
+
+```toml
+[tool.reccy.documentation]
+extensions = ["doc/griffe_example.py"]
+```
+
+Paths are relative to the project root during a build. The extension runs inside
+uv's isolated documentation environment, where Griffe is already available.
+Keep project-specific extension code in version control. It can describe generated
+APIs without importing application modules or adding documentation dependencies
+to the runtime package.
