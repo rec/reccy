@@ -6,6 +6,7 @@ import stat
 import sys
 import threading
 import typing
+from _thread import LockType
 from enum import StrEnum, auto
 from multiprocessing import connection
 from pathlib import Path
@@ -511,7 +512,7 @@ def connect_windows_pipe(endpoint: str) -> connection.Connection:
 def _write_with_timeout(
     send: typing.Callable[[], None],
     close: typing.Callable[[], None],
-    lock: threading.Lock,
+    lock: LockType,
 ) -> bool:
     if not lock.acquire(timeout=WRITE_TIMEOUT):
         close()
