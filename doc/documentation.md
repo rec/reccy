@@ -116,7 +116,7 @@ Projects can enable Griffe extensions in `pyproject.toml`:
 
 ```toml
 [tool.reccy.documentation]
-extensions = ["doc/griffe_example.py"]
+extensions = ["scripts/griffe_example.py"]
 ```
 
 Paths are relative to the project root during a build. The extension runs inside
