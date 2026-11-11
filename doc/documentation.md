@@ -44,6 +44,16 @@ Publishing never switches the current branch and does not force-push.
 No documentation builds are added to routine CI. `reccy release` publishes docs
 before continuing with a release and stops if documentation publication fails.
 
+To build and check locally without publishing, run:
+
+```sh
+uv run reccy docs --build-only
+```
+
+This always rebuilds, prints the generated index path, and does not call `git` or
+`gh`. It does not require a remote or a configured GitHub Pages site. `--init`
+and `--force` apply only to publishing and have no effect with `--build-only`.
+
 Zensical renders the Markdown guides in `doc/`. mkdocstrings generates an API
 reference and navigation from the package's Python source files. Public classes,
 functions and fields appear with their signatures and type hints, even when they

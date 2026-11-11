@@ -12,13 +12,16 @@ from .release import ReleaseCommand, release
 
 
 class DocsCommand(BaseModel, frozen=True):
-    """Build documentation and push it to GitHub Pages."""
+    """Build and check documentation, publishing to GitHub Pages by default."""
 
     init: bool = False
     """Initialize GitHub Pages if the repository does not have a Pages site."""
 
     force: Annotated[bool, tyro.conf.arg(aliases=['-f'])] = False
     """Rebuild and publish even if the current source commit is already published."""
+
+    build_only: bool = False
+    """Build and check documentation locally without publishing to GitHub Pages."""
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -30,7 +33,7 @@ def main(argv: list[str] | None = None) -> int:
         prog='reccy',
     )
     if isinstance(command, DocsCommand):
-        return run_main(lambda: _publish_docs(command))
+        return run_main(lambda: _build_docs(command))
     return run_main(lambda: release(command))
 
 
@@ -71,6 +74,10 @@ def _usage(prog: str, commands: Mapping[str, object]) -> str:
     return f'Usage: {prog} {{{",".join(commands)}}} ...'
 
 
-def _publish_docs(command: DocsCommand) -> int:
-    Documentation().publish(init=command.init, force=command.force)
+def _build_docs(command: DocsCommand) -> int:
+    if command.build_only:
+        index = Documentation().build()
+        print(f'Built and checked documentation: {index}')
+    else:
+        Documentation().publish(init=command.init, force=command.force)
     return 0

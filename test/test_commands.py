@@ -1,4 +1,5 @@
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
@@ -50,6 +51,24 @@ def test_docs_passes_explicit_initialization(
         == 0
     )
     assert calls == [(init, force_flag is not None)]
+
+
+def test_docs_build_only_builds_without_publishing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    index = tmp_path / 'site' / 'index.html'
+    build = Mock(return_value=index)
+    publish = Mock()
+    monkeypatch.setattr(Documentation, 'build', build)
+    monkeypatch.setattr(Documentation, 'publish', publish)
+
+    assert cli.main(['docs', '--build-only']) == 0
+
+    build.assert_called_once_with()
+    publish.assert_not_called()
+    assert str(index) in capsys.readouterr().out
 
 
 @pytest.mark.parametrize('part', ['patch', 'minor', 'major'])
